@@ -161,6 +161,9 @@ export default function LoginPage() {
                 required
                 placeholder="Enter your password"
               />
+              <div className="text-right mt-1">
+                <Link href="/forgot-password" className="text-xs text-blue-600 hover:underline">Forgot password?</Link>
+              </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}

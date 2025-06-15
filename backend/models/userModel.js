@@ -31,7 +31,19 @@ const userSchema = new mongoose.Schema({
     appointments: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Appointment'
-    }]
+    }],
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    otp: {
+        type: String,
+        default: null
+    },
+    otpExpires: {
+        type: Date,
+        default: null
+    }
 }, {
     timestamps: true
 });

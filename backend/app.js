@@ -14,6 +14,7 @@ app.use(express.json());
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
+const otpRoutes = require('./routes/otpRoutes');
 const userRoutes = require('./routes/userRoutes');
 const petRoutes = require('./routes/petRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
@@ -25,6 +26,7 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 const emrRoutes = require('./routes/emrRoutes');
 
 app.use('/api/auth', authRoutes);
+app.use('/api/otp', otpRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/pets', petRoutes);
 app.use('/api/appointments', appointmentRoutes);

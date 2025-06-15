@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Heart } from "lucide-react"
 
+import OtpVerification from "./OtpVerification"
+
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
     username: "",
@@ -20,6 +22,9 @@ export default function SignUpPage() {
     contactNumber: ""
   })
   const [loading, setLoading] = useState(false)
+  const [showOtp, setShowOtp] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState("")
+  const [error, setError] = useState("")
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +32,7 @@ export default function SignUpPage() {
     setLoading(true)
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match")
+      setError("Passwords don't match")
       setLoading(false)
       return
     }
@@ -47,20 +52,17 @@ export default function SignUpPage() {
       })
 
       const data = await response.json()
+      console.log('Signup response:', data)
 
       if (response.ok) {
-        // Store user data and token in localStorage
-        localStorage.setItem("user", JSON.stringify(data.data.user))
-        localStorage.setItem("role", data.data.role)
-        localStorage.setItem("token", data.data.token)
-
-        // Redirect to user dashboard since all signups are pet owners
-        router.push("/dashboard/user")
+        setShowOtp(true)
+        setRegisteredEmail(formData.email)
+        setError("")
       } else {
-        alert(data.message || "Signup failed")
+        setError(data.message || "Signup failed. Please try again.")
       }
     } catch (error) {
-      alert("An error occurred. Please try again.")
+      setError("An error occurred. Please try again.")
     }
 
     setLoading(false)
@@ -72,91 +74,98 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
-            <span className="text-2xl font-bold">PetEat</span>
-          </div>
-          <CardTitle>Create Account</CardTitle>
-          <CardDescription>Join our pet care community as a pet owner</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input 
-                id="username" 
-                value={formData.username} 
-                onChange={(e) => handleChange("username", e.target.value)} 
-                required 
-                placeholder="Choose a username"
-              />
+      {showOtp && registeredEmail ? (
+        <OtpVerification email={registeredEmail} />
+      ) : (
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
+              <span className="text-2xl font-bold">PetEat</span>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
-                required
-                placeholder="Enter your email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contactNumber">Contact Number</Label>
-              <Input
-                id="contactNumber"
-                type="tel"
-                value={formData.contactNumber}
-                onChange={(e) => handleChange("contactNumber", e.target.value)}
-                required
-                placeholder="Enter your contact number"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-                required
-                placeholder="Create a password"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={(e) => handleChange("confirmPassword", e.target.value)}
-                required
-                placeholder="Confirm your password"
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating Account..." : "Create Account"}
-            </Button>
-          </form>
+            {error && (
+              <div className="mb-2 text-red-600 text-sm font-medium">{error}</div>
+            )}
+            <CardTitle>Create Account</CardTitle>
+            <CardDescription>Join our pet care community as a pet owner</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input 
+                  id="username" 
+                  value={formData.username} 
+                  onChange={(e) => handleChange("username", e.target.value)} 
+                  required 
+                  placeholder="Choose a username"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  required
+                  placeholder="Enter your email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contactNumber">Contact Number</Label>
+                <Input
+                  id="contactNumber"
+                  type="tel"
+                  value={formData.contactNumber}
+                  onChange={(e) => handleChange("contactNumber", e.target.value)}
+                  required
+                  placeholder="Enter your contact number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => handleChange("password", e.target.value)}
+                  required
+                  placeholder="Create a password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                  required
+                  placeholder="Confirm your password"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Creating Account..." : "Create Account"}
+              </Button>
+            </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{" "}
-              <Link href="/login" className="text-blue-600 hover:underline">
-                Sign in
-              </Link>
-            </p>
-          </div>
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Already have an account?{" "}
+                <Link href="/login" className="text-blue-600 hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            </div>
 
-          <div className="mt-4 text-center text-xs text-gray-500">
-            <p>Note: Only pet owners can sign up through this form.</p>
-            <p>Doctors and administrators are created by the system administrator.</p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="mt-4 text-center text-xs text-gray-500">
+              <p>Note: Only pet owners can sign up through this form.</p>
+              <p>Doctors and administrators are created by the system administrator.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
