@@ -73,6 +73,12 @@ interface FormData {
   agreedToTerms: boolean;
 }
 
+function formatTimeRangeString(range: TimeRange): string {
+  if (!range.isOpen) return 'closed';
+  if (!range.start || !range.end) return 'closed';
+  return `${range.start}-${range.end}`;
+}
+
 export default function VetSignUpPage() {
   const [formData, setFormData] = useState<FormData>({
     clinicName: "",
@@ -129,6 +135,23 @@ export default function VetSignUpPage() {
     try {
       const formDataToSend = new FormData()
       
+      const weekdayRanges = [
+        formData.openingHours.monday,
+        formData.openingHours.tuesday,
+        formData.openingHours.wednesday,
+        formData.openingHours.thursday,
+        formData.openingHours.friday,
+      ];
+      const allWeekdaysSame = weekdayRanges.every(
+        (range) =>
+          range.isOpen === weekdayRanges[0].isOpen &&
+          range.start === weekdayRanges[0].start &&
+          range.end === weekdayRanges[0].end
+      );
+      const mondayToFriday = allWeekdaysSame
+        ? formatTimeRangeString(formData.openingHours.monday)
+        : "";
+
       // Handle nested objects and arrays
       const formDataObj: Record<string, string | File> = {
         clinicName: formData.clinicName,
@@ -145,7 +168,11 @@ export default function VetSignUpPage() {
           province: formData.location.province,
           zipCode: formData.location.zipCode
         }),
-        openingHours: JSON.stringify(formData.openingHours),
+        openingHours: JSON.stringify({
+          mondayToFriday,
+          saturday: formatTimeRangeString(formData.openingHours.saturday),
+          sunday: formatTimeRangeString(formData.openingHours.sunday),
+        }),
         servicesOffered: JSON.stringify(formData.servicesOffered || []),
         animalsCatered: JSON.stringify(formData.animalsCatered || [])
       }
