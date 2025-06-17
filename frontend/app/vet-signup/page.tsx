@@ -77,22 +77,7 @@ interface FormData {
   agreedToTerms: boolean;
 }
 
-const mapContainerStyle = {
-  width: '100%',
-  height: '400px'
-};
-
-const defaultCenter = {
-  lat: 14.5995, // Default to Manila coordinates
-  lng: 120.9842
-};
-
 export default function VetSignUpPage() {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [marker, setMarker] = useState<google.maps.Marker | null>(null);
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
-
   const [formData, setFormData] = useState<FormData>({
     clinicName: "",
     ownerName: "",
@@ -103,8 +88,8 @@ export default function VetSignUpPage() {
     location: {
       address: "",
       coordinates: {
-        lat: defaultCenter.lat,
-        lng: defaultCenter.lng
+        lat: 0,
+        lng: 0
       },
       city: "",
       province: "",
@@ -132,102 +117,6 @@ export default function VetSignUpPage() {
   const [registeredEmail, setRegisteredEmail] = useState("")
   const [error, setError] = useState("")
   const router = useRouter()
-
-  // Load Google Maps script
-  useEffect(() => {
-    const loadGoogleMapsScript = () => {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        setIsMapLoaded(true);
-      };
-      document.head.appendChild(script);
-    };
-
-    if (!window.google) {
-      loadGoogleMapsScript();
-    } else {
-      setIsMapLoaded(true);
-    }
-  }, []);
-
-  // Initialize map
-  useEffect(() => {
-    if (isMapLoaded && mapRef.current && !map) {
-      const newMap = new google.maps.Map(mapRef.current, {
-        center: defaultCenter,
-        zoom: 15,
-      });
-
-      const newMarker = new google.maps.Marker({
-        position: defaultCenter,
-        map: newMap,
-        draggable: true,
-      });
-
-      setMap(newMap);
-      setMarker(newMarker);
-
-      // Add click listener to map
-      newMap.addListener('click', (e: google.maps.MapMouseEvent) => {
-        if (e.latLng) {
-          handleMapClick(e);
-        }
-      });
-
-      // Add drag end listener to marker
-      newMarker.addListener('dragend', (e: google.maps.MapMouseEvent) => {
-        if (e.latLng) {
-          handleMapClick(e);
-        }
-      });
-    }
-  }, [isMapLoaded, map]);
-
-  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
-    if (e.latLng && marker) {
-      const lat = e.latLng.lat();
-      const lng = e.latLng.lng();
-      
-      // Update marker position
-      marker.setPosition(e.latLng);
-      
-      // Reverse geocode to get address
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ location: { lat, lng } }, (results: google.maps.GeocoderResult[] | null, status: google.maps.GeocoderStatus) => {
-        if (status === 'OK' && results && results[0]) {
-          const addressComponents = results[0].address_components;
-          let city = '';
-          let province = '';
-          let zipCode = '';
-
-          addressComponents.forEach((component: google.maps.GeocoderAddressComponent) => {
-            const types = component.types;
-            if (types.includes('locality')) {
-              city = component.long_name;
-            } else if (types.includes('administrative_area_level_1')) {
-              province = component.long_name;
-            } else if (types.includes('postal_code')) {
-              zipCode = component.long_name;
-            }
-          });
-
-          setFormData(prev => ({
-            ...prev,
-            location: {
-              address: results[0].formatted_address,
-              coordinates: { lat, lng },
-              city,
-              province,
-              zipCode
-            }
-          }));
-        }
-      });
-    }
-  }, [marker]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -522,47 +411,34 @@ export default function VetSignUpPage() {
 
               <div className="space-y-2">
                 <Label>Clinic Location</Label>
-                <div className="mb-4">
-                  {!isMapLoaded ? (
-                    <div className="w-full h-[400px] bg-gray-100 flex items-center justify-center">
-                      Loading map...
-                    </div>
-                  ) : (
-                    <div ref={mapRef} style={mapContainerStyle} />
-                  )}
-                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
                     placeholder="Address"
                     value={formData.location.address}
                     onChange={(e) => handleChange("location.address", e.target.value)}
                     required
-                    readOnly
                   />
                   <Input
                     placeholder="City"
                     value={formData.location.city}
                     onChange={(e) => handleChange("location.city", e.target.value)}
                     required
-                    readOnly
                   />
                   <Input
                     placeholder="Province"
                     value={formData.location.province}
                     onChange={(e) => handleChange("location.province", e.target.value)}
                     required
-                    readOnly
                   />
                   <Input
                     placeholder="ZIP Code"
                     value={formData.location.zipCode}
                     onChange={(e) => handleChange("location.zipCode", e.target.value)}
                     required
-                    readOnly
                   />
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  Click on the map to set your clinic location. You can also drag the marker to adjust the position.
+                  Please enter your clinic's full address details.
                 </p>
               </div>
 
