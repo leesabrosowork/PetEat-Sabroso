@@ -73,22 +73,7 @@ interface FormData {
   agreedToTerms: boolean;
 }
 
-const mapContainerStyle = {
-  width: '100%',
-  height: '400px'
-};
-
-const defaultCenter = {
-  lat: 14.5995, // Default to Manila coordinates
-  lng: 120.9842
-};
-
 export default function VetSignUpPage() {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [marker, setMarker] = useState<google.maps.Marker | null>(null);
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
-
   const [formData, setFormData] = useState<FormData>({
     clinicName: "",
     ownerName: "",
