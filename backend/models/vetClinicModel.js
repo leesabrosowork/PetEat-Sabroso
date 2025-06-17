@@ -37,16 +37,6 @@ const vetClinicSchema = new mongoose.Schema({
       required: [true, 'Address is required'],
       trim: true
     },
-    coordinates: {
-      lat: {
-        type: Number,
-        required: [true, 'Latitude is required']
-      },
-      lng: {
-        type: Number,
-        required: [true, 'Longitude is required']
-      }
-    },
     city: {
       type: String,
       required: [true, 'City is required'],

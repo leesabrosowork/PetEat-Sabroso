@@ -52,10 +52,6 @@ interface FormData {
   phoneNumber: string;
   location: {
     address: string;
-    coordinates: {
-      lat: number;
-      lng: number;
-    };
     city: string;
     province: string;
     zipCode: string;
@@ -102,10 +98,6 @@ export default function VetSignUpPage() {
     phoneNumber: "",
     location: {
       address: "",
-      coordinates: {
-        lat: defaultCenter.lat,
-        lng: defaultCenter.lng
-      },
       city: "",
       province: "",
       zipCode: ""
@@ -218,7 +210,6 @@ export default function VetSignUpPage() {
             ...prev,
             location: {
               address: results[0].formatted_address,
-              coordinates: { lat, lng },
               city,
               province,
               zipCode
@@ -258,53 +249,13 @@ export default function VetSignUpPage() {
         phoneNumber: formData.phoneNumber,
         licenseNumber: formData.licenseNumber,
         clinicType: formData.clinicType,
-        location: JSON.stringify({
-          address: formData.location.address || '',
-          coordinates: {
-            lat: formData.location.coordinates.lat || 0,
-            lng: formData.location.coordinates.lng || 0
-          },
-          city: formData.location.city || '',
-          province: formData.location.province || '',
-          zipCode: formData.location.zipCode || ''
+        address: JSON.stringify({
+          address: formData.location.address,
+          city: formData.location.city,
+          province: formData.location.province,
+          zipCode: formData.location.zipCode
         }),
-        openingHours: JSON.stringify({
-          monday: {
-            isOpen: formData.openingHours.monday.isOpen,
-            start: formData.openingHours.monday.start || '09:00',
-            end: formData.openingHours.monday.end || '17:00'
-          },
-          tuesday: {
-            isOpen: formData.openingHours.tuesday.isOpen,
-            start: formData.openingHours.tuesday.start || '09:00',
-            end: formData.openingHours.tuesday.end || '17:00'
-          },
-          wednesday: {
-            isOpen: formData.openingHours.wednesday.isOpen,
-            start: formData.openingHours.wednesday.start || '09:00',
-            end: formData.openingHours.wednesday.end || '17:00'
-          },
-          thursday: {
-            isOpen: formData.openingHours.thursday.isOpen,
-            start: formData.openingHours.thursday.start || '09:00',
-            end: formData.openingHours.thursday.end || '17:00'
-          },
-          friday: {
-            isOpen: formData.openingHours.friday.isOpen,
-            start: formData.openingHours.friday.start || '09:00',
-            end: formData.openingHours.friday.end || '17:00'
-          },
-          saturday: {
-            isOpen: formData.openingHours.saturday.isOpen,
-            start: formData.openingHours.saturday.start || '09:00',
-            end: formData.openingHours.saturday.end || '17:00'
-          },
-          sunday: {
-            isOpen: formData.openingHours.sunday.isOpen,
-            start: formData.openingHours.sunday.start || '09:00',
-            end: formData.openingHours.sunday.end || '17:00'
-          }
-        }),
+        openingHours: JSON.stringify(formData.openingHours),
         servicesOffered: JSON.stringify(formData.servicesOffered || []),
         animalsCatered: JSON.stringify(formData.animalsCatered || [])
       }
@@ -522,48 +473,48 @@ export default function VetSignUpPage() {
 
               <div className="space-y-2">
                 <Label>Clinic Location</Label>
-                <div className="mb-4">
-                  {!isMapLoaded ? (
-                    <div className="w-full h-[400px] bg-gray-100 flex items-center justify-center">
-                      Loading map...
-                    </div>
-                  ) : (
-                    <div ref={mapRef} style={mapContainerStyle} />
-                  )}
-                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    placeholder="Address"
-                    value={formData.location.address}
-                    onChange={(e) => handleChange("location.address", e.target.value)}
-                    required
-                    readOnly
-                  />
-                  <Input
-                    placeholder="City"
-                    value={formData.location.city}
-                    onChange={(e) => handleChange("location.city", e.target.value)}
-                    required
-                    readOnly
-                  />
-                  <Input
-                    placeholder="Province"
-                    value={formData.location.province}
-                    onChange={(e) => handleChange("location.province", e.target.value)}
-                    required
-                    readOnly
-                  />
-                  <Input
-                    placeholder="ZIP Code"
-                    value={formData.location.zipCode}
-                    onChange={(e) => handleChange("location.zipCode", e.target.value)}
-                    required
-                    readOnly
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Street Address</Label>
+                    <Input
+                      id="address"
+                      placeholder="Enter street address"
+                      value={formData.location.address}
+                      onChange={(e) => handleChange("location.address", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      placeholder="Enter city"
+                      value={formData.location.city}
+                      onChange={(e) => handleChange("location.city", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="province">Province</Label>
+                    <Input
+                      id="province"
+                      placeholder="Enter province"
+                      value={formData.location.province}
+                      onChange={(e) => handleChange("location.province", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="zipCode">ZIP Code</Label>
+                    <Input
+                      id="zipCode"
+                      placeholder="Enter ZIP code"
+                      value={formData.location.zipCode}
+                      onChange={(e) => handleChange("location.zipCode", e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  Click on the map to set your clinic location. You can also drag the marker to adjust the position.
-                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -271,13 +271,26 @@ exports.vetClinicSignup = async (req, res) => {
         email,
         password,
         phoneNumber,
-        address: JSON.parse(address),
+        location: {
+          address: JSON.parse(address).address || '',
+          city: JSON.parse(address).city || '',
+          province: JSON.parse(address).province || '',
+          zipCode: JSON.parse(address).zipCode || ''
+        },
         licenseNumber,
         businessPermit: req.file ? `/uploads/business-permits/${req.file.filename}` : null,
         clinicType,
-        openingHours: JSON.parse(openingHours),
-        servicesOffered: JSON.parse(servicesOffered),
-        animalsCatered: JSON.parse(animalsCatered),
+        openingHours: openingHours ? JSON.parse(openingHours) : {
+          monday: { isOpen: true, start: "08:00", end: "18:00" },
+          tuesday: { isOpen: true, start: "08:00", end: "18:00" },
+          wednesday: { isOpen: true, start: "08:00", end: "18:00" },
+          thursday: { isOpen: true, start: "08:00", end: "18:00" },
+          friday: { isOpen: true, start: "08:00", end: "18:00" },
+          saturday: { isOpen: true, start: "09:00", end: "15:00" },
+          sunday: { isOpen: false, start: "09:00", end: "15:00" }
+        },
+        servicesOffered: servicesOffered ? JSON.parse(servicesOffered) : [],
+        animalsCatered: animalsCatered ? JSON.parse(animalsCatered) : [],
         isVerified: false,
         otp,
         otpExpires
