@@ -1,8 +1,9 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 const Doctor = require('../models/doctorModel');
+const SuperAdmin = require('../models/superAdminModel');
 
-const auth = async (req, res, next) => {
+const protect = async (req, res, next) => {
     try {
         console.log('[AUTH] Checking Authorization header...');
         // Get token from header
@@ -30,22 +31,24 @@ const auth = async (req, res, next) => {
             });
         }
         
-        // Find user by id in users collection
-        let foundUser = await User.findById(decoded.id).select('-password');
+        // Find user in appropriate collection
+        let foundUser = await SuperAdmin.findById(decoded.id).select('-password');
         if (!foundUser) {
-            // Try doctors collection if not found in users
+            foundUser = await User.findById(decoded.id).select('-password');
+        }
+        if (!foundUser) {
             foundUser = await Doctor.findById(decoded.id).select('-password');
             if (foundUser) {
                 foundUser.role = 'doctor'; // Ensure role is set
             }
         }
-        console.log('[AUTH] User/Doctor found:', foundUser);
+        console.log('[AUTH] User found:', foundUser);
         
         if (!foundUser) {
-            console.log('[AUTH] Token valid but user/doctor not found in DB!');
+            console.log('[AUTH] Token valid but user not found in DB!');
             return res.status(401).json({
                 success: false,
-                message: 'Token is valid but user/doctor not found'
+                message: 'Token is valid but user not found'
             });
         }
 
@@ -62,4 +65,25 @@ const auth = async (req, res, next) => {
     }
 };
 
-module.exports = auth; 
+// Middleware factory for role-based authorization
+const authorize = (role) => {
+    return async (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: 'User not authenticated'
+            });
+        }
+
+        if (req.user.role !== role) {
+            return res.status(403).json({
+                success: false,
+                message: `User role ${req.user.role} is not authorized to access this route`
+            });
+        }
+
+        next();
+    };
+};
+
+module.exports = { protect, authorize }; 

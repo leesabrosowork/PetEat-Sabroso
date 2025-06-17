@@ -17,7 +17,8 @@ const adminSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: true
+        required: true,
+        select: false // Don't include password in queries by default
     },
     contact: {
         type: String,
@@ -30,9 +31,15 @@ const adminSchema = new mongoose.Schema({
 // Hash password before saving
 adminSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
-    this.password = await bcrypt.hash(this.password, 12);
+    const salt = await bcrypt.genSalt(10); // Use same salt rounds as other models
+    this.password = await bcrypt.hash(this.password, salt);
     next();
 });
+
+// Method to compare password
+adminSchema.methods.matchPassword = async function(enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
+};
 
 const Admin = mongoose.model('Admin', adminSchema);
 module.exports = Admin; 

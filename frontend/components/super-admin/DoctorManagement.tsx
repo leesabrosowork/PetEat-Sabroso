@@ -33,6 +33,29 @@ interface Doctor {
   createdAt: string
 }
 
+const VETERINARY_SPECIALTIES = [
+  "General Practice",
+  "Surgery",
+  "Dermatology",
+  "Cardiology",
+  "Neurology",
+  "Oncology",
+  "Ophthalmology",
+  "Orthopedics",
+  "Dentistry",
+  "Emergency Medicine",
+  "Internal Medicine",
+  "Radiology",
+  "Anesthesiology",
+  "Behavioral Medicine",
+  "Nutrition",
+  "Rehabilitation",
+  "Reproductive Medicine",
+  "Toxicology",
+  "Wildlife Medicine",
+  "Exotic Animal Medicine"
+]
+
 interface DoctorManagementProps {
   doctors: Doctor[]
   onDoctorUpdated: () => void
@@ -49,6 +72,7 @@ export default function DoctorManagement({ doctors, onDoctorUpdated }: DoctorMan
     contact: "",
     specialty: "",
     availability: "weekdays",
+    address: "",
   })
   const { toast } = useToast()
 
@@ -79,6 +103,7 @@ export default function DoctorManagement({ doctors, onDoctorUpdated }: DoctorMan
           contact: "",
           specialty: "",
           availability: "weekdays",
+          address: "",
         })
         onDoctorUpdated()
       } else {
@@ -288,12 +313,28 @@ export default function DoctorManagement({ doctors, onDoctorUpdated }: DoctorMan
               />
             </div>
             <div>
-              <Label htmlFor="specialty">Specialty</Label>
+              <Label htmlFor="address">Address</Label>
               <Input
+                id="address"
+                value={newDoctor.address}
+                onChange={(e) => setNewDoctor({ ...newDoctor, address: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="specialty">Specialty</Label>
+              <select
                 id="specialty"
+                className="w-full px-3 py-2 border rounded-md"
                 value={newDoctor.specialty}
                 onChange={(e) => setNewDoctor({ ...newDoctor, specialty: e.target.value })}
-              />
+              >
+                <option value="">Select a specialty</option>
+                {VETERINARY_SPECIALTIES.map((specialty) => (
+                  <option key={specialty} value={specialty}>
+                    {specialty}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <Label htmlFor="availability">Availability</Label>
@@ -362,13 +403,21 @@ export default function DoctorManagement({ doctors, onDoctorUpdated }: DoctorMan
               </div>
               <div>
                 <Label htmlFor="edit-specialty">Specialty</Label>
-                <Input
+                <select
                   id="edit-specialty"
+                  className="w-full px-3 py-2 border rounded-md"
                   value={selectedDoctor.specialty}
                   onChange={(e) =>
                     setSelectedDoctor({ ...selectedDoctor, specialty: e.target.value })
                   }
-                />
+                >
+                  <option value="">Select a specialty</option>
+                  {VETERINARY_SPECIALTIES.map((specialty) => (
+                    <option key={specialty} value={specialty}>
+                      {specialty}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label htmlFor="edit-availability">Availability</Label>

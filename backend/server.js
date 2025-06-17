@@ -12,6 +12,7 @@ const Appointment = require('./models/appointmentModel');
 const Prescription = require('./models/prescriptionModel');
 const Inventory = require('./models/inventoryModel');
 const EMR = require('./models/petMedicalRecord');
+const VetClinic = require('./models/vetClinicModel');
 require('dotenv').config();
 
 const { initializeSocket } = require('./src/socket/socketHandler');
@@ -102,6 +103,12 @@ const setupChangeStreams = () => {
   EMR.watch().on('change', async (change) => {
     const emrs = await EMR.find();
     io.emit('emrs_updated', emrs);
+  });
+
+  // VET CLINICS
+  VetClinic.watch().on('change', async (change) => {
+    const vetClinics = await VetClinic.find().select('-password');
+    io.emit('vet_clinics_updated', vetClinics);
   });
 };
 

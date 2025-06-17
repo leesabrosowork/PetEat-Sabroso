@@ -108,6 +108,7 @@ export default function UserManagement({ users, onUserUpdated }: UserManagementP
           email: selectedUser.email,
           contactNumber: selectedUser.contactNumber,
           status: selectedUser.status,
+          role: selectedUser.role,
         }),
       })
 
@@ -329,6 +330,22 @@ export default function UserManagement({ users, onUserUpdated }: UserManagementP
                     setSelectedUser({ ...selectedUser, contactNumber: e.target.value })
                   }
                 />
+              </div>
+              <div>
+                <Label htmlFor="edit-role">Role</Label>
+                <select
+                  id="edit-role"
+                  className="w-full px-3 py-2 border rounded-md"
+                  value={selectedUser.role}
+                  onChange={(e) =>
+                    setSelectedUser({ ...selectedUser, role: e.target.value })
+                  }
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                  <option value="doctor">Doctor</option>
+                  <option value="staff">Staff</option>
+                </select>
               </div>
               <div>
                 <Label htmlFor="edit-status">Status</Label>

@@ -160,8 +160,12 @@ export default function SignUpPage() {
             </div>
 
             <div className="mt-4 text-center text-xs text-gray-500">
-              <p>Note: Only pet owners can sign up through this form.</p>
-              <p>Doctors and administrators are created by the system administrator.</p>
+              <p>Are you a veterinary clinic?{" "}
+                <Link href="/vet-signup" className="text-blue-600 hover:underline">
+                  Sign up as a vet clinic
+                </Link>
+              </p>
+              <p className="mt-2">Note: Doctors and administrators are created by the system administrator.</p>
             </div>
           </CardContent>
         </Card>

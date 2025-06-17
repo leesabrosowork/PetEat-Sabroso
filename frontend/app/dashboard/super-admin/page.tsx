@@ -7,13 +7,31 @@ import DoctorManagement from "@/components/super-admin/DoctorManagement"
 import UserManagement from "@/components/super-admin/UserManagement"
 import PetManagement from "@/components/super-admin/PetManagement"
 import InventoryManagement from "@/components/super-admin/InventoryManagement"
+import { Button } from "@/components/ui/button"
+import { LogOut } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
+import VetClinicApproval from '@/components/super-admin/VetClinicApproval'
 
 export default function SuperAdminDashboard() {
+  const [activeTab, setActiveTab] = useState('admins')
   const [admins, setAdmins] = useState([])
   const [doctors, setDoctors] = useState([])
   const [users, setUsers] = useState([])
   const [pets, setPets] = useState([])
   const [inventory, setInventory] = useState([])
+  const router = useRouter()
+  const { toast } = useToast()
+
+  const handleLogout = () => {
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
+    router.push("/login")
+    toast({
+      title: "Logged out successfully",
+      description: "You have been logged out of your account.",
+    })
+  }
 
   const fetchAdmins = async () => {
     try {
@@ -109,38 +127,94 @@ export default function SuperAdminDashboard() {
   }, [])
 
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">Super Admin Dashboard</h1>
+    <div className="min-h-screen bg-gray-100">
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          </div>
 
-      <Tabs defaultValue="admins">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="admins">Admins</TabsTrigger>
-          <TabsTrigger value="doctors">Doctors</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="pets">Pets</TabsTrigger>
-          <TabsTrigger value="inventory">Inventory</TabsTrigger>
-        </TabsList>
+          <div className="bg-white shadow rounded-lg">
+            <div className="border-b border-gray-200">
+              <nav className="flex -mb-px">
+                <button
+                  onClick={() => setActiveTab('admins')}
+                  className={`${
+                    activeTab === 'admins'
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm`}
+                >
+                  Admin Management
+                </button>
+                <button
+                  onClick={() => setActiveTab('doctors')}
+                  className={`${
+                    activeTab === 'doctors'
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm`}
+                >
+                  Doctor Management
+                </button>
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className={`${
+                    activeTab === 'users'
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm`}
+                >
+                  User Management
+                </button>
+                <button
+                  onClick={() => setActiveTab('pets')}
+                  className={`${
+                    activeTab === 'pets'
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm`}
+                >
+                  Pet Management
+                </button>
+                <button
+                  onClick={() => setActiveTab('inventory')}
+                  className={`${
+                    activeTab === 'inventory'
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm`}
+                >
+                  Inventory Management
+                </button>
+                <button
+                  onClick={() => setActiveTab('vet-clinics')}
+                  className={`${
+                    activeTab === 'vet-clinics'
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm`}
+                >
+                  Vet Clinic Approvals
+                </button>
+              </nav>
+            </div>
 
-        <TabsContent value="admins">
-          <AdminManagement admins={admins} onAdminUpdated={fetchAdmins} />
-        </TabsContent>
-
-        <TabsContent value="doctors">
-          <DoctorManagement doctors={doctors} onDoctorUpdated={fetchDoctors} />
-        </TabsContent>
-
-        <TabsContent value="users">
-          <UserManagement users={users} onUserUpdated={fetchUsers} />
-        </TabsContent>
-
-        <TabsContent value="pets">
-          <PetManagement pets={pets} onPetUpdated={fetchPets} />
-        </TabsContent>
-
-        <TabsContent value="inventory">
-          <InventoryManagement inventory={inventory} onInventoryUpdated={fetchInventory} />
-        </TabsContent>
-      </Tabs>
+            <div className="p-6">
+              {activeTab === 'admins' && <AdminManagement admins={admins} onAdminUpdated={fetchAdmins} />}
+              {activeTab === 'doctors' && <DoctorManagement doctors={doctors} onDoctorUpdated={fetchDoctors} />}
+              {activeTab === 'users' && <UserManagement users={users} onUserUpdated={fetchUsers} />}
+              {activeTab === 'pets' && <PetManagement pets={pets} onPetUpdated={fetchPets} />}
+              {activeTab === 'inventory' && <InventoryManagement inventory={inventory} onInventoryUpdated={fetchInventory} />}
+              {activeTab === 'vet-clinics' && <VetClinicApproval />}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 } 

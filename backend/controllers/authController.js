@@ -3,10 +3,37 @@ const Doctor = require('../models/doctorModel');
 const Admin = require('../models/adminModel');
 const Staff = require('../models/staffModel');
 const SuperAdmin = require('../models/superAdminModel');
+const VetClinic = require('../models/vetClinicModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
 const nodemailer = require('nodemailer');
+const multer = require('multer');
+const path = require('path');
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/business-permits')
+  },
+  filename: function (req, file, cb) {
+    cb(null, `${Date.now()}-${file.originalname}`)
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  fileFilter: function (req, file, cb) {
+    const filetypes = /jpeg|jpg|png|pdf/;
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = filetypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb('Error: Only PDF, JPEG, JPG & PNG files are allowed!');
+    }
+  }
+}).single('businessPermit');
 
 exports.signup = async (req, res) => {
     try {
@@ -84,17 +111,18 @@ exports.login = async (req, res) => {
         const doctor = await Doctor.findOne({ email }).select('+password');
         const admin = await Admin.findOne({ email }).select('+password');
         const staff = await Staff.findOne({ email }).select('+password');
+        const vetClinic = await VetClinic.findOne({ email }).select('+password');
 
         console.log('Found super admin:', superAdmin ? 'Yes' : 'No');
         console.log('Found user:', user ? 'Yes' : 'No');
         console.log('Found doctor:', doctor ? 'Yes' : 'No');
         console.log('Found admin:', admin ? 'Yes' : 'No');
         console.log('Found staff:', staff ? 'Yes' : 'No');
+        console.log('Found vet clinic:', vetClinic ? 'Yes' : 'No');
 
         let authenticatedUser = null;
         let role = '';
 
-        // Check which type of user was found
         if (superAdmin) {
             console.log('Checking super admin password...');
             const isPasswordValid = await bcrypt.compare(password, superAdmin.password);
@@ -109,7 +137,7 @@ exports.login = async (req, res) => {
             console.log('User password valid:', isPasswordValid);
             if (isPasswordValid) {
                 authenticatedUser = user;
-                role = 'user';
+                role = 'pet owner';
             }
         } else if (doctor) {
             console.log('Checking doctor password...');
@@ -121,7 +149,7 @@ exports.login = async (req, res) => {
             }
         } else if (admin) {
             console.log('Checking admin password...');
-            const isPasswordValid = await bcrypt.compare(password, admin.password);
+            const isPasswordValid = await admin.matchPassword(password);
             console.log('Admin password valid:', isPasswordValid);
             if (isPasswordValid) {
                 authenticatedUser = admin;
@@ -134,6 +162,23 @@ exports.login = async (req, res) => {
             if (isPasswordValid) {
                 authenticatedUser = staff;
                 role = 'staff';
+            }
+        } else if (vetClinic) {
+            console.log('Checking vet clinic password...');
+            const isPasswordValid = await bcrypt.compare(password, vetClinic.password);
+            console.log('Vet clinic password valid:', isPasswordValid);
+            if (isPasswordValid) {
+                // Check if the clinic is approved
+                if (vetClinic.status !== 'approved') {
+                    return res.status(403).json({
+                        success: false,
+                        message: vetClinic.status === 'pending' 
+                            ? 'Your account is pending approval. Please wait for the super admin to review your application.'
+                            : `Your account has been rejected. Reason: ${vetClinic.rejectionReason || 'No reason provided'}`
+                    });
+                }
+                authenticatedUser = vetClinic;
+                role = 'vet clinic';
             }
         }
 
@@ -169,4 +214,101 @@ exports.login = async (req, res) => {
             message: error.message
         });
     }
+};
+
+exports.vetClinicSignup = async (req, res) => {
+  upload(req, res, async function(err) {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err
+      });
+    }
+
+    try {
+      const {
+        clinicName,
+        ownerName,
+        email,
+        password,
+        phoneNumber,
+        address,
+        licenseNumber,
+        clinicType,
+        openingHours,
+        servicesOffered,
+        animalsCatered
+      } = req.body;
+
+      // Check if clinic already exists
+      const existingClinic = await VetClinic.findOne({
+        $or: [
+          { email },
+          { phoneNumber },
+          { licenseNumber }
+        ]
+      });
+
+      if (existingClinic) {
+        return res.status(400).json({
+          success: false,
+          message: existingClinic.email === email ? 
+            'Email already in use' : 
+            existingClinic.phoneNumber === phoneNumber ?
+            'Phone number already in use' :
+            'License number already in use'
+        });
+      }
+
+      // Generate a 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Create new clinic as not verified
+      const newClinic = await VetClinic.create({
+        clinicName,
+        ownerName,
+        email,
+        password,
+        phoneNumber,
+        address: JSON.parse(address),
+        licenseNumber,
+        businessPermit: req.file ? `/uploads/business-permits/${req.file.filename}` : null,
+        clinicType,
+        openingHours: JSON.parse(openingHours),
+        servicesOffered: JSON.parse(servicesOffered),
+        animalsCatered: JSON.parse(animalsCatered),
+        isVerified: false,
+        otp,
+        otpExpires
+      });
+
+      // Send OTP email
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: newClinic.email,
+        subject: 'Your PetEat Veterinary Clinic OTP Code',
+        text: `Your OTP code is: ${otp}. It will expire in 10 minutes.`
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Signup successful. Please check your email for the OTP to verify your account.',
+      });
+
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  });
 }; 

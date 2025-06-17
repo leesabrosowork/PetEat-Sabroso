@@ -5,21 +5,15 @@ const {
   createMedicalRecord,
   updateMedicalRecord,
 } = require('../controllers/medicalRecordController');
-const auth = require('../middleware/auth'); // expects req.user.role
-
-// Helper middleware to check veterinarian role
-function vetOnly(req, res, next) {
-  if (req.user && req.user.role === 'veterinarian') return next();
-  return res.status(403).json({ message: 'Forbidden: Veterinarian access only' });
-}
+const { protect, authorize } = require('../middleware/auth');
 
 // GET: View pet medical record (all authenticated users)
-router.get('/:petId', auth, getMedicalRecord);
+router.get('/:petId', protect, getMedicalRecord);
 
 // POST: Add new medical record (veterinarian only)
-router.post('/', auth, vetOnly, createMedicalRecord);
+router.post('/', protect, authorize('veterinarian'), createMedicalRecord);
 
 // PUT: Edit medical record (veterinarian only)
-router.put('/:petId', auth, vetOnly, updateMedicalRecord);
+router.put('/:petId', protect, authorize('veterinarian'), updateMedicalRecord);
 
 module.exports = router;

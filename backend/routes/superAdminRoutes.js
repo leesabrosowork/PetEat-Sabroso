@@ -1,44 +1,46 @@
 const express = require('express');
 const router = express.Router();
 const superAdminController = require('../controllers/superAdminController');
-const superAdminAuth = require('../middleware/superAdminAuth');
-
-// Apply super admin auth middleware to all routes
-router.use(superAdminAuth);
+const { protect, authorize } = require('../middleware/auth');
 
 // Admin management routes
-router.get('/admins', superAdminController.getAllAdmins);
-router.post('/admins', superAdminController.createAdmin);
-router.get('/admins/:id', superAdminController.getAdminById);
-router.put('/admins/:id', superAdminController.updateAdmin);
-router.delete('/admins/:id', superAdminController.deleteAdmin);
+router.get('/admins', protect, authorize('super admin'), superAdminController.getAllAdmins);
+router.post('/admins', protect, authorize('super admin'), superAdminController.createAdmin);
+router.get('/admins/:id', protect, authorize('super admin'), superAdminController.getAdminById);
+router.put('/admins/:id', protect, authorize('super admin'), superAdminController.updateAdmin);
+router.delete('/admins/:id', protect, authorize('super admin'), superAdminController.deleteAdmin);
 
 // Doctor management routes
-router.get('/doctors', superAdminController.getAllDoctors);
-router.post('/doctors', superAdminController.createDoctor);
-router.get('/doctors/:id', superAdminController.getDoctorById);
-router.put('/doctors/:id', superAdminController.updateDoctor);
-router.delete('/doctors/:id', superAdminController.deleteDoctor);
+router.get('/doctors', protect, authorize('super admin'), superAdminController.getAllDoctors);
+router.post('/doctors', protect, authorize('super admin'), superAdminController.createDoctor);
+router.get('/doctors/:id', protect, authorize('super admin'), superAdminController.getDoctorById);
+router.put('/doctors/:id', protect, authorize('super admin'), superAdminController.updateDoctor);
+router.delete('/doctors/:id', protect, authorize('super admin'), superAdminController.deleteDoctor);
 
 // User management routes
-router.get('/users', superAdminController.getAllUsers);
-router.post('/users', superAdminController.createUser);
-router.get('/users/:id', superAdminController.getUserById);
-router.put('/users/:id', superAdminController.updateUser);
-router.delete('/users/:id', superAdminController.deleteUser);
+router.get('/users', protect, authorize('super admin'), superAdminController.getAllUsers);
+router.post('/users', protect, authorize('super admin'), superAdminController.createUser);
+router.get('/users/:id', protect, authorize('super admin'), superAdminController.getUserById);
+router.put('/users/:id', protect, authorize('super admin'), superAdminController.updateUser);
+router.delete('/users/:id', protect, authorize('super admin'), superAdminController.deleteUser);
 
 // Pet management routes
-router.get('/pets', superAdminController.getAllPets);
-router.post('/pets', superAdminController.createPet);
-router.get('/pets/:id', superAdminController.getPetById);
-router.put('/pets/:id', superAdminController.updatePet);
-router.delete('/pets/:id', superAdminController.deletePet);
+router.get('/pets', protect, authorize('super admin'), superAdminController.getAllPets);
+router.post('/pets', protect, authorize('super admin'), superAdminController.createPet);
+router.get('/pets/:id', protect, authorize('super admin'), superAdminController.getPetById);
+router.put('/pets/:id', protect, authorize('super admin'), superAdminController.updatePet);
+router.delete('/pets/:id', protect, authorize('super admin'), superAdminController.deletePet);
 
 // Inventory management routes
-router.get('/inventory', superAdminController.getAllInventory);
-router.post('/inventory', superAdminController.createInventoryItem);
-router.get('/inventory/:id', superAdminController.getInventoryItemById);
-router.put('/inventory/:id', superAdminController.updateInventoryItem);
-router.delete('/inventory/:id', superAdminController.deleteInventoryItem);
+router.get('/inventory', protect, authorize('super admin'), superAdminController.getAllInventory);
+router.post('/inventory', protect, authorize('super admin'), superAdminController.createInventoryItem);
+router.get('/inventory/:id', protect, authorize('super admin'), superAdminController.getInventoryItemById);
+router.put('/inventory/:id', protect, authorize('super admin'), superAdminController.updateInventoryItem);
+router.delete('/inventory/:id', protect, authorize('super admin'), superAdminController.deleteInventoryItem);
+
+// Vet Clinic Approval Routes
+router.get('/pending-vet-clinics', protect, authorize('super admin'), superAdminController.getPendingVetClinics);
+router.put('/vet-clinics/:id/approve', protect, authorize('super admin'), superAdminController.approveVetClinic);
+router.put('/vet-clinics/:id/reject', protect, authorize('super admin'), superAdminController.rejectVetClinic);
 
 module.exports = router; 

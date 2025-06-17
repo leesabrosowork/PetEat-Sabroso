@@ -40,7 +40,77 @@ exports.getAllUsers = async (req, res) => {
             message: error.message
         });
     }
-}; 
+};
+
+// Get user profile
+exports.getUserProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select('-password');
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        res.json({
+            success: true,
+            data: user
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching user profile',
+            error: error.message
+        });
+    }
+};
+
+// Update user profile
+exports.updateUserProfile = async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(
+            req.user.id,
+            { $set: req.body },
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: user
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error updating user profile',
+            error: error.message
+        });
+    }
+};
+
+// Get user's pets
+exports.getUserPets = async (req, res) => {
+    try {
+        const pets = await Pet.find({ owner: req.user.id });
+        res.json({
+            success: true,
+            data: pets
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching pets',
+            error: error.message
+        });
+    }
+};
+
 // Get user dashboard data
 exports.getUserDashboard = async (req, res) => {
     try {

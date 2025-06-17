@@ -177,13 +177,16 @@ export default function LoginPage() {
             <p className="text-gray-600 mb-4">Demo Accounts:</p>
             <div className="space-y-1 text-xs">
               <p>
-                <strong>Pet Owner:</strong> maria@petclinic.com / Maria2024!
+                <strong>Super Admin:</strong> superadmin@PetEat.com / superadmin123
               </p>
               <p>
-                <strong>Doctor:</strong> sarah.wilson@petclinic.com  / DrWilson2024!
+                <strong>Admin:</strong> admin@PetEat.com / admin123
               </p>
               <p>
-                <strong>Admin:</strong> john.admin@peteat.com / password123
+                <strong>Doctor:</strong> doctor@PetEat.com / doctor123
+              </p>
+              <p>
+                <strong>User:</strong> user@PetEat.com / user123
               </p>
               <p>
                 <strong>Staff:</strong> staff@PetEat.com / staff123

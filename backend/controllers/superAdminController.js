@@ -4,6 +4,8 @@ const User = require('../models/userModel');
 const Pet = require('../models/petModel');
 const Inventory = require('../models/inventoryModel');
 const bcrypt = require('bcryptjs');
+const VetClinic = require('../models/vetClinicModel');
+const nodemailer = require('nodemailer');
 
 // Admin Management
 exports.getAllAdmins = async (req, res) => {
@@ -602,23 +604,23 @@ exports.getInventoryItemById = async (req, res) => {
 
 exports.createInventoryItem = async (req, res) => {
     try {
-        const { name, quantity, category, status } = req.body;
+        const { item, stock, minStock, category, status } = req.body;
 
         // Create new inventory item
-        const item = new Inventory({
-            name,
-            quantity,
+        const newItem = await Inventory.create({
+            item,
+            stock,
+            minStock,
             category,
-            status
+            status: status || (stock > minStock ? 'in-stock' : 'low-stock')
         });
-
-        await item.save();
 
         res.status(201).json({
             success: true,
-            data: item
+            data: newItem
         });
     } catch (error) {
+        console.error('Inventory creation error:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -671,6 +673,122 @@ exports.deleteInventoryItem = async (req, res) => {
         res.json({
             success: true,
             message: 'Inventory item deleted successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Get all pending vet clinics
+exports.getPendingVetClinics = async (req, res) => {
+    try {
+        const pendingClinics = await VetClinic.find({ status: 'pending' });
+        res.json({
+            success: true,
+            data: pendingClinics
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Approve a vet clinic
+exports.approveVetClinic = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const clinic = await VetClinic.findById(id);
+
+        if (!clinic) {
+            return res.status(404).json({
+                success: false,
+                message: 'Vet clinic not found'
+            });
+        }
+
+        clinic.status = 'approved';
+        await clinic.save();
+
+        // Send approval email
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        });
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: clinic.email,
+            subject: 'Your PetEat Veterinary Clinic Account Has Been Approved',
+            text: `Dear ${clinic.ownerName},\n\nYour veterinary clinic account has been approved. You can now log in to your account and start using PetEat's services.\n\nBest regards,\nPetEat Team`
+        });
+
+        res.json({
+            success: true,
+            message: 'Vet clinic approved successfully',
+            data: clinic
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Reject a vet clinic
+exports.rejectVetClinic = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+
+        if (!reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Rejection reason is required'
+            });
+        }
+
+        const clinic = await VetClinic.findById(id);
+
+        if (!clinic) {
+            return res.status(404).json({
+                success: false,
+                message: 'Vet clinic not found'
+            });
+        }
+
+        clinic.status = 'rejected';
+        clinic.rejectionReason = reason;
+        await clinic.save();
+
+        // Send rejection email
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        });
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: clinic.email,
+            subject: 'Your PetEat Veterinary Clinic Account Application Status',
+            text: `Dear ${clinic.ownerName},\n\nWe regret to inform you that your veterinary clinic account application has been rejected.\n\nReason: ${reason}\n\nIf you believe this is an error or would like to provide additional information, please contact our support team.\n\nBest regards,\nPetEat Team`
+        });
+
+        res.json({
+            success: true,
+            message: 'Vet clinic rejected successfully',
+            data: clinic
         });
     } catch (error) {
         res.status(500).json({
