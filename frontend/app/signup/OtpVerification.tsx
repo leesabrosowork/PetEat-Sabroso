@@ -5,7 +5,25 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 
-export default function OtpVerification({ email }: { email: string }) {
+// Add a new splash component
+function ApprovalSplash() {
+  const router = useRouter();
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[250px]">
+      <img src="/peteat-logo.png" alt="PetEat Logo" width={64} height={64} className="mb-4" />
+      <div className="text-xl font-semibold mb-2">OTP successful!</div>
+      <div className="text-base text-center mb-4">Please wait for PetEat's approval of your sign up.</div>
+      <button
+        className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
+        onClick={() => router.push("/")}
+      >
+        Proceed to homepage
+      </button>
+    </div>
+  );
+}
+
+export default function OtpVerification({ email, isVetClinic }: { email: string, isVetClinic?: boolean }) {
   const [otp, setOtp] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -14,6 +32,7 @@ export default function OtpVerification({ email }: { email: string }) {
   const [resendSuccess, setResendSuccess] = useState("")
   const [resendError, setResendError] = useState("")
   const [cooldown, setCooldown] = useState(0)
+  const [showApprovalSplash, setShowApprovalSplash] = useState(false)
   const router = useRouter()
 
   const handleVerify = async (e: React.FormEvent) => {
@@ -30,7 +49,7 @@ export default function OtpVerification({ email }: { email: string }) {
       const data = await response.json()
       if (response.ok) {
         setSuccess(true)
-        setTimeout(() => router.push("/login"), 2000)
+        setShowApprovalSplash(true)
       } else {
         setError(data.message || "OTP verification failed")
       }
@@ -74,44 +93,47 @@ export default function OtpVerification({ email }: { email: string }) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[250px]">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Verify Your Email</CardTitle>
-          <CardDescription>Enter the OTP sent to <span className="font-medium">{email}</span></CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleVerify} className="space-y-4">
-            <Input
-              type="text"
-              value={otp}
-              onChange={e => setOtp(e.target.value)}
-              maxLength={6}
-              minLength={6}
-              required
-              placeholder="Enter 6-digit OTP"
-              className="tracking-widest text-center font-mono text-lg"
-            />
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Verifying..." : "Verify"}
-            </Button>
-            <div className="flex flex-col items-center mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full mb-1"
-                onClick={handleResend}
-                disabled={resendLoading || cooldown > 0}
-              >
-                {resendLoading ? "Resending..." : cooldown > 0 ? `Resend OTP (${cooldown})` : "Resend OTP"}
+      {showApprovalSplash ? (
+        <ApprovalSplash />
+      ) : (
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle>Verify Your Email</CardTitle>
+            <CardDescription>Enter the OTP sent to <span className="font-medium">{email}</span></CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleVerify} className="space-y-4">
+              <Input
+                type="text"
+                value={otp}
+                onChange={e => setOtp(e.target.value)}
+                maxLength={6}
+                minLength={6}
+                required
+                placeholder="Enter 6-digit OTP"
+                className="tracking-widest text-center font-mono text-lg"
+              />
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Verifying..." : "Verify"}
               </Button>
-              {resendError && <div className="text-red-500 text-xs">{resendError}</div>}
-              {resendSuccess && <div className="text-green-600 text-xs">{resendSuccess}</div>}
-            </div>
-            {error && <div className="text-red-500 text-xs mt-2">{error}</div>}
-            {success && <div className="text-green-600 text-xs mt-2">OTP verified! Redirecting to login...</div>}
-          </form>
-        </CardContent>
-      </Card>
+              <div className="flex flex-col items-center mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full mb-1"
+                  onClick={handleResend}
+                  disabled={resendLoading || cooldown > 0}
+                >
+                  {resendLoading ? "Resending..." : cooldown > 0 ? `Resend OTP (${cooldown})` : "Resend OTP"}
+                </Button>
+                {resendError && <div className="text-red-500 text-xs">{resendError}</div>}
+                {resendSuccess && <div className="text-green-600 text-xs">{resendSuccess}</div>}
+              </div>
+              {error && <div className="text-red-500 text-xs mt-2">{error}</div>}
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

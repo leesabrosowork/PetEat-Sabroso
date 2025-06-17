@@ -1,4 +1,5 @@
 const User = require('../models/userModel');
+const VetClinic = require('../models/vetClinicModel');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
@@ -14,7 +15,9 @@ exports.requestOtp = async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
-        const user = await User.findOne({ email });
+        const normalizedEmail = email.trim().toLowerCase();
+        let user = await User.findOne({ email: normalizedEmail });
+        if (!user) user = await VetClinic.findOne({ email: normalizedEmail });
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         // Generate a 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -40,7 +43,9 @@ exports.verifyOtp = async (req, res) => {
     try {
         const { email, otp } = req.body;
         if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and OTP are required' });
-        const user = await User.findOne({ email });
+        const normalizedEmail = email.trim().toLowerCase();
+        let user = await User.findOne({ email: normalizedEmail });
+        if (!user) user = await VetClinic.findOne({ email: normalizedEmail });
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         if (!user.otp || !user.otpExpires) return res.status(400).json({ success: false, message: 'No OTP requested' });
         if (user.otp !== otp) return res.status(400).json({ success: false, message: 'Invalid OTP' });
@@ -62,7 +67,9 @@ exports.resetPassword = async (req, res) => {
     try {
         const { email, otp, newPassword } = req.body;
         if (!email || !otp || !newPassword) return res.status(400).json({ success: false, message: 'Email, OTP, and new password are required' });
-        const user = await User.findOne({ email });
+        const normalizedEmail = email.trim().toLowerCase();
+        let user = await User.findOne({ email: normalizedEmail });
+        if (!user) user = await VetClinic.findOne({ email: normalizedEmail });
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         if (!user.otp || !user.otpExpires) return res.status(400).json({ success: false, message: 'No OTP requested' });
         if (user.otp !== otp) return res.status(400).json({ success: false, message: 'Invalid OTP' });

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -73,6 +73,12 @@ interface FormData {
   agreedToTerms: boolean;
 }
 
+function formatTimeRangeString(range: TimeRange): string {
+  if (!range.isOpen) return 'closed';
+  if (!range.start || !range.end) return 'closed';
+  return `${range.start}-${range.end}`;
+}
+
 export default function VetSignUpPage() {
   const [formData, setFormData] = useState<FormData>({
     clinicName: "",
@@ -110,101 +116,6 @@ export default function VetSignUpPage() {
   const [error, setError] = useState("")
   const router = useRouter()
 
-  // Load Google Maps script
-  useEffect(() => {
-    const loadGoogleMapsScript = () => {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        setIsMapLoaded(true);
-      };
-      document.head.appendChild(script);
-    };
-
-    if (!window.google) {
-      loadGoogleMapsScript();
-    } else {
-      setIsMapLoaded(true);
-    }
-  }, []);
-
-  // Initialize map
-  useEffect(() => {
-    if (isMapLoaded && mapRef.current && !map) {
-      const newMap = new google.maps.Map(mapRef.current, {
-        center: defaultCenter,
-        zoom: 15,
-      });
-
-      const newMarker = new google.maps.Marker({
-        position: defaultCenter,
-        map: newMap,
-        draggable: true,
-      });
-
-      setMap(newMap);
-      setMarker(newMarker);
-
-      // Add click listener to map
-      newMap.addListener('click', (e: google.maps.MapMouseEvent) => {
-        if (e.latLng) {
-          handleMapClick(e);
-        }
-      });
-
-      // Add drag end listener to marker
-      newMarker.addListener('dragend', (e: google.maps.MapMouseEvent) => {
-        if (e.latLng) {
-          handleMapClick(e);
-        }
-      });
-    }
-  }, [isMapLoaded, map]);
-
-  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
-    if (e.latLng && marker) {
-      const lat = e.latLng.lat();
-      const lng = e.latLng.lng();
-      
-      // Update marker position
-      marker.setPosition(e.latLng);
-      
-      // Reverse geocode to get address
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ location: { lat, lng } }, (results: google.maps.GeocoderResult[] | null, status: google.maps.GeocoderStatus) => {
-        if (status === 'OK' && results && results[0]) {
-          const addressComponents = results[0].address_components;
-          let city = '';
-          let province = '';
-          let zipCode = '';
-
-          addressComponents.forEach((component: google.maps.GeocoderAddressComponent) => {
-            const types = component.types;
-            if (types.includes('locality')) {
-              city = component.long_name;
-            } else if (types.includes('administrative_area_level_1')) {
-              province = component.long_name;
-            } else if (types.includes('postal_code')) {
-              zipCode = component.long_name;
-            }
-          });
-
-          setFormData(prev => ({
-            ...prev,
-            location: {
-              address: results[0].formatted_address,
-              city,
-              province,
-              zipCode
-            }
-          }));
-        }
-      });
-    }
-  }, [marker]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -224,6 +135,23 @@ export default function VetSignUpPage() {
     try {
       const formDataToSend = new FormData()
       
+      const weekdayRanges = [
+        formData.openingHours.monday,
+        formData.openingHours.tuesday,
+        formData.openingHours.wednesday,
+        formData.openingHours.thursday,
+        formData.openingHours.friday,
+      ];
+      const allWeekdaysSame = weekdayRanges.every(
+        (range) =>
+          range.isOpen === weekdayRanges[0].isOpen &&
+          range.start === weekdayRanges[0].start &&
+          range.end === weekdayRanges[0].end
+      );
+      const mondayToFriday = allWeekdaysSame
+        ? formatTimeRangeString(formData.openingHours.monday)
+        : "";
+
       // Handle nested objects and arrays
       const formDataObj: Record<string, string | File> = {
         clinicName: formData.clinicName,
@@ -240,7 +168,11 @@ export default function VetSignUpPage() {
           province: formData.location.province,
           zipCode: formData.location.zipCode
         }),
-        openingHours: JSON.stringify(formData.openingHours),
+        openingHours: JSON.stringify({
+          mondayToFriday,
+          saturday: formatTimeRangeString(formData.openingHours.saturday),
+          sunday: formatTimeRangeString(formData.openingHours.sunday),
+        }),
         servicesOffered: JSON.stringify(formData.servicesOffered || []),
         animalsCatered: JSON.stringify(formData.animalsCatered || [])
       }
