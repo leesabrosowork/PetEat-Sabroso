@@ -35,6 +35,7 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 const emrRoutes = require('./routes/emrRoutes');
 const staffRoutes = require('./routes/staffRoutes');
 const superAdminRoutes = require('./routes/superAdminRoutes');
+const vetClinicRoutes = require('./routes/vetClinicRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/otp', otpRoutes);
@@ -49,6 +50,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/emr', emrRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/super-admin', superAdminRoutes);
+app.use('/api/vet-clinic', vetClinicRoutes);
 
 // Status endpoints
 app.get('/api/status', (req, res) => {

@@ -91,6 +91,9 @@ export default function LoginPage() {
           case "super admin":
             router.push("/dashboard/super-admin")
             break
+          case "vet clinic":
+            router.push("/dashboard/vet-clinic")
+            break
           default:
             router.push("/")
         }
@@ -191,6 +194,9 @@ export default function LoginPage() {
               </p>
               <p>
                 <strong>Staff:</strong> staff@peteat.com / staff123
+              </p>
+              <p>
+                <strong>Vet Clinic:</strong> vetclinic@peteat.com / vetclinic123
               </p>
             </div>
           </div>
