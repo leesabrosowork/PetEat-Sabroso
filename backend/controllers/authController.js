@@ -149,7 +149,7 @@ exports.login = async (req, res) => {
             }
         } else if (admin) {
             console.log('Checking admin password...');
-            const isPasswordValid = await admin.matchPassword(password);
+            const isPasswordValid = await bcrypt.compare(password, admin.password);
             console.log('Admin password valid:', isPasswordValid);
             if (isPasswordValid) {
                 authenticatedUser = admin;

@@ -57,15 +57,11 @@ exports.createAdmin = async (req, res) => {
             });
         }
 
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
         // Create new admin
         const admin = new Admin({
             username,
             email,
-            password: hashedPassword,
+            password, // The model's pre-save middleware will hash this
             contact,
             role: 'admin'
         });
