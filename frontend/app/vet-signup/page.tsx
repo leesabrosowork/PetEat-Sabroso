@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -109,101 +109,6 @@ export default function VetSignUpPage() {
   const [registeredEmail, setRegisteredEmail] = useState("")
   const [error, setError] = useState("")
   const router = useRouter()
-
-  // Load Google Maps script
-  useEffect(() => {
-    const loadGoogleMapsScript = () => {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        setIsMapLoaded(true);
-      };
-      document.head.appendChild(script);
-    };
-
-    if (!window.google) {
-      loadGoogleMapsScript();
-    } else {
-      setIsMapLoaded(true);
-    }
-  }, []);
-
-  // Initialize map
-  useEffect(() => {
-    if (isMapLoaded && mapRef.current && !map) {
-      const newMap = new google.maps.Map(mapRef.current, {
-        center: defaultCenter,
-        zoom: 15,
-      });
-
-      const newMarker = new google.maps.Marker({
-        position: defaultCenter,
-        map: newMap,
-        draggable: true,
-      });
-
-      setMap(newMap);
-      setMarker(newMarker);
-
-      // Add click listener to map
-      newMap.addListener('click', (e: google.maps.MapMouseEvent) => {
-        if (e.latLng) {
-          handleMapClick(e);
-        }
-      });
-
-      // Add drag end listener to marker
-      newMarker.addListener('dragend', (e: google.maps.MapMouseEvent) => {
-        if (e.latLng) {
-          handleMapClick(e);
-        }
-      });
-    }
-  }, [isMapLoaded, map]);
-
-  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
-    if (e.latLng && marker) {
-      const lat = e.latLng.lat();
-      const lng = e.latLng.lng();
-      
-      // Update marker position
-      marker.setPosition(e.latLng);
-      
-      // Reverse geocode to get address
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ location: { lat, lng } }, (results: google.maps.GeocoderResult[] | null, status: google.maps.GeocoderStatus) => {
-        if (status === 'OK' && results && results[0]) {
-          const addressComponents = results[0].address_components;
-          let city = '';
-          let province = '';
-          let zipCode = '';
-
-          addressComponents.forEach((component: google.maps.GeocoderAddressComponent) => {
-            const types = component.types;
-            if (types.includes('locality')) {
-              city = component.long_name;
-            } else if (types.includes('administrative_area_level_1')) {
-              province = component.long_name;
-            } else if (types.includes('postal_code')) {
-              zipCode = component.long_name;
-            }
-          });
-
-          setFormData(prev => ({
-            ...prev,
-            location: {
-              address: results[0].formatted_address,
-              city,
-              province,
-              zipCode
-            }
-          }));
-        }
-      });
-    }
-  }, [marker]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -386,315 +291,238 @@ export default function VetSignUpPage() {
           isOpen: !prev.openingHours[day].isOpen
         }
       }
-    }));
-  };
+    }))
+  }
+
+  if (showOtp) {
+    return <OtpVerification email={registeredEmail} />
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-      {showOtp && registeredEmail ? (
-        <OtpVerification email={registeredEmail} />
-      ) : (
-        <Card className="w-full max-w-2xl">
-          <CardHeader className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
-              <span className="text-2xl font-bold">PetEat</span>
-            </div>
-            {error && (
-              <div className="mb-2 text-red-600 text-sm font-medium">{error}</div>
-            )}
-            <CardTitle>Veterinary Clinic Registration</CardTitle>
-            <CardDescription>Join our network of trusted veterinary clinics</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="clinicName">Clinic Name</Label>
-                  <Input
-                    id="clinicName"
-                    value={formData.clinicName}
-                    onChange={(e) => handleChange("clinicName", e.target.value)}
-                    required
-                    placeholder="Enter clinic name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ownerName">Owner/Manager Name</Label>
-                  <Input
-                    id="ownerName"
-                    value={formData.ownerName}
-                    onChange={(e) => handleChange("ownerName", e.target.value)}
-                    required
-                    placeholder="Enter owner/manager name"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleChange("email", e.target.value)}
-                    required
-                    placeholder="Enter clinic email"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    type="tel"
-                    value={formData.phoneNumber}
-                    onChange={(e) => handleChange("phoneNumber", e.target.value)}
-                    required
-                    placeholder="Enter contact number"
-                  />
-                </div>
-              </div>
-
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-4xl">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">Veterinary Clinic Registration</CardTitle>
+          <CardDescription className="text-center">
+            Create your veterinary clinic account to start managing your practice
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Clinic Location</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Street Address</Label>
-                    <Input
-                      id="address"
-                      placeholder="Enter street address"
-                      value={formData.location.address}
-                      onChange={(e) => handleChange("location.address", e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
-                    <Input
-                      id="city"
-                      placeholder="Enter city"
-                      value={formData.location.city}
-                      onChange={(e) => handleChange("location.city", e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="province">Province</Label>
-                    <Input
-                      id="province"
-                      placeholder="Enter province"
-                      value={formData.location.province}
-                      onChange={(e) => handleChange("location.province", e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="zipCode">ZIP Code</Label>
-                    <Input
-                      id="zipCode"
-                      placeholder="Enter ZIP code"
-                      value={formData.location.zipCode}
-                      onChange={(e) => handleChange("location.zipCode", e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="licenseNumber">Veterinary License Number</Label>
-                  <Input
-                    id="licenseNumber"
-                    value={formData.licenseNumber}
-                    onChange={(e) => handleChange("licenseNumber", e.target.value)}
-                    required
-                    placeholder="Enter license number"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="clinicType">Clinic Type</Label>
-                  <Select
-                    value={formData.clinicType}
-                    onValueChange={(value) => handleChange("clinicType", value)}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select clinic type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clinicTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Animals Catered</Label>
-                <MultiSelect
-                  options={animalTypes}
-                  value={formData.animalsCatered}
-                  onChange={(value) => handleChange("animalsCatered", value)}
-                  placeholder="Select animals you cater to"
-                />
-              </div>
-
-              <div className="space-y-4">
-                <Label>Business Hours</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Weekdays */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-muted-foreground">Weekdays</h3>
-                    <div className="space-y-4">
-                      {[
-                        { id: 'monday', label: 'Monday' },
-                        { id: 'tuesday', label: 'Tuesday' },
-                        { id: 'wednesday', label: 'Wednesday' },
-                        { id: 'thursday', label: 'Thursday' },
-                        { id: 'friday', label: 'Friday' }
-                      ].map(({ id, label }) => (
-                        <div key={id} className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id={id}
-                              checked={formData.openingHours[id as keyof FormData['openingHours']].isOpen}
-                              onCheckedChange={() => handleDayToggle(id as keyof FormData['openingHours'])}
-                            />
-                            <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
-                          </div>
-                          {formData.openingHours[id as keyof FormData['openingHours']].isOpen && (
-                            <div className="grid grid-cols-2 gap-2 mt-2">
-                              <TimePicker
-                                value={formData.openingHours[id as keyof FormData['openingHours']].start}
-                                onChange={(time: string) => handleChange(`openingHours.${id}`, { 
-                                  ...formData.openingHours[id as keyof FormData['openingHours']], 
-                                  start: time 
-                                })}
-                              />
-                              <TimePicker
-                                value={formData.openingHours[id as keyof FormData['openingHours']].end}
-                                onChange={(time: string) => handleChange(`openingHours.${id}`, { 
-                                  ...formData.openingHours[id as keyof FormData['openingHours']], 
-                                  end: time 
-                                })}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Weekends */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-muted-foreground">Weekends</h3>
-                    <div className="space-y-4">
-                      {[
-                        { id: 'saturday', label: 'Saturday' },
-                        { id: 'sunday', label: 'Sunday' }
-                      ].map(({ id, label }) => (
-                        <div key={id} className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id={id}
-                              checked={formData.openingHours[id as keyof FormData['openingHours']].isOpen}
-                              onCheckedChange={() => handleDayToggle(id as keyof FormData['openingHours'])}
-                            />
-                            <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
-                          </div>
-                          {formData.openingHours[id as keyof FormData['openingHours']].isOpen && (
-                            <div className="grid grid-cols-2 gap-2 mt-2">
-                              <TimePicker
-                                value={formData.openingHours[id as keyof FormData['openingHours']].start}
-                                onChange={(time: string) => handleChange(`openingHours.${id}`, { 
-                                  ...formData.openingHours[id as keyof FormData['openingHours']], 
-                                  start: time 
-                                })}
-                              />
-                              <TimePicker
-                                value={formData.openingHours[id as keyof FormData['openingHours']].end}
-                                onChange={(time: string) => handleChange(`openingHours.${id}`, { 
-                                  ...formData.openingHours[id as keyof FormData['openingHours']], 
-                                  end: time 
-                                })}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Business Permit</Label>
+                <Label htmlFor="clinicName">Clinic Name</Label>
                 <Input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={handleFileChange}
+                  id="clinicName"
+                  value={formData.clinicName}
+                  onChange={(e) => handleChange("clinicName", e.target.value)}
                   required
+                  placeholder="Enter clinic name"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="ownerName">Owner/Manager Name</Label>
+                <Input
+                  id="ownerName"
+                  value={formData.ownerName}
+                  onChange={(e) => handleChange("ownerName", e.target.value)}
+                  required
+                  placeholder="Enter owner/manager name"
+                />
+              </div>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  required
+                  placeholder="Enter clinic email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={(e) => handleChange("phoneNumber", e.target.value)}
+                  required
+                  placeholder="Enter contact number"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Clinic Location</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="address">Street Address</Label>
                   <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => handleChange("password", e.target.value)}
+                    id="address"
+                    placeholder="Enter street address"
+                    value={formData.location.address}
+                    onChange={(e) => handleChange("location.address", e.target.value)}
                     required
-                    placeholder="Create a password"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="city">City</Label>
                   <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                    id="city"
+                    placeholder="Enter city"
+                    value={formData.location.city}
+                    onChange={(e) => handleChange("location.city", e.target.value)}
                     required
-                    placeholder="Confirm your password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="province">Province</Label>
+                  <Input
+                    id="province"
+                    placeholder="Enter province"
+                    value={formData.location.province}
+                    onChange={(e) => handleChange("location.province", e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zipCode">ZIP Code</Label>
+                  <Input
+                    id="zipCode"
+                    placeholder="Enter ZIP code"
+                    value={formData.location.zipCode}
+                    onChange={(e) => handleChange("location.zipCode", e.target.value)}
+                    required
                   />
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="terms"
-                  checked={formData.agreedToTerms}
-                  onCheckedChange={(checked) => handleChange("agreedToTerms", checked)}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="licenseNumber">Veterinary License Number</Label>
+                <Input
+                  id="licenseNumber"
+                  value={formData.licenseNumber}
+                  onChange={(e) => handleChange("licenseNumber", e.target.value)}
                   required
+                  placeholder="Enter license number"
                 />
-                <Label htmlFor="terms" className="text-sm">
-                  I agree to the terms and conditions
-                </Label>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="clinicType">Clinic Type</Label>
+                <Select
+                  value={formData.clinicType}
+                  onValueChange={(value) => handleChange("clinicType", value)}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select clinic type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clinicTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Creating Account..." : "Create Account"}
-              </Button>
-            </form>
+            <div className="space-y-2">
+              <Label>Animals Catered</Label>
+              <MultiSelect
+                options={animalTypes}
+                value={formData.animalsCatered}
+                onChange={(value) => handleChange("animalsCatered", value)}
+                placeholder="Select animals you cater to"
+              />
+            </div>
 
-            <div className="mt-6 text-center">
+            <div className="space-y-2">
+              <Label>Business Permit</Label>
+              <Input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+                required
+              />
+              <p className="text-sm text-gray-500">
+                Upload your business permit (PDF, JPG, JPEG, or PNG)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Opening Hours</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.entries(formData.openingHours).map(([day, hours]) => (
+                  <div key={day} className="flex items-center space-x-4">
+                    <Checkbox
+                      id={`${day}-open`}
+                      checked={hours.isOpen}
+                      onCheckedChange={() => handleDayToggle(day as keyof FormData['openingHours'])}
+                    />
+                    <Label htmlFor={`${day}-open`} className="capitalize">
+                      {day}
+                    </Label>
+                    {hours.isOpen && (
+                      <div className="flex items-center space-x-2">
+                        <TimePicker
+                          value={hours.start}
+                          onChange={(value) => handleChange(`openingHours.${day}.start`, value)}
+                        />
+                        <span>to</span>
+                        <TimePicker
+                          value={hours.end}
+                          onChange={(value) => handleChange(`openingHours.${day}.end`, value)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="terms"
+                checked={formData.agreedToTerms}
+                onCheckedChange={(checked) => handleChange("agreedToTerms", checked)}
+                required
+              />
+              <Label htmlFor="terms">
+                I agree to the{" "}
+                <Link href="/terms" className="text-blue-600 hover:underline">
+                  terms and conditions
+                </Link>
+              </Label>
+            </div>
+
+            {error && (
+              <div className="text-red-500 text-sm">{error}</div>
+            )}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Creating account..." : "Create Account"}
+            </Button>
+
+            <div className="text-center">
               <p className="text-sm text-gray-600">
                 Already have an account?{" "}
                 <Link href="/login" className="text-blue-600 hover:underline">
-                  Sign in
+                  Login
                 </Link>
               </p>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 } 
