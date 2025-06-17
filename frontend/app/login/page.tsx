@@ -76,6 +76,7 @@ export default function LoginPage() {
         // Redirect based on role
         switch (data.data.role) {
           case "user":
+          case "pet owner":
             router.push("/dashboard/user")
             break
           case "admin":
