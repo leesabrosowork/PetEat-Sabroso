@@ -5,6 +5,17 @@ const initializeSocket = (io) => {
   io.on('connection', (socket) => {
     console.log('\n🟢 New connection:', socket.id);
 
+    // Handle heartbeat to keep connection alive
+    socket.on('heartbeat', (data) => {
+      console.log('💓 Heartbeat received from:', socket.id);
+      socket.emit('heartbeat_ack', { timestamp: Date.now() });
+    });
+
+    // Handle pong response
+    socket.on('pong', (data) => {
+      console.log('🏓 Pong received from:', socket.id);
+    });
+
     // Handle room joining
     socket.on('join_room', (data) => {
       const { roomId, user } = data;
@@ -15,7 +26,8 @@ const initializeSocket = (io) => {
         roomId,
         email: user?.email || 'Unknown',
         role: user?.role || 'Unknown',
-        joinedAt: new Date().toLocaleString()
+        joinedAt: new Date().toLocaleString(),
+        lastHeartbeat: Date.now()
       });
 
       // Log detailed connection info
@@ -100,11 +112,12 @@ const initializeSocket = (io) => {
     });
 
     // Handle disconnection
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
       const userData = connectedUsers.get(socket.id);
       
       console.log('\n🔴 User Disconnected');
       console.log('Socket ID:', socket.id);
+      console.log('Reason:', reason);
       if (userData) {
         console.log('User Email:', userData.email);
         console.log('User Role:', userData.role);
@@ -126,6 +139,7 @@ const initializeSocket = (io) => {
         console.log(`Role: ${userData.role}`);
         console.log(`Room: ${userData.roomId}`);
         console.log(`Connected since: ${userData.joinedAt}`);
+        console.log(`Last heartbeat: ${new Date(userData.lastHeartbeat).toLocaleString()}`);
       });
       console.log('===========================\n');
     });

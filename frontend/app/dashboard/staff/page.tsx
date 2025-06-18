@@ -24,7 +24,7 @@ interface InventoryItem {
 export default function StaffDashboard() {
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [quantities, setQuantities] = useState<{ [id: string]: number }>({})
+  const [quantities, setQuantities] = useState<{ [id: string]: string | number }>({})
   const [user, setUser] = useState<any>(null)
   const { toast } = useToast()
   const router = useRouter()
@@ -69,7 +69,7 @@ export default function StaffDashboard() {
   }
 
   const handleSubtract = async (itemId: string) => {
-    const quantity = quantities[itemId]
+    const quantity = Number(quantities[itemId])
     if (!quantity || quantity <= 0) {
       toast({
         title: "Invalid quantity",
@@ -109,6 +109,40 @@ export default function StaffDashboard() {
         title: "Error",
         description: "Could not update inventory.",
         variant: "destructive"
+      })
+    }
+  }
+
+  const handleChangeStock = async (id: string, amount: number) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`http://localhost:8080/api/staff/inventory/${id}/stock`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ amount }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: `Stock ${amount > 0 ? "increased" : "decreased"} successfully`,
+        })
+        fetchInventory() // Refresh inventory data
+      } else {
+        toast({
+          title: "Error",
+          description: data.message,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update stock",
+        variant: "destructive",
       })
     }
   }
@@ -222,7 +256,28 @@ export default function StaffDashboard() {
                     <TableRow key={item._id}>
                       <TableCell className="font-medium">{item.item}</TableCell>
                       <TableCell>{item.category}</TableCell>
-                      <TableCell>{item.stock}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleChangeStock(item._id, -1)}
+                            disabled={item.stock <= 0}
+                            aria-label="Decrease stock"
+                          >
+                            −
+                          </Button>
+                          <span className="w-8 text-center">{item.stock}</span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleChangeStock(item._id, 1)}
+                            aria-label="Increase stock"
+                          >
+                            +
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell>{item.minStock}</TableCell>
                       <TableCell>
                         <Badge
@@ -230,7 +285,7 @@ export default function StaffDashboard() {
                             item.status === "in-stock"
                               ? "default"
                               : item.status === "low-stock"
-                              ? "warning"
+                              ? "secondary"
                               : "destructive"
                           }
                         >
@@ -243,7 +298,7 @@ export default function StaffDashboard() {
                             type="number"
                             min={1}
                             value={quantities[item._id] || ""}
-                            onChange={e => setQuantities(q => ({ ...q, [item._id]: Number(e.target.value) }))}
+                            onChange={e => setQuantities(prev => ({ ...prev, [item._id]: parseInt(e.target.value) }))}
                             placeholder="Qty to subtract"
                             className="w-32"
                           />

@@ -37,6 +37,7 @@ router.post('/inventory', protect, authorize('super admin'), superAdminControlle
 router.get('/inventory/:id', protect, authorize('super admin'), superAdminController.getInventoryItemById);
 router.put('/inventory/:id', protect, authorize('super admin'), superAdminController.updateInventoryItem);
 router.delete('/inventory/:id', protect, authorize('super admin'), superAdminController.deleteInventoryItem);
+router.patch('/inventory/:id/stock', protect, authorize('super admin'), superAdminController.updateInventoryStock);
 
 // Vet Clinic Approval Routes
 router.get('/pending-vet-clinics', protect, authorize('super admin'), superAdminController.getPendingVetClinics);

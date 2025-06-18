@@ -626,11 +626,11 @@ exports.createInventoryItem = async (req, res) => {
 
 exports.updateInventoryItem = async (req, res) => {
     try {
-        const { name, quantity, category, status } = req.body;
+        const { item, stock, minStock, category, status } = req.body;
         const itemId = req.params.id;
 
-        const item = await Inventory.findById(itemId);
-        if (!item) {
+        const inventoryItem = await Inventory.findById(itemId);
+        if (!inventoryItem) {
             return res.status(404).json({
                 success: false,
                 message: 'Inventory item not found'
@@ -638,16 +638,18 @@ exports.updateInventoryItem = async (req, res) => {
         }
 
         // Update fields
-        if (name) item.name = name;
-        if (quantity) item.quantity = quantity;
-        if (category) item.category = category;
-        if (status) item.status = status;
+        if (item) inventoryItem.item = item;
+        if (stock !== undefined) inventoryItem.stock = stock;
+        if (minStock !== undefined) inventoryItem.minStock = minStock;
+        if (category) inventoryItem.category = category;
+        // Don't override status - let middleware handle it based on stock levels
+        // if (status) inventoryItem.status = status;
 
-        await item.save();
+        await inventoryItem.save(); // This will trigger the middleware
 
         res.json({
             success: true,
-            data: item
+            data: inventoryItem
         });
     } catch (error) {
         res.status(500).json({
@@ -669,6 +671,39 @@ exports.deleteInventoryItem = async (req, res) => {
         res.json({
             success: true,
             message: 'Inventory item deleted successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Increment or decrement inventory stock
+exports.updateInventoryStock = async (req, res) => {
+    try {
+        const itemId = req.params.id;
+        const { amount } = req.body;
+        if (typeof amount !== 'number') {
+            return res.status(400).json({
+                success: false,
+                message: 'Amount must be a number'
+            });
+        }
+        const item = await Inventory.findById(itemId);
+        if (!item) {
+            return res.status(404).json({
+                success: false,
+                message: 'Inventory item not found'
+            });
+        }
+        item.stock += amount;
+        if (item.stock < 0) item.stock = 0;
+        await item.save();
+        res.json({
+            success: true,
+            data: item
         });
     } catch (error) {
         res.status(500).json({

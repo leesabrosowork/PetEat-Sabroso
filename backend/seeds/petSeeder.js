@@ -21,50 +21,62 @@ const seedPets = async () => {
         const samplePets = [
             {
                 name: "Max",
+                type: "dog",
                 breed: "Golden Retriever",
                 age: 3,
                 weight: 30,
                 color: "Golden",
+                healthStatus: "stable",
                 owner: users[0]._id // Maria's pet
             },
             {
                 name: "Luna",
+                type: "cat",
                 breed: "Siamese Cat",
                 age: 2,
                 weight: 4,
                 color: "Cream",
+                healthStatus: "checkup",
                 owner: users[0]._id // Maria's second pet
             },
             {
                 name: "Rocky",
+                type: "dog",
                 breed: "German Shepherd",
                 age: 4,
                 weight: 35,
                 color: "Black and Tan",
+                healthStatus: "stable",
                 owner: users[1]._id // James's pet
             },
             {
                 name: "Bella",
+                type: "dog",
                 breed: "Labrador",
                 age: 1,
                 weight: 25,
                 color: "Chocolate",
+                healthStatus: "critical",
                 owner: users[2]._id // Sarah's pet
             },
             {
                 name: "Charlie",
+                type: "dog",
                 breed: "French Bulldog",
                 age: 2,
                 weight: 12,
                 color: "Brindle",
+                healthStatus: "stable",
                 owner: users[3]._id // David's pet
             },
             {
                 name: "Milo",
+                type: "cat",
                 breed: "Persian Cat",
                 age: 3,
                 weight: 5,
                 color: "White",
+                healthStatus: "checkup",
                 owner: users[4]._id // Lisa's pet
             }
         ];

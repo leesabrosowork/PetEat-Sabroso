@@ -28,4 +28,5 @@ router.delete('/pets/:id', adminAuth, adminController.deletePet);
 router.get('/settings', adminController.getSettings);
 router.put('/inventory/:id', adminAuth, adminController.updateInventoryItem);
 router.delete('/inventory/:id', adminAuth, adminController.deleteInventoryItem);
+router.patch('/inventory/:id/stock', adminAuth, adminController.updateInventoryStock);
 router.post('/reset-seed', adminAuth, adminController.resetAndSeed);

@@ -127,14 +127,18 @@ exports.getDoctorDashboard = async (req, res) => {
 // Get all patients for a doctor
 exports.getDoctorPatients = async (req, res) => {
     try {
+        console.log('Fetching doctor patients...');
         // Find all pets and populate their owner information
-        const pets = await Pet.find().populate('owner', 'name email');
+        const pets = await Pet.find().populate('owner', 'username email');
+        console.log('Pets found:', pets.length);
+        console.log('Sample pet data:', pets[0]);
 
         res.json({
             success: true,
             data: pets
         });
     } catch (error) {
+        console.error('Error in getDoctorPatients:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching doctor patients',

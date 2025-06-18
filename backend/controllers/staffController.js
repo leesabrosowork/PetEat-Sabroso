@@ -123,11 +123,18 @@ exports.getInventory = async (req, res) => {
 };
 
 // @desc    Update inventory stock
-// @route   PUT /api/staff/inventory/:id
+// @route   PATCH /api/staff/inventory/:id/stock
 // @access  Private/Staff
 exports.updateInventoryStock = async (req, res) => {
     try {
-        const { quantity } = req.body;
+        const { amount } = req.body;
+        if (typeof amount !== 'number') {
+            return res.status(400).json({
+                success: false,
+                message: 'Amount must be a number'
+            });
+        }
+        
         const inventory = await Inventory.findById(req.params.id);
 
         if (!inventory) {
@@ -138,17 +145,9 @@ exports.updateInventoryStock = async (req, res) => {
         }
 
         // Update stock
-        inventory.stock = Math.max(0, inventory.stock - quantity);
+        inventory.stock += amount;
+        if (inventory.stock < 0) inventory.stock = 0;
         
-        // Update status based on stock level
-        if (inventory.stock <= 0) {
-            inventory.status = 'out-of-stock';
-        } else if (inventory.stock <= inventory.minStock) {
-            inventory.status = 'low-stock';
-        } else {
-            inventory.status = 'in-stock';
-        }
-
         await inventory.save();
 
         res.json({

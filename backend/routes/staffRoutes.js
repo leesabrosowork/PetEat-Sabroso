@@ -16,6 +16,6 @@ router.post('/login', loginStaff);
 // Protected routes
 router.get('/profile', protect, getStaffProfile);
 router.get('/inventory', protect, getInventory);
-router.put('/inventory/:id', protect, updateInventoryStock);
+router.patch('/inventory/:id/stock', protect, updateInventoryStock);
 
 module.exports = router; 

@@ -17,6 +17,7 @@ import { EditPetDialog } from "@/components/EditPetDialog"
 import { UserPermissionsDialog } from "@/components/UserPermissionsDialog"
 import { EditInventoryItemDialog } from "@/components/EditInventoryItemDialog"
 import { AddDoctorDialog } from "@/components/AddDoctorDialog"
+import { toast } from "@/components/ui/use-toast"
 
 interface DashboardData {
   totalUsers: number;
@@ -547,6 +548,40 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleChangeStock = async (id: string, amount: number) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`http://localhost:8080/api/admin/inventory/${id}/stock`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ amount }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: `Stock ${amount > 0 ? "increased" : "decreased"} successfully`,
+        })
+        fetchDashboardData() // Refresh inventory data
+      } else {
+        toast({
+          title: "Error",
+          description: data.message,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update stock",
+        variant: "destructive",
+      })
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -900,7 +935,28 @@ export default function AdminDashboard() {
                       <TableRow key={item._id}>
                         <TableCell className="font-medium">{item.item}</TableCell>
                         <TableCell>{item.category}</TableCell>
-                        <TableCell>{item.stock}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleChangeStock(item._id, -1)}
+                              disabled={item.stock <= 0}
+                              aria-label="Decrease stock"
+                            >
+                              −
+                            </Button>
+                            <span className="w-8 text-center">{item.stock}</span>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleChangeStock(item._id, 1)}
+                              aria-label="Increase stock"
+                            >
+                              +
+                            </Button>
+                          </div>
+                        </TableCell>
                         <TableCell>{item.minStock}</TableCell>
                         <TableCell>
                           <Badge

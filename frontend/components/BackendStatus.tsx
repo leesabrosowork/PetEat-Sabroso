@@ -1,31 +1,25 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useSocket } from '@/app/context/SocketContext';
+import { Badge } from '@/components/ui/badge';
+import { Wifi, WifiOff } from 'lucide-react';
 
-export default function BackendStatus() {
-    useEffect(() => {
-        const checkBackendStatus = async () => {
-            try {
-                const response = await fetch('http://localhost:8080/api/status', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    alert('Backend is running! ' + data.message);
-                } else {
-                    alert('Backend is not responding. Please check if the server is running.');
-                }
-            } catch (error) {
-                alert('Backend connection failed. Could not connect to the backend server.');
-            }
-        };
+export function BackendStatus() {
+  const { isConnected } = useSocket();
 
-        checkBackendStatus();
-    }, []);
-
-    return null;
+  return (
+    <div className="flex items-center gap-2">
+      {isConnected ? (
+        <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+          <Wifi className="w-3 h-3 mr-1" />
+          Connected
+        </Badge>
+      ) : (
+        <Badge variant="destructive">
+          <WifiOff className="w-3 h-3 mr-1" />
+          Disconnected
+        </Badge>
+      )}
+    </div>
+  );
 } 

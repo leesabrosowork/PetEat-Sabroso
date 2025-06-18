@@ -76,6 +76,7 @@ export default function LoginPage() {
         // Redirect based on role
         switch (data.data.role) {
           case "user":
+          case "pet owner":
             router.push("/dashboard/user")
             break
           case "admin":
@@ -89,6 +90,9 @@ export default function LoginPage() {
             break
           case "super admin":
             router.push("/dashboard/super-admin")
+            break
+          case "vet clinic":
+            router.push("/dashboard/vet-clinic")
             break
           default:
             router.push("/")
@@ -190,6 +194,9 @@ export default function LoginPage() {
               </p>
               <p>
                 <strong>Staff:</strong> staff@peteat.com / staff123
+              </p>
+              <p>
+                <strong>Vet Clinic:</strong> vetclinic@peteat.com / vetclinic123
               </p>
             </div>
           </div>

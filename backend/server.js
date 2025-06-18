@@ -27,7 +27,13 @@ const io = new Server(httpServer, {
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
   },
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  // Add timeout configurations to prevent disconnections
+  pingTimeout: 60000, // 60 seconds
+  pingInterval: 25000, // 25 seconds
+  upgradeTimeout: 10000, // 10 seconds
+  allowUpgrades: true,
+  maxHttpBufferSize: 1e6, // 1MB
 });
 
 // Initialize Socket.IO

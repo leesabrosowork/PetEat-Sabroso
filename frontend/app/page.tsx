@@ -3,7 +3,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Heart, Calendar, Video, Stethoscope, Users, Shield } from "lucide-react"
-import BackendStatus from "@/components/BackendStatus"
+import { BackendStatus } from "@/components/BackendStatus"
 
 export default function HomePage() {
   return (

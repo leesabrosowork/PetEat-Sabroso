@@ -14,7 +14,8 @@ interface Pet {
   name: string;
   owner: {
     _id: string;
-    name: string;
+    username?: string;
+    name?: string;
   };
 }
 
@@ -47,24 +48,42 @@ export default function PrescriptionForm({ onClose, onSaved }: PrescriptionFormP
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token) return;
+        if (!token) {
+          setError("No authentication token found");
+          return;
+        }
 
+        console.log("Fetching pets...");
         // Fetch pets
         const petsRes = await fetch("http://localhost:8080/api/doctors/patients", {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (!petsRes.ok) throw new Error("Failed to fetch pets");
+        console.log("Pets response status:", petsRes.status);
+        if (!petsRes.ok) {
+          const errorText = await petsRes.text();
+          console.error("Pets response error:", errorText);
+          throw new Error("Failed to fetch pets");
+        }
         const petsData = await petsRes.json();
-        setPets(petsData.data);
+        console.log("Pets data:", petsData);
+        setPets(petsData.data || []);
 
+        console.log("Fetching medicines...");
         // Fetch medicines
         const medicinesRes = await fetch("http://localhost:8080/api/inventory", {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (!medicinesRes.ok) throw new Error("Failed to fetch medicines");
+        console.log("Medicines response status:", medicinesRes.status);
+        if (!medicinesRes.ok) {
+          const errorText = await medicinesRes.text();
+          console.error("Medicines response error:", errorText);
+          throw new Error("Failed to fetch medicines");
+        }
         const medicinesData = await medicinesRes.json();
-        setMedicines(medicinesData.data);
+        console.log("Medicines data:", medicinesData);
+        setMedicines(medicinesData.data || []);
       } catch (err: any) {
+        console.error("Error in fetchData:", err);
         setError(err.message);
       }
     };
@@ -104,6 +123,13 @@ export default function PrescriptionForm({ onClose, onSaved }: PrescriptionFormP
     }
   };
 
+  const getOwnerName = (pet: Pet) => {
+    if (pet.owner) {
+      return pet.owner.username || pet.owner.name || "Unknown Owner";
+    }
+    return "Unknown Owner";
+  };
+
   return (
     <form onSubmit={handleSubmit} className="p-4 max-w-2xl mx-auto bg-white rounded shadow space-y-4 relative">
       <button
@@ -134,7 +160,7 @@ export default function PrescriptionForm({ onClose, onSaved }: PrescriptionFormP
               ) : (
                 pets.map((pet) => (
                   <SelectItem key={pet._id} value={pet._id}>
-                    {pet.name} (Owner: {pet.owner && pet.owner.name ? pet.owner.name : "Unknown Owner"})
+                    {pet.name} (Owner: {getOwnerName(pet)})
                   </SelectItem>
                 ))
               )}

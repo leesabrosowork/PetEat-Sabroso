@@ -328,15 +328,22 @@ exports.updateInventoryItem = async (req, res) => {
         const { id } = req.params;
         const { item, category, stock, minStock } = req.body;
 
-        const updatedItem = await Inventory.findByIdAndUpdate(id, { item, category, stock, minStock }, { new: true });
-
-        if (!updatedItem) {
+        const inventoryItem = await Inventory.findById(id);
+        if (!inventoryItem) {
             return res.status(404).json({ message: 'Inventory item not found' });
         }
 
+        // Update fields
+        if (item) inventoryItem.item = item;
+        if (category) inventoryItem.category = category;
+        if (stock !== undefined) inventoryItem.stock = stock;
+        if (minStock !== undefined) inventoryItem.minStock = minStock;
+
+        await inventoryItem.save(); // This will trigger the middleware
+
         res.json({
             success: true,
-            data: updatedItem
+            data: inventoryItem
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -360,6 +367,39 @@ exports.deleteInventoryItem = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+// Increment or decrement inventory stock
+exports.updateInventoryStock = async (req, res) => {
+    try {
+        const itemId = req.params.id;
+        const { amount } = req.body;
+        if (typeof amount !== 'number') {
+            return res.status(400).json({
+                success: false,
+                message: 'Amount must be a number'
+            });
+        }
+        const item = await Inventory.findById(itemId);
+        if (!item) {
+            return res.status(404).json({
+                success: false,
+                message: 'Inventory item not found'
+            });
+        }
+        item.stock += amount;
+        if (item.stock < 0) item.stock = 0;
+        await item.save();
+        res.json({
+            success: true,
+            data: item
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
 };
 

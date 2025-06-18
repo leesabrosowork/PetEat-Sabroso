@@ -177,6 +177,41 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
     }
   }
 
+  // Add or subtract stock
+  const handleChangeStock = async (id: string, amount: number) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`http://localhost:8080/api/super-admin/inventory/${id}/stock`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ amount }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: `Stock ${amount > 0 ? "increased" : "decreased"} successfully`,
+        })
+        onInventoryUpdated()
+      } else {
+        toast({
+          title: "Error",
+          description: data.message,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update stock",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -203,7 +238,28 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
           {inventory.map((item) => (
             <TableRow key={item._id}>
               <TableCell>{item.item}</TableCell>
-              <TableCell>{item.stock}</TableCell>
+              <TableCell>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleChangeStock(item._id, -1)}
+                    disabled={item.stock <= 0}
+                    aria-label="Decrease stock"
+                  >
+                    −
+                  </Button>
+                  <span className="w-8 text-center">{item.stock}</span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleChangeStock(item._id, 1)}
+                    aria-label="Increase stock"
+                  >
+                    +
+                  </Button>
+                </div>
+              </TableCell>
               <TableCell>{item.minStock}</TableCell>
               <TableCell>{item.category}</TableCell>
               <TableCell>
