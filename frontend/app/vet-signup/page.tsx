@@ -322,7 +322,7 @@ export default function VetSignUpPage() {
   }
 
   if (showOtp) {
-    return <OtpVerification email={registeredEmail} />
+    return <OtpVerification email={registeredEmail} isVetClinic={true} />
   }
 
   return (

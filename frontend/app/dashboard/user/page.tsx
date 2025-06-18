@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Heart, Plus, Video, FileText, Clock, User, LogOut } from "lucide-react"
+import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { EMRViewer } from "@/components/EMRViewer"
@@ -19,6 +19,7 @@ interface Pet {
   age: number;
   weight: number;
   color: string;
+  profilePicture?: string;
 }
 
 interface Doctor {
@@ -63,12 +64,20 @@ export default function UserDashboard() {
     appointments: [],
     prescriptions: []
   })
-  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   const { socket } = useSocket();
+
+  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
+  const [emrs, setEmrs] = useState<any[]>([]);
+  const [emrsLoading, setEmrsLoading] = useState(true);
+  const [emrsError, setEmrsError] = useState<string | null>(null);
+  const [isEMRViewerOpen, setIsEMRViewerOpen] = useState(false);
+  const [selectedEMR, setSelectedEMR] = useState<any>(null);
+  const [deletePetId, setDeletePetId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -77,6 +86,7 @@ export default function UserDashboard() {
         const parsedUser = JSON.parse(userData)
         setUser(parsedUser)
         fetchDashboardData(parsedUser._id)
+        fetchEMRs()
       } catch (e) {
         console.error('Error parsing user data:', e)
         router.push("/login")
@@ -84,6 +94,7 @@ export default function UserDashboard() {
     } else {
       router.push("/login")
     }
+    // eslint-disable-next-line
   }, [router])
 
   // Real-time updates
@@ -103,44 +114,75 @@ export default function UserDashboard() {
   }, [socket, user]);
 
   const fetchDashboardData = async (userId: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true)
-      setError(null)
-      
-      // Get token from localStorage
-      const token = localStorage.getItem("token")
-      if (!token) {
-        setError('Authentication token not found')
-        router.push("/login")
-        return
-      }
-
-      const response = await fetch(`http://localhost:8080/api/users/${userId}/dashboard`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      const result = await response.json()
-      
-      if (result.success) {
-        setDashboardData(result.data)
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+      const res = await fetch(`http://localhost:8080/api/users/${userId}/dashboard`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch dashboard data");
+      const data = await res.json();
+      if (data.success) {
+        setDashboardData(data.data);
       } else {
-        setError(result.message || 'Failed to fetch dashboard data')
+        setError(data.message);
       }
-    } catch (error) {
-      setError('Failed to fetch dashboard data. Please try again.')
-      console.error('Error fetching dashboard data:', error)
+    } catch (e: any) {
+      setError(e.message || "Failed to fetch dashboard data");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const fetchEMRs = async () => {
+    setEmrsLoading(true);
+    setEmrsError(null);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+      const res = await fetch("http://localhost:8080/api/emr/user/pets", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch EMRs");
+      const data = await res.json();
+      if (data.success) {
+        setEmrs(data.data);
+      } else {
+        setEmrsError(data.message);
+      }
+    } catch (e: any) {
+      setEmrsError(e.message || "Failed to fetch EMRs");
+    } finally {
+      setEmrsLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("user")
     localStorage.removeItem("token")
     router.push("/")
   }
+
+  const handleDeletePet = async (petId: string) => {
+    if (!window.confirm("Are you sure you want to delete this pet? This action cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:8080/api/pets/${petId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to delete pet");
+      // Refresh dashboard data
+      fetchDashboardData(user._id);
+    } catch (e) {
+      alert("Failed to delete pet. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -208,6 +250,7 @@ export default function UserDashboard() {
             <TabsTrigger value="pets">My Pets</TabsTrigger>
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
+            <TabsTrigger value="medical-records">Medical Records</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
           </TabsList>
 
@@ -318,13 +361,31 @@ export default function UserDashboard() {
                 <Card key={pet._id}>
                   <CardHeader>
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
+                      <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                        {pet.profilePicture ? (
+                          <img 
+                            src={`http://localhost:8080/${pet.profilePicture}`} 
+                            alt={pet.name} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
+                        )}
                       </div>
                       <div>
                         <CardTitle>{pet.name}</CardTitle>
                         <CardDescription>{pet.breed}</CardDescription>
                       </div>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="ml-auto"
+                        onClick={() => handleDeletePet(pet._id)}
+                        disabled={deleting}
+                        title="Delete Pet"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -338,27 +399,23 @@ export default function UserDashboard() {
                       <p>
                         <strong>Color:</strong> {pet.color}
                       </p>
-                      <Button className="mt-2" variant="outline" onClick={() => setSelectedPetId(pet._id)}>
+                      <Button className="mt-2" variant="outline" onClick={() => {
+                        // Find EMRs for this pet
+                        const petEMRs = emrs.filter(emr => emr.petId === pet._id);
+                        if (petEMRs.length > 0) {
+                          // Show the first EMR for this pet
+                          setSelectedEMR(petEMRs[0]);
+                          setIsEMRViewerOpen(true);
+                        } else {
+                          alert("No medical records found for this pet");
+                        }
+                      }}>
                         View EMR
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
               ))}
-              {selectedPetId && (
-  <div
-    className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
-    onClick={() => setSelectedPetId(null)}
-    style={{ zIndex: 1000 }}
-  >
-    <div
-      className="bg-white rounded-lg shadow-lg max-w-2xl w-full relative"
-      onClick={e => e.stopPropagation()}
-    >
-      <EMRViewer emrId={selectedPetId} isOpen={true} onClose={() => setSelectedPetId(null)} />
-    </div>
-  </div>
-)}
               {dashboardData.pets.length === 0 && (
                 <div className="col-span-full text-center py-8">
                   <p className="text-gray-500 mb-4">No pets registered yet</p>
@@ -436,38 +493,98 @@ export default function UserDashboard() {
           </TabsContent>
 
           <TabsContent value="prescriptions" className="space-y-6">
-            <h2 className="text-2xl font-bold">Prescriptions</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Prescriptions</h2>
+            </div>
             <div className="space-y-4">
-              {loading ? (
+              {dashboardData.prescriptions.map((prescription) => (
+                <Card key={prescription._id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2">
+                        <h3 className="font-semibold">Pet: {prescription.pet.name}</h3>
+                        <p className="text-gray-600">Medicine: {prescription.medicine.item}</p>
+                        <p className="text-gray-600">Doctor: {prescription.doctor.name}</p>
+                        <p className="text-sm text-gray-500">Date: {new Date(prescription.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <Button variant="outline" onClick={() => setSelectedPrescription(prescription)}>View Details</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {dashboardData.prescriptions.length === 0 && (
                 <div className="text-center py-8">
-                  <p className="text-gray-500">Loading...</p>
+                  <p className="text-gray-500">No prescriptions found</p>
                 </div>
-              ) : Array.isArray(dashboardData.prescriptions) && dashboardData.prescriptions.length > 0 ? (
-                dashboardData.prescriptions.map((prescription) => (
-                  <Card key={prescription._id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                          <h3 className="font-semibold">{prescription.medicine.item}</h3>
-                          <p className="text-gray-600">For: {prescription.pet.name}</p>
-                          <p className="text-sm text-gray-500">Description: {prescription.description}</p>
-                          <p className="text-sm text-gray-500">Prescribed by: {prescription.doctor.name}</p>
-                          <p className="text-sm text-gray-500">
-                            Date: {new Date(prescription.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <Button variant="outline" size="sm">
-                          <FileText className="h-4 w-4 mr-2" />
-                          Download
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="medical-records" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Medical Records</h2>
+            </div>
+            <div className="space-y-4">
+              {emrsLoading ? (
+                <p>Loading medical records...</p>
+              ) : emrsError ? (
+                <p className="text-red-500">{emrsError}</p>
+              ) : emrs.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No medical records found</p>
+                </div>
+              ) : (
+                emrs.map((emr) => (
+                  <Card key={emr._id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-lg">
+                          {emr.name || "Unknown Pet"} - {emr.currentVisit?.date ? new Date(emr.currentVisit.date).toLocaleDateString() : "N/A"}
+                        </CardTitle>
+                        <Badge
+                          variant={
+                            emr.currentVisit?.status === "active"
+                              ? "default"
+                              : emr.currentVisit?.status === "ongoing"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
+                          {emr.currentVisit?.status || "N/A"}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 mb-2">
+                        <strong>Species:</strong> {emr.species || "N/A"}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-2">
+                        <strong>Breed:</strong> {emr.breed || "N/A"}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-2">
+                        <strong>Diagnosis:</strong> {emr.currentVisit?.diagnosis || "N/A"}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-2">
+                        <strong>Treatment:</strong> {emr.currentVisit?.treatment || "N/A"}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-2">
+                        <strong>Doctor:</strong> {emr.doctor?.name || "N/A"}
+                      </p>
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedEMR(emr);
+                            setIsEMRViewerOpen(true);
+                          }}
+                        >
+                          View Details
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
                 ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No prescriptions available</p>
-                </div>
               )}
             </div>
           </TabsContent>
@@ -486,6 +603,32 @@ export default function UserDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {isEMRViewerOpen && selectedEMR && (
+        <EMRViewer
+          emrId={selectedEMR._id}
+          isOpen={isEMRViewerOpen}
+          onClose={() => {
+            setIsEMRViewerOpen(false)
+            setSelectedEMR(null)
+          }}
+          isDoctor={false}
+        />
+      )}
+
+      {selectedPrescription && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-8 rounded-lg w-full max-w-lg">
+            <h2 className="text-xl font-bold mb-4">Prescription Details</h2>
+            <p><strong>Pet:</strong> {selectedPrescription.pet.name}</p>
+            <p><strong>Medicine:</strong> {selectedPrescription.medicine.item}</p>
+            <p><strong>Doctor:</strong> {selectedPrescription.doctor.name}</p>
+            <p><strong>Description:</strong> {selectedPrescription.description}</p>
+            <p><strong>Date:</strong> {new Date(selectedPrescription.createdAt).toLocaleDateString()}</p>
+            <Button className="mt-4" onClick={() => setSelectedPrescription(null)}>Close</Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

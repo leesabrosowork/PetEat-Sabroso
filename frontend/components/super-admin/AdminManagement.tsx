@@ -194,7 +194,7 @@ export default function AdminManagement({ admins, onAdminUpdated }: AdminManagem
           </TableRow>
         </TableHeader>
         <TableBody>
-          {admins.map((admin) => (
+          {admins.filter(admin => admin).map((admin) => (
             <TableRow key={admin._id}>
               <TableCell>{admin.username}</TableCell>
               <TableCell>{admin.email}</TableCell>

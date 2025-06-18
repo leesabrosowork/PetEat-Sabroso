@@ -75,7 +75,7 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
       {showOtp && registeredEmail ? (
-        <OtpVerification email={registeredEmail} />
+        <OtpVerification email={registeredEmail} isVetClinic={false} />
       ) : (
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">

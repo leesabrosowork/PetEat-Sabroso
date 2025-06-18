@@ -12,24 +12,21 @@ import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Stethoscope, Plu
 import Link from "next/link"
 import Image from "next/image"
 import { EMRViewer } from "@/components/EMRViewer"
-import { EMRForm } from "@/components/EMRForm"
+import EMRForm from "@/components/EMRForm"
+import type { Pet, EMRFormData } from "@/components/EMRForm"
 import { Table, TableBody, TableCell, TableHeader, TableRow, TableHead } from "@/components/ui/table"
 import { toast } from "@/components/ui/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface User {
   _id: string;
   name: string;
   email: string;
   role: string;
+  contactNumber: string;
+  type?: string;
+  gender?: string;
   availability?: 'available' | 'not available' | 'busy';
-}
-
-interface Pet {
-  _id: string;
-  name: string;
-  breed: string;
-  age: number;
-  owner: User;
 }
 
 interface Appointment {
@@ -54,40 +51,52 @@ interface Prescription {
 
 interface EMR {
   _id: string;
-  pet: Pet;
-  owner: User;
-  visitDate: string;
-  status: "active" | "ongoing" | "completed";
-  diagnosis: string;
-  treatment: string;
-  medications: Array<{
+  petId: Pet;
+  name: string;
+  species: string;
+  breed: string;
+  age: number;
+  sex: string;
+  currentVisit: {
+    date: string;
+    diagnosis: string;
+    treatment: string;
+    medications: Array<{
+      name: string;
+      dosage: string;
+      frequency: string;
+      duration: string;
+    }>;
+    notes?: string;
+    followUpDate?: string;
+    status: "active" | "ongoing" | "completed";
+  };
+  vaccinations: Array<{
     name: string;
-    dosage: string;
-    frequency: string;
-    duration: string;
+    dateAdministered: string;
+    nextDueDate: string;
+    veterinarian: string;
   }>;
-  notes?: string;
-  followUpDate?: string;
+  medicalHistory: Array<{
+    condition: string;
+    diagnosisDate: string;
+    treatment: string;
+    status: 'ongoing' | 'resolved';
+  }>;
+  visitHistory: Array<{
+    date: string;
+    reason: string;
+    notes: string;
+    veterinarian: string;
+  }>;
+  doctor: User;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface DashboardData {
   upcomingAppointments: Appointment[];
   pastAppointments: Appointment[];
-}
-
-interface EMRFormData {
-  petId: string;
-  diagnosis: string;
-  treatment: string;
-  medications: Array<{
-    name: string;
-    dosage: string;
-    frequency: string;
-    duration: string;
-  }>;
-  notes: string;
-  followUpDate: string;
-  status: "active" | "ongoing" | "completed";
 }
 
 export default function DoctorDashboard() {
@@ -118,23 +127,51 @@ export default function DoctorDashboard() {
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [isEMRFormOpen, setIsEMRFormOpen] = useState(false);
   const [isEMRViewerOpen, setIsEMRViewerOpen] = useState(false);
+  const [isEMRListOpen, setIsEMRListOpen] = useState(false);
   const [selectedEMR, setSelectedEMR] = useState<EMR | null>(null);
+  const [selectedPetForEMRList, setSelectedPetForEMRList] = useState<Pet | null>(null);
   const [emrs, setEmrs] = useState<EMR[]>([]);
   const [emrsLoading, setEmrsLoading] = useState(true);
   const [emrsError, setEmrsError] = useState<string | null>(null);
+
+  const patchOwner = (owner: any) => {
+    if (!owner) {
+      return {
+        _id: "pet-owner-id",
+        role: "pet owner",
+        name: "",
+        email: "",
+        contactNumber: ""
+      };
+    }
+    return {
+      ...owner,
+      _id: owner._id || "pet-owner-id",
+      role: owner.role || "pet owner"
+    };
+  };
+
+  const patchPatients = (patients: Pet[]): Pet[] =>
+    patients.map(pet => ({
+      ...pet,
+      owner: patchOwner(pet.owner)
+    }));
 
   // Memoize the EMR form initial data so it's only recalculated when selectedEMR changes
   const emrFormInitialData = useMemo(() => {
     if (!selectedEMR) return undefined;
     return {
-      petId: selectedEMR.pet._id,
-      diagnosis: selectedEMR.diagnosis,
-      treatment: selectedEMR.treatment,
-      medications: selectedEMR.medications || [],
-      notes: selectedEMR.notes || "",
-      followUpDate: selectedEMR.followUpDate || "",
-      status: selectedEMR.status
-    };
+      petId: selectedEMR.petId._id ?? "",
+      name: selectedEMR.name ?? "",
+      species: selectedEMR.species ?? "",
+      breed: selectedEMR.breed ?? "",
+      age: selectedEMR.age ?? 0,
+      sex: selectedEMR.sex ?? "male",
+      vaccinations: selectedEMR.vaccinations,
+      medicalHistory: selectedEMR.medicalHistory,
+      visitHistory: selectedEMR.visitHistory,
+      currentVisit: selectedEMR.currentVisit
+    } as EMRFormData;
   }, [selectedEMR]);
 
 
@@ -213,7 +250,7 @@ export default function DoctorDashboard() {
       if (!res.ok) throw new Error("Failed to fetch patients");
       const data = await res.json();
       if (data.success) {
-        setPatients(data.data);
+        setPatients(patchPatients(data.data));
       } else {
         setPatientsError(data.message);
       }
@@ -240,7 +277,7 @@ export default function DoctorDashboard() {
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
-      const res = await fetch("http://localhost:8080/api/emr/doctor", {
+      const res = await fetch("http://localhost:8080/api/emr", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch EMRs");
@@ -369,56 +406,65 @@ export default function DoctorDashboard() {
     return prescriptionDate >= weekStart;
   });
 
-  const handleCreateEMR = async (formData: EMRFormData) => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-
-      const response = await fetch("http://localhost:8080/api/emr", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          petId: formData.petId,
-          diagnosis: formData.diagnosis,
-          treatment: formData.treatment,
-          medications: formData.medications,
-          notes: formData.notes,
-          followUpDate: formData.followUpDate,
-          status: formData.status
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create medical record");
-      }
-
-      const data = await response.json();
-      if (data.success) {
-        toast({
-          title: "Success",
-          description: "Medical record created successfully"
-        });
-        await fetchEMRs();
-        setIsEMRFormOpen(false);
-      } else {
-        throw new Error(data.message || "Failed to create medical record");
-      }
-    } catch (error) {
-      console.error("Create EMR error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to create medical record";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      });
-      throw error;
+  const handleCreateEMR = (formData: any) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No authentication token found");
     }
+    // Find the selected pet to get its details
+    const selectedPet = patients.find(pet => pet._id === formData.petId);
+    if (!selectedPet) {
+      throw new Error("Selected pet not found");
+    }
+    // Destructure currentVisit for backend
+    const { currentVisit, vaccinations, medicalHistory, visitHistory } = formData;
+    fetch("http://localhost:8080/api/emr", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        petId: formData.petId,
+        name: selectedPet.name,
+        species: selectedPet.type || selectedPet.breed, // Use type as species
+        breed: selectedPet.breed,
+        age: selectedPet.age,
+        sex: selectedPet.gender || 'male',
+        vaccinations: vaccinations || [],
+        medicalHistory: medicalHistory || [],
+        visitHistory: visitHistory || [],
+        currentVisit
+      })
+    })
+      .then(async response => {
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to create medical record");
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+          toast({
+            title: "Success",
+            description: "Medical record created successfully"
+          });
+          fetchEMRs();
+          setIsEMRFormOpen(false);
+        } else {
+          throw new Error(data.message || "Failed to create medical record");
+        }
+      })
+      .catch(error => {
+        console.error("Create EMR error:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to create medical record";
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+      });
   };
 
   // Remove handleUpdateEMR: doctors cannot update EMRs
@@ -736,8 +782,23 @@ export default function DoctorDashboard() {
                 patients.map((pet) => (
                   <Card key={pet._id}>
                     <CardHeader>
-                      <CardTitle>{pet.name}</CardTitle>
-                      <CardDescription>Owner: {pet.owner?.name || "Unknown"}</CardDescription>
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                          {pet.profilePicture ? (
+                            <img 
+                              src={`http://localhost:8080/${pet.profilePicture}`} 
+                              alt={pet.name} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
+                          )}
+                        </div>
+                        <div>
+                          <CardTitle>{pet.name}</CardTitle>
+                          <CardDescription>Owner: {pet.owner?.name || "Unknown"}</CardDescription>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <p>Breed: {pet.breed}</p>
@@ -748,13 +809,25 @@ export default function DoctorDashboard() {
                           onClick={() => {
                             setSelectedEMR({
                               _id: "",
-                              pet: pet,
-                              owner: pet.owner,
-                              visitDate: new Date().toISOString().split('T')[0],
-                              status: "active",
-                              diagnosis: "",
-                              treatment: "",
-                              medications: []
+                              petId: pet,
+                              name: "",
+                              species: "",
+                              breed: "",
+                              age: 0,
+                              sex: "",
+                              currentVisit: {
+                                date: new Date().toISOString().split('T')[0],
+                                diagnosis: "",
+                                treatment: "",
+                                medications: [],
+                                status: "active"
+                              },
+                              vaccinations: [],
+                              medicalHistory: [],
+                              visitHistory: [],
+                              doctor: patchOwner(pet.owner),
+                              createdAt: new Date().toISOString(),
+                              updatedAt: new Date().toISOString()
                             });
                             setIsEMRFormOpen(true);
                           }}
@@ -762,27 +835,26 @@ export default function DoctorDashboard() {
                           Add EMR
                         </Button>
                         
-                        <div className="border-t pt-4">
-                          <h4 className="font-medium mb-2">Medical History</h4>
-                          <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {emrs
-                              .filter(emr => emr.pet._id === pet._id)
-                              .sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime())
-                              .map(emr => (
-                                <div key={emr._id} className="p-2 border rounded hover:bg-gray-50 cursor-pointer" onClick={() => {
-                                  setSelectedEMR(emr);
-                                  setIsEMRViewerOpen(true);
-                                }}>
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium">
-                                      {new Date(emr.visitDate).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm text-gray-600 truncate">{emr.diagnosis}</p>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
+                        <Button
+                          className="w-full"
+                          variant="outline"
+                          onClick={() => {
+                            // Navigate to EMR list for this pet
+                            const petEMRs = emrs.filter(emr => emr.petId._id === pet._id);
+                            if (petEMRs.length > 0) {
+                              setSelectedPetForEMRList(pet);
+                              setIsEMRListOpen(true);
+                            } else {
+                              toast({
+                                title: "No Records",
+                                description: "No medical records found for this pet",
+                                variant: "destructive"
+                              });
+                            }
+                          }}
+                        >
+                          View EMR List ({emrs.filter(emr => emr.petId._id === pet._id).length})
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -809,9 +881,9 @@ export default function DoctorDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Pet</TableHead>
-                      <TableHead>Owner</TableHead>
                       <TableHead>Visit Date</TableHead>
-                      
+                      <TableHead>Status</TableHead>
+                      <TableHead>Diagnosis</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -831,23 +903,25 @@ export default function DoctorDashboard() {
                     ) : (
                       emrs.map((emr) => (
                         <TableRow key={emr._id}>
-                          <TableCell>{emr.pet ? emr.pet.name : "Unknown"}</TableCell>
-                          <TableCell>{emr.owner ? emr.owner.name : "Unknown"}</TableCell>
+                          <TableCell>{emr.name}</TableCell>
                           <TableCell>
-                            {new Date(emr.visitDate).toLocaleDateString()}
+                            {emr.currentVisit?.date ? new Date(emr.currentVisit.date).toLocaleDateString() : "N/A"}
                           </TableCell>
                           <TableCell>
                             <Badge
                               variant={
-                                emr.status === "active"
+                                emr.currentVisit?.status === "active"
                                   ? "default"
-                                  : emr.status === "ongoing"
+                                  : emr.currentVisit?.status === "ongoing"
                                   ? "secondary"
                                   : "destructive"
                               }
                             >
-                              {emr.status}
+                              {emr.currentVisit?.status || "N/A"}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {emr.currentVisit?.diagnosis || "N/A"}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
@@ -882,16 +956,23 @@ export default function DoctorDashboard() {
       </div>
 
       {isEMRFormOpen && (
-        <EMRForm
-          isOpen={isEMRFormOpen}
-          onClose={() => {
-            setIsEMRFormOpen(false);
-            setSelectedEMR(null);
-          }}
-          onSubmit={handleCreateEMR}
-          initialData={emrFormInitialData}
-          pets={patients}
-        />
+        <Dialog open={isEMRFormOpen} onOpenChange={(open) => {
+          setIsEMRFormOpen(open);
+          if (!open) setSelectedEMR(null);
+        }}>
+          <DialogContent className="fixed inset-0 z-50 bg-background p-0 overflow-y-auto flex flex-col max-w-full w-full h-full rounded-none">
+            <EMRForm
+              isOpen={isEMRFormOpen}
+              onClose={() => {
+                setIsEMRFormOpen(false);
+                setSelectedEMR(null);
+              }}
+              onSubmit={(data) => { handleCreateEMR(data); }}
+              initialData={emrFormInitialData}
+              pets={patients as any}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
 
@@ -906,6 +987,71 @@ export default function DoctorDashboard() {
           isDoctor={true}
           handleDeleteEMR={handleDeleteEMR}
         />
+      )}
+
+      {isEMRListOpen && selectedPetForEMRList && (
+        <Dialog open={isEMRListOpen} onOpenChange={setIsEMRListOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Medical Records for {selectedPetForEMRList.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {emrs
+                .filter(emr => emr.petId._id === selectedPetForEMRList._id)
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .map(emr => (
+                  <Card key={emr._id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-lg">
+                          {emr.currentVisit?.date ? new Date(emr.currentVisit.date).toLocaleDateString() : "N/A"}
+                        </CardTitle>
+                        <Badge
+                          variant={
+                            emr.currentVisit?.status === "active"
+                              ? "default"
+                              : emr.currentVisit?.status === "ongoing"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
+                          {emr.currentVisit?.status || "N/A"}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 mb-2">
+                        <strong>Diagnosis:</strong> {emr.currentVisit?.diagnosis || "N/A"}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-2">
+                        <strong>Treatment:</strong> {emr.currentVisit?.treatment || "N/A"}
+                      </p>
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedEMR(emr);
+                            setIsEMRViewerOpen(true);
+                            setIsEMRListOpen(false);
+                          }}
+                        >
+                          View Details
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteEMR(emr._id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {selectedPrescription && (

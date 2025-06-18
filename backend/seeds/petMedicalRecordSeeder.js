@@ -34,8 +34,7 @@ const seedPetMedicalRecords = async () => {
                 owner: {
                     name: pet.owner?.name || 'Unknown',
                     phone: pet.owner?.phone || '09170000000',
-                    email: pet.owner?.email || 'owner@example.com',
-                    address: pet.owner?.address || 'Unknown Address'
+                    email: pet.owner?.email || 'owner@example.com'
                 },
                 vaccinations: [
                     {

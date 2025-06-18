@@ -29,6 +29,10 @@ const petSchema = new mongoose.Schema({
         type: String,
         enum: ['male', 'female']
     },
+    profilePicture: {
+        type: String,
+        default: null
+    },
     healthStatus: {
         type: String,
         enum: ['stable', 'checkup', 'critical'],

@@ -235,7 +235,7 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
           </TableRow>
         </TableHeader>
         <TableBody>
-          {inventory.map((item) => (
+          {inventory.filter(item => item).map((item) => (
             <TableRow key={item._id}>
               <TableCell>{item.item}</TableCell>
               <TableCell>

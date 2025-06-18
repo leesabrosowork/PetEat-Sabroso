@@ -5,7 +5,25 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 
-// Add a new splash component
+// Add a new splash component for pet owners
+function SuccessSplash() {
+  const router = useRouter();
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[250px]">
+      <img src="/peteat-logo.png" alt="PetEat Logo" width={64} height={64} className="mb-4" />
+      <div className="text-xl font-semibold mb-2">OTP verified successfully!</div>
+      <div className="text-base text-center mb-4">Your account has been created. You can now login to your account.</div>
+      <button
+        className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
+        onClick={() => router.push("/login")}
+      >
+        Go to Login
+      </button>
+    </div>
+  );
+}
+
+// Add a new splash component for vet clinics
 function ApprovalSplash() {
   const router = useRouter();
   return (
@@ -32,6 +50,7 @@ export default function OtpVerification({ email, isVetClinic }: { email: string,
   const [resendSuccess, setResendSuccess] = useState("")
   const [resendError, setResendError] = useState("")
   const [cooldown, setCooldown] = useState(0)
+  const [showSuccessSplash, setShowSuccessSplash] = useState(false)
   const [showApprovalSplash, setShowApprovalSplash] = useState(false)
   const router = useRouter()
 
@@ -49,7 +68,12 @@ export default function OtpVerification({ email, isVetClinic }: { email: string,
       const data = await response.json()
       if (response.ok) {
         setSuccess(true)
-        setShowApprovalSplash(true)
+        // Check if this is a pet owner or vet clinic
+        if (data.userType === 'pet_owner' && !data.requiresApproval) {
+          setShowSuccessSplash(true)
+        } else {
+          setShowApprovalSplash(true)
+        }
       } else {
         setError(data.message || "OTP verification failed")
       }
@@ -93,7 +117,9 @@ export default function OtpVerification({ email, isVetClinic }: { email: string,
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[250px]">
-      {showApprovalSplash ? (
+      {showSuccessSplash ? (
+        <SuccessSplash />
+      ) : showApprovalSplash ? (
         <ApprovalSplash />
       ) : (
         <Card className="w-full max-w-sm">

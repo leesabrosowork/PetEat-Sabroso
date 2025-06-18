@@ -18,7 +18,6 @@ interface MedicalRecord {
     name: string;
     phone: string;
     email: string;
-    address: string;
   };
   vaccinations: Array<{
     name: string;
@@ -108,10 +107,6 @@ export function MedicalRecordDialog({ record, open, onOpenChange }: MedicalRecor
                   <div className="flex items-center space-x-2">
                     <Mail className="w-4 h-4 text-gray-500" />
                     <span className="text-sm">{record.owner.email}</span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <MapPin className="w-4 h-4 text-gray-500 mt-0.5" />
-                    <span className="text-sm">{record.owner.address}</span>
                   </div>
                 </div>
               </div>

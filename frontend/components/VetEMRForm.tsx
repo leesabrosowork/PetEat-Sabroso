@@ -12,7 +12,6 @@ interface EMRData {
     name: string;
     phone: string;
     email: string;
-    address: string;
   };
   vaccinations: any[];
   medicalHistory: any[];
@@ -44,7 +43,6 @@ export default function VetEMRForm({
       name: '',
       phone: '',
       email: '',
-      address: ''
     },
     vaccinations: [],
     medicalHistory: [],
@@ -178,10 +176,6 @@ if (!form) return null;
       <div>
         <label className="block font-medium">Owner Email</label>
         <input className="border rounded p-2 w-full" value={form.owner.email} onChange={e => setForm(f => f ? { ...f, owner: { ...f.owner, email: e.target.value } } : f)} required />
-      </div>
-      <div>
-        <label className="block font-medium">Owner Address</label>
-        <input className="border rounded p-2 w-full" value={form.owner.address} onChange={e => setForm(f => f ? { ...f, owner: { ...f.owner, address: e.target.value } } : f)} required />
       </div>
       {/* Vaccinations Array UI */}
       <div>

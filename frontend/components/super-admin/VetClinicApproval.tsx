@@ -144,7 +144,7 @@ export default function VetClinicApproval() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {clinics.map((clinic) => (
+          {clinics.filter(clinic => clinic).map((clinic) => (
             <TableRow key={clinic._id}>
               <TableCell>{clinic.clinicName}</TableCell>
               <TableCell>{clinic.ownerName}</TableCell>

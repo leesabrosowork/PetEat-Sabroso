@@ -1,5 +1,6 @@
 const EMR = require('../models/emrModel');
 const Pet = require('../models/petModel');
+const User = require('../models/userModel');
 
 // @desc    Create new EMR
 // @route   POST /api/emr
@@ -8,15 +9,19 @@ exports.createEMR = async (req, res) => {
     try {
         const {
             petId,
-            diagnosis,
-            treatment,
-            medications,
-            notes,
-            followUpDate,
+            name,
+            species,
+            breed,
+            age,
+            sex,
+            vaccinations,
+            medicalHistory,
+            visitHistory,
+            currentVisit,
             attachments
         } = req.body;
 
-        const pet = await Pet.findById(petId);
+        const pet = await Pet.findById(petId).populate('owner');
         if (!pet) {
             return res.status(404).json({
                 success: false,
@@ -24,23 +29,31 @@ exports.createEMR = async (req, res) => {
             });
         }
 
+        // Always create a new EMR (allow multiple EMRs per pet)
         const emr = await EMR.create({
-            pet: petId,
-            owner: pet.owner,
+            petId,
+            name: name || pet.name,
+            species: species || pet.type || pet.species,
+            breed: breed || pet.breed,
+            age: age || pet.age,
+            sex: sex || pet.gender || pet.sex,
+            vaccinations: vaccinations || [],
+            medicalHistory: medicalHistory || [],
+            visitHistory: visitHistory || [],
+            currentVisit,
             doctor: req.user._id,
-            diagnosis,
-            treatment,
-            medications,
-            notes,
-            followUpDate,
-            attachments
+            attachments: attachments || []
         });
+
+        // Populate the response
+        await emr.populate('doctor', 'name email');
 
         res.status(201).json({
             success: true,
             data: emr
         });
     } catch (error) {
+        console.error('EMR creation error:', error);
         res.status(500).json({
             success: false,
             message: 'Error creating EMR',
@@ -54,10 +67,10 @@ exports.createEMR = async (req, res) => {
 // @access  Private
 exports.getPetEMRs = async (req, res) => {
     try {
-        const emrs = await EMR.find({ pet: req.params.petId })
-            .populate('doctor', 'name')
-            .populate('pet', 'name')
-            .sort('-visitDate');
+        const emrs = await EMR.find({ petId: req.params.petId })
+            .populate('doctor', 'name email')
+            .populate('petId', 'name type breed owner')
+            .sort('-createdAt');
 
         res.json({
             success: true,
@@ -72,15 +85,37 @@ exports.getPetEMRs = async (req, res) => {
     }
 };
 
-// @desc    Get single EMR
+// @desc    Get all EMRs for doctor
+// @route   GET /api/emr
+// @access  Private/Doctor
+exports.getAllEMRs = async (req, res) => {
+    try {
+        const emrs = await EMR.find({ doctor: req.user._id })
+            .populate('doctor', 'name email')
+            .populate('petId', 'name type breed owner')
+            .sort('-updatedAt');
+
+        res.json({
+            success: true,
+            data: emrs
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching EMRs',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Get single EMR by ID
 // @route   GET /api/emr/:id
 // @access  Private
-exports.getEMR = async (req, res) => {
+exports.getEMRById = async (req, res) => {
     try {
         const emr = await EMR.findById(req.params.id)
-            .populate('doctor', 'name')
-            .populate('pet', 'name')
-            .populate('owner', 'name email');
+            .populate('doctor', 'name email')
+            .populate('petId', 'name type breed owner');
 
         if (!emr) {
             return res.status(404).json({
@@ -89,12 +124,6 @@ exports.getEMR = async (req, res) => {
             });
         }
 
-        // Defensive patch: if any populated field is missing, set to { name: 'Unknown' }
-        if (emr) {
-            if (!emr.pet) emr.pet = { name: "Unknown" };
-            if (!emr.owner) emr.owner = { name: "Unknown" };
-            if (!emr.doctor) emr.doctor = { name: "Unknown" };
-        }
         res.json({
             success: true,
             data: emr
@@ -113,17 +142,8 @@ exports.getEMR = async (req, res) => {
 // @access  Private/Doctor
 exports.updateEMR = async (req, res) => {
     try {
-        const {
-            diagnosis,
-            treatment,
-            medications,
-            notes,
-            followUpDate,
-            attachments,
-            status
-        } = req.body;
-
         const emr = await EMR.findById(req.params.id);
+        
         if (!emr) {
             return res.status(404).json({
                 success: false,
@@ -131,7 +151,7 @@ exports.updateEMR = async (req, res) => {
             });
         }
 
-        // Check if the doctor is the one who created the EMR
+        // Check if doctor owns this EMR
         if (emr.doctor.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
@@ -141,19 +161,9 @@ exports.updateEMR = async (req, res) => {
 
         const updatedEMR = await EMR.findByIdAndUpdate(
             req.params.id,
-            {
-                diagnosis,
-                treatment,
-                medications,
-                notes,
-                followUpDate,
-                attachments,
-                status
-            },
-            { new: true }
-        ).populate('doctor', 'name')
-         .populate('pet', 'name')
-         .populate('owner', 'name email');
+            req.body,
+            { new: true, runValidators: true }
+        ).populate('doctor', 'name email');
 
         res.json({
             success: true,
@@ -168,64 +178,30 @@ exports.updateEMR = async (req, res) => {
     }
 };
 
-// @desc    Get all EMRs for a doctor
-// @route   GET /api/emr/doctor
-// @access  Private/Doctor
-exports.getDoctorEMRs = async (req, res) => {
-    try {
-        const emrs = await EMR.find({ doctor: req.user._id })
-            .populate('pet', 'name')
-            .populate('owner', 'name')
-            .sort('-visitDate');
-
-        res.json({
-            success: true,
-            data: emrs
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching EMRs',
-            error: error.message
-        });
-    }
-};
-
-// @desc    Get all EMRs for a user's pets
-// @route   GET /api/emr/user
-// @access  Private/User
-exports.getUserEMRs = async (req, res) => {
-    try {
-        const emrs = await EMR.find({ owner: req.user._id })
-            .populate('pet', 'name')
-            .populate('doctor', 'name')
-            .sort('-visitDate');
-
-        res.json({
-            success: true,
-            data: emrs
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching EMRs',
-            error: error.message
-        });
-    }
-}; 
-
 // @desc    Delete EMR
 // @route   DELETE /api/emr/:id
 // @access  Private/Doctor
 exports.deleteEMR = async (req, res) => {
     try {
-        const emr = await EMR.findByIdAndDelete(req.params.id);
+        const emr = await EMR.findById(req.params.id);
+        
         if (!emr) {
             return res.status(404).json({
                 success: false,
                 message: 'EMR not found'
             });
         }
+
+        // Check if doctor owns this EMR
+        if (emr.doctor.toString() !== req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to delete this EMR'
+            });
+        }
+
+        await EMR.findByIdAndDelete(req.params.id);
+
         res.json({
             success: true,
             message: 'EMR deleted successfully'

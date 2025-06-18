@@ -27,6 +27,7 @@ interface Pet {
   type: string
   breed: string
   age: number
+  profilePicture?: string
   owner: {
     username: string
     email: string
@@ -190,6 +191,7 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Picture</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Breed</TableHead>
@@ -200,16 +202,29 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
           </TableRow>
         </TableHeader>
         <TableBody>
-          {pets.map((pet) => (
+          {pets.filter(pet => pet).map((pet) => (
             <TableRow key={pet._id}>
+              <TableCell>
+                {pet.profilePicture ? (
+                  <img 
+                    src={`http://localhost:8080/${pet.profilePicture}`} 
+                    alt={pet.name} 
+                    className="w-12 h-12 object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-500 text-xs">No Image</span>
+                  </div>
+                )}
+              </TableCell>
               <TableCell>{pet.name}</TableCell>
               <TableCell>{pet.type}</TableCell>
               <TableCell>{pet.breed}</TableCell>
               <TableCell>{pet.age}</TableCell>
               <TableCell>
                 <div>
-                  <div>{pet.owner.username}</div>
-                  <div className="text-sm text-gray-500">{pet.owner.email}</div>
+                  <div>{pet.owner?.username || 'N/A'}</div>
+                  <div className="text-sm text-gray-500">{pet.owner?.email || 'N/A'}</div>
                 </div>
               </TableCell>
               <TableCell>{new Date(pet.createdAt).toLocaleDateString()}</TableCell>

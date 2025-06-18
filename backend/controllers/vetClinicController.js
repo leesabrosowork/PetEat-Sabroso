@@ -1,6 +1,7 @@
 const VetClinic = require('../models/vetClinicModel');
 const Pet = require('../models/petModel');
 const PetMedicalRecord = require('../models/petMedicalRecord');
+const EMR = require('../models/emrModel');
 const Appointment = require('../models/appointmentModel');
 const Prescription = require('../models/prescriptionModel');
 const Inventory = require('../models/inventoryModel');
@@ -23,7 +24,7 @@ exports.getDashboardData = async (req, res) => {
         };
 
         // Get medical records count
-        const medicalRecords = await PetMedicalRecord.find();
+        const medicalRecords = await EMR.find();
         
         // Get appointments data
         const today = new Date();
@@ -115,12 +116,37 @@ exports.getMedicalRecords = async (req, res) => {
     try {
         const clinicId = req.user._id;
         
-        // Get all medical records (for now, get all records since we don't have clinic-specific associations yet)
-        const medicalRecords = await PetMedicalRecord.find();
+        // Get all EMRs and populate the petId field with owner information
+        const medicalRecords = await EMR.find()
+            .populate('petId', 'name type breed owner')
+            .sort('-createdAt');
+
+        // Transform the data to match the frontend interface
+        const transformedRecords = medicalRecords.map(emr => ({
+            _id: emr._id,
+            petId: emr.petId._id,
+            name: emr.name,
+            species: emr.species,
+            breed: emr.breed,
+            age: emr.age,
+            sex: emr.sex,
+            owner: emr.petId.owner ? {
+                name: emr.petId.owner.name,
+                phone: emr.petId.owner.contactNumber || emr.petId.owner.phone,
+                email: emr.petId.owner.email
+            } : {
+                name: 'N/A',
+                phone: 'N/A',
+                email: 'N/A'
+            },
+            vaccinations: emr.vaccinations || [],
+            medicalHistory: emr.medicalHistory || [],
+            visitHistory: emr.visitHistory || []
+        }));
 
         res.json({
             success: true,
-            data: medicalRecords
+            data: transformedRecords
         });
     } catch (error) {
         console.error('Get medical records error:', error);

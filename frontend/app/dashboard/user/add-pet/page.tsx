@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Heart, ArrowLeft } from "lucide-react"
+import { Heart, ArrowLeft, Upload, X } from "lucide-react"
 import Link from "next/link"
 
 export default function AddPet() {
@@ -26,8 +26,41 @@ export default function AddPet() {
     allergies: "",
     vaccinations: "",
   })
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert("Please select an image file");
+        return;
+      }
+      
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert("File size must be less than 5MB");
+        return;
+      }
+
+      setSelectedFile(file);
+      
+      // Create preview URL
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,13 +73,24 @@ export default function AddPet() {
         return
       }
 
+      const formDataToSend = new FormData();
+      
+      // Append form data
+      Object.entries(formData).forEach(([key, value]) => {
+        formDataToSend.append(key, value.toString());
+      });
+      
+      // Append file if selected
+      if (selectedFile) {
+        formDataToSend.append('profilePicture', selectedFile);
+      }
+
       const response = await fetch('http://localhost:8080/api/pets', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: formDataToSend
       })
 
       const data = await response.json()
@@ -90,6 +134,45 @@ export default function AddPet() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Profile Picture Upload */}
+              <div className="space-y-2">
+                <Label htmlFor="profilePicture">Profile Picture</Label>
+                <div className="mt-2">
+                  {previewUrl ? (
+                    <div className="relative inline-block">
+                      <img 
+                        src={previewUrl} 
+                        alt="Preview" 
+                        className="w-32 h-32 object-cover rounded-lg border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute -top-2 -right-2 w-6 h-6 p-0"
+                        onClick={removeFile}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label htmlFor="file-upload" className="cursor-pointer w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                      <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <span className="text-sm text-gray-600">Click to upload image</span>
+                      <input
+                        id="file-upload"
+                        name="file-upload"
+                        type="file"
+                        className="sr-only"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                      />
+                      <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF up to 5MB</p>
+                    </label>
+                  )}
+                </div>
+              </div>
+
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Pet Name</Label>
@@ -199,12 +282,12 @@ export default function AddPet() {
                   placeholder="List any known allergies or sensitivities..."
                   value={formData.allergies}
                   onChange={(e) => handleChange("allergies", e.target.value)}
-                  rows={2}
+                  rows={3}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vaccinations">Vaccination History</Label>
+                <Label htmlFor="vaccinations">Vaccinations</Label>
                 <Textarea
                   id="vaccinations"
                   placeholder="List current vaccinations and dates..."
@@ -214,15 +297,17 @@ export default function AddPet() {
                 />
               </div>
 
-              <div className="flex gap-4">
-                <Button type="submit" className="flex-1" disabled={loading}>
+              <div className="flex justify-end space-x-4 pt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/dashboard/user")}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
                   {loading ? "Registering..." : "Register Pet"}
                 </Button>
-                <Link href="/dashboard/user">
-                  <Button type="button" variant="outline">
-                    Cancel
-                  </Button>
-                </Link>
               </div>
             </form>
           </CardContent>

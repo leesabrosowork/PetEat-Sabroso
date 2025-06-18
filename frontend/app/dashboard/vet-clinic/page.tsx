@@ -50,6 +50,7 @@ interface Pet {
   age: number;
   gender: string;
   healthStatus: 'stable' | 'checkup' | 'critical';
+  profilePicture?: string;
   owner: User;
 }
 
@@ -885,7 +886,8 @@ export default function VetClinicDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Pet Name</TableHead>
+                        <TableHead>Picture</TableHead>
+                        <TableHead>Name</TableHead>
                         <TableHead>Breed</TableHead>
                         <TableHead>Age</TableHead>
                         <TableHead>Owner</TableHead>
@@ -896,6 +898,19 @@ export default function VetClinicDashboard() {
                     <TableBody>
                       {pets.map((pet) => (
                         <TableRow key={pet._id}>
+                          <TableCell>
+                            {pet.profilePicture ? (
+                              <img 
+                                src={`http://localhost:8080/${pet.profilePicture}`} 
+                                alt={pet.name} 
+                                className="w-12 h-12 object-cover rounded-lg"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <span className="text-gray-500 text-xs">No Image</span>
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="font-medium">{pet.name}</TableCell>
                           <TableCell>{pet.breed}</TableCell>
                           <TableCell>{pet.age} years</TableCell>

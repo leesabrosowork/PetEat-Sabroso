@@ -136,6 +136,13 @@ exports.login = async (req, res) => {
             const isPasswordValid = await bcrypt.compare(password, user.password);
             console.log('User password valid:', isPasswordValid);
             if (isPasswordValid) {
+                // Check if the user is verified
+                if (!user.isVerified) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'Please verify your email address before logging in. Check your email for the OTP.'
+                    });
+                }
                 authenticatedUser = user;
                 role = 'pet owner';
             }

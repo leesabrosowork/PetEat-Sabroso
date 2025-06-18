@@ -197,7 +197,7 @@ export default function UserManagement({ users, onUserUpdated }: UserManagementP
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user) => (
+          {users.filter(user => user).map((user) => (
             <TableRow key={user._id}>
               <TableCell>{user.username}</TableCell>
               <TableCell>{user.email}</TableCell>

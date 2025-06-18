@@ -229,7 +229,7 @@ export default function DoctorManagement({ doctors, onDoctorUpdated }: DoctorMan
           </TableRow>
         </TableHeader>
         <TableBody>
-          {doctors.map((doctor) => (
+          {doctors.filter(doctor => doctor).map((doctor) => (
             <TableRow key={doctor._id}>
               <TableCell>{doctor.name}</TableCell>
               <TableCell>{doctor.email}</TableCell>
