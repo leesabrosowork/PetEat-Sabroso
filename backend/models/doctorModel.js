@@ -19,7 +19,8 @@ const doctorSchema = new mongoose.Schema({
     contact: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        sparse: true
     },
     role: {
         type: String,

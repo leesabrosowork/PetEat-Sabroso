@@ -35,6 +35,7 @@ const vetClinicSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Contact number is required'],
     unique: true,
+    sparse: true,
     trim: true
   },
   landline: {

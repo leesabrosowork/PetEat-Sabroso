@@ -42,23 +42,57 @@ exports.signup = async (req, res) => {
     try {
         const { username, email, password, contactNumber, fullName, address } = req.body;
 
-        // Check if user already exists
-        const existingUser = await User.findOne({ 
-            $or: [
-                { email },
-                { username },
-                ...(contactNumber ? [{ contactNumber }] : [])
-            ]
-        });
+        console.log("User Signup - Contact Number:", contactNumber);
 
-        if (existingUser) {
+        // Check if email already exists in ANY user model
+        const [existingUser, existingDoctor, existingAdmin, existingStaff, existingSuperAdmin, existingVetClinic] = await Promise.all([
+            User.findOne({ email }),
+            Doctor.findOne({ email }),
+            Admin.findOne({ email }),
+            Staff.findOne({ email }),
+            SuperAdmin.findOne({ email }),
+            VetClinic.findOne({ email })
+        ]);
+
+        if (existingUser || existingDoctor || existingAdmin || existingStaff || existingSuperAdmin || existingVetClinic) {
             return res.status(400).json({
                 success: false,
-                message: existingUser.email === email ? 
-                    'Email already in use' : 
-                    existingUser.username === username ?
-                    'Username already in use' :
-                    'Contact number already in use'
+                message: 'Email already exists. Please use a different email address.'
+            });
+        }
+
+        // Check if contact number exists in any model
+        if (contactNumber) {
+            console.log("Checking for duplicate contact number:", contactNumber);
+            const [userWithSameContact, doctorWithSameContact, adminWithSameContact, staffWithSameContact, vetClinicWithSameContact] = await Promise.all([
+                User.findOne({ contactNumber }),
+                Doctor.findOne({ contactNumber }),
+                Admin.findOne({ contactNumber }),
+                Staff.findOne({ contactNumber }),
+                VetClinic.findOne({ contactNumber })
+            ]);
+
+            if (userWithSameContact) console.log("Found duplicate contact in User model");
+            if (doctorWithSameContact) console.log("Found duplicate contact in Doctor model");
+            if (adminWithSameContact) console.log("Found duplicate contact in Admin model");
+            if (staffWithSameContact) console.log("Found duplicate contact in Staff model");
+            if (vetClinicWithSameContact) console.log("Found duplicate contact in VetClinic model");
+
+            if (userWithSameContact || doctorWithSameContact || adminWithSameContact || staffWithSameContact || vetClinicWithSameContact) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Contact number already in use. Please use a different contact number.'
+                });
+            }
+        }
+
+        // Check if username already exists
+        const existingUserData = await User.findOne({ username });
+
+        if (existingUserData) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username already in use'
             });
         }
 
@@ -265,25 +299,63 @@ exports.vetClinicSignup = async (req, res) => {
         petsManaged
       } = req.body;
 
-      // Check if clinic already exists
-      const existingClinic = await VetClinic.findOne({
+      console.log("Vet Clinic Signup - Contact Number:", contactNumber);
+
+      // Check if email already exists in ANY user model
+      const [existingUser, existingDoctor, existingAdmin, existingStaff, existingSuperAdmin, existingVetClinic] = await Promise.all([
+        User.findOne({ email }),
+        Doctor.findOne({ email }),
+        Admin.findOne({ email }),
+        Staff.findOne({ email }),
+        SuperAdmin.findOne({ email }),
+        VetClinic.findOne({ email })
+      ]);
+
+      if (existingUser || existingDoctor || existingAdmin || existingStaff || existingSuperAdmin || existingVetClinic) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists. Please use a different email address.'
+        });
+      }
+
+      // Check if contact number exists in any model
+      if (contactNumber) {
+        console.log("Checking for duplicate contact number:", contactNumber);
+        const [userWithSameContact, doctorWithSameContact, adminWithSameContact, staffWithSameContact, vetClinicWithSameContact] = await Promise.all([
+          User.findOne({ contactNumber }),
+          Doctor.findOne({ contactNumber }),
+          Admin.findOne({ contactNumber }),
+          Staff.findOne({ contactNumber }),
+          VetClinic.findOne({ contactNumber })
+        ]);
+
+        if (userWithSameContact) console.log("Found duplicate contact in User model");
+        if (doctorWithSameContact) console.log("Found duplicate contact in Doctor model");
+        if (adminWithSameContact) console.log("Found duplicate contact in Admin model");
+        if (staffWithSameContact) console.log("Found duplicate contact in Staff model");
+        if (vetClinicWithSameContact) console.log("Found duplicate contact in VetClinic model");
+
+        if (userWithSameContact || doctorWithSameContact || adminWithSameContact || staffWithSameContact || vetClinicWithSameContact) {
+          return res.status(400).json({
+            success: false,
+            message: 'Contact number already in use. Please use a different contact number.'
+          });
+        }
+      }
+
+      // Check if username or license number already exists
+      const existingClinicData = await VetClinic.findOne({
         $or: [
-          { email },
           { username },
-          { contactNumber },
           { licenseNumber }
         ]
       });
 
-      if (existingClinic) {
+      if (existingClinicData) {
         return res.status(400).json({
           success: false,
-          message: existingClinic.email === email ? 
-            'Email already in use' : 
-            existingClinic.username === username ?
+          message: existingClinicData.username === username ?
             'Username already in use' :
-            existingClinic.contactNumber === contactNumber ?
-            'Contact number already in use' :
             'License number already in use'
         });
       }

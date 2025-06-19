@@ -68,11 +68,12 @@ export default function OtpVerification({ email, isVetClinic }: { email: string,
       const data = await response.json()
       if (response.ok) {
         setSuccess(true)
-        // Check if this is a pet owner or vet clinic
-        if (data.userType === "pet_owner" && !data.requiresApproval) {
-          setShowSuccessSplash(true)
-        } else {
+        
+        // Show appropriate splash screen based on user type
+        if (isVetClinic) {
           setShowApprovalSplash(true)
+        } else {
+          setShowSuccessSplash(true)
         }
       } else {
         setError(data.message || "OTP verification failed")

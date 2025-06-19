@@ -22,7 +22,9 @@ const adminSchema = new mongoose.Schema({
     },
     contact: {
         type: String,
-        required: true
+        required: true,
+        unique: true,
+        sparse: true
     }
 }, {
     timestamps: true

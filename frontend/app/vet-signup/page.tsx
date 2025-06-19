@@ -14,7 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Command, CommandGroup, CommandItem } from "@/components/ui/command"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 import OtpVerification from "../signup/OtpVerification"
 import { TimePicker } from "@/components/ui/time-picker"
 
@@ -323,6 +324,8 @@ export default function VetSignUpPage() {
             </div>
             {error && (
               <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
                 <AlertDescription>
                   {typeof error === 'string' ? error : JSON.stringify(error)}
                 </AlertDescription>

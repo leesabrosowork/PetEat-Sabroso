@@ -21,7 +21,9 @@ const staffSchema = new mongoose.Schema({
     },
     contact: {
         type: String,
-        required: true
+        required: true,
+        unique: true,
+        sparse: true
     },
     address: {
         type: String,
