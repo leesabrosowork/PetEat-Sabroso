@@ -27,7 +27,8 @@ const petSchema = new mongoose.Schema({
     },
     gender: {
         type: String,
-        enum: ['male', 'female']
+        enum: ['male', 'female', 'unknown'],
+        required: true
     },
     profilePicture: {
         type: String,
@@ -38,14 +39,45 @@ const petSchema = new mongoose.Schema({
         enum: ['stable', 'checkup', 'critical'],
         default: 'stable'
     },
-    medicalHistory: {
-        type: String
-    },
+    medicalHistory: [{
+        date: {
+            type: Date,
+            required: true
+        },
+        description: {
+            type: String,
+            required: true
+        },
+        treatment: String,
+        clinic: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'VetClinic'
+        },
+        doctor: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Doctor'
+        }
+    }],
     allergies: {
         type: String
     },
-    vaccinations: {
-        type: String
+    vaccinations: [{
+        name: {
+            type: String,
+            required: true
+        },
+        date: {
+            type: Date,
+            required: true
+        },
+        nextDueDate: Date,
+        administeredBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Doctor'
+        }
+    }],
+    lastCheckup: {
+        type: Date
     },
     owner: {
         type: mongoose.Schema.Types.ObjectId,

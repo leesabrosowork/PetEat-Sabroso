@@ -9,17 +9,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Heart } from "lucide-react"
-
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import OtpVerification from "./OtpVerification"
 
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
     username: "",
+    fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
-    contactNumber: ""
+    contactNumber: "",
+    address: ""
   })
   const [loading, setLoading] = useState(false)
   const [showOtp, setShowOtp] = useState(false)
@@ -27,9 +28,34 @@ export default function SignUpPage() {
   const [error, setError] = useState("")
   const router = useRouter()
 
+  const validatePassword = (password: string) => {
+    const regex = /^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{8,}$/
+    return regex.test(password)
+  }
+
+  const validateEmail = (email: string) => {
+    const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    return regex.test(email)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError("")
+
+    // Validate email format
+    if (!validateEmail(formData.email)) {
+      setError("Please enter a valid email address")
+      setLoading(false)
+      return
+    }
+
+    // Validate password
+    if (!validatePassword(formData.password)) {
+      setError("Password must be at least 8 characters long and contain at least one number and one special character")
+      setLoading(false)
+      return
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords don't match")
@@ -38,21 +64,25 @@ export default function SignUpPage() {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/api/auth/signup', {
-        method: 'POST',
+      const response = await fetch("http://localhost:8080/api/auth/signup", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           username: formData.username,
+          fullName: formData.fullName,
           email: formData.email,
           password: formData.password,
-          contactNumber: formData.contactNumber
+          contactNumber: formData.contactNumber,
+          address: formData.address,
+          role: "pet owner",
+          needsOnboarding: true
         }),
       })
 
       const data = await response.json()
-      console.log('Signup response:', data)
+      console.log("Signup response:", data)
 
       if (response.ok) {
         setShowOtp(true)
@@ -84,7 +114,9 @@ export default function SignUpPage() {
               <span className="text-2xl font-bold">PetEat</span>
             </div>
             {error && (
-              <div className="mb-2 text-red-600 text-sm font-medium">{error}</div>
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
             <CardTitle>Create Account</CardTitle>
             <CardDescription>Join our pet care community as a pet owner</CardDescription>
@@ -99,6 +131,16 @@ export default function SignUpPage() {
                   onChange={(e) => handleChange("username", e.target.value)} 
                   required 
                   placeholder="Choose a username"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input 
+                  id="fullName" 
+                  value={formData.fullName} 
+                  onChange={(e) => handleChange("fullName", e.target.value)} 
+                  required 
+                  placeholder="Enter your full name"
                 />
               </div>
               <div className="space-y-2">
@@ -119,8 +161,16 @@ export default function SignUpPage() {
                   type="tel"
                   value={formData.contactNumber}
                   onChange={(e) => handleChange("contactNumber", e.target.value)}
-                  required
                   placeholder="Enter your contact number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => handleChange("address", e.target.value)}
+                  placeholder="Enter your address"
                 />
               </div>
               <div className="space-y-2">
@@ -133,6 +183,9 @@ export default function SignUpPage() {
                   required
                   placeholder="Create a password"
                 />
+                <p className="text-xs text-gray-500">
+                  Password must be at least 8 characters long and contain at least one number and one special character
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>

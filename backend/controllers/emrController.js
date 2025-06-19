@@ -215,3 +215,37 @@ exports.deleteEMR = async (req, res) => {
     }
 };
 
+// @desc    Get all EMRs for user's pets
+// @route   GET /api/emr/user/pets
+// @access  Private
+exports.getUserPetsEMRs = async (req, res) => {
+    try {
+        // First get all pets owned by the user
+        const pets = await Pet.find({ owner: req.user._id });
+        const petIds = pets.map(pet => pet._id);
+
+        // Then get all EMRs for these pets
+        const emrs = await EMR.find({ petId: { $in: petIds } })
+            .populate('doctor', 'name email')
+            .populate({
+                path: 'petId',
+                populate: {
+                    path: 'owner',
+                    select: 'name email phone'
+                }
+            })
+            .sort('-createdAt');
+
+        res.json({
+            success: true,
+            data: emrs
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching EMRs',
+            error: error.message
+        });
+    }
+};
+

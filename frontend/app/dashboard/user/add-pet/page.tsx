@@ -13,8 +13,22 @@ import { Textarea } from "@/components/ui/textarea"
 import { Heart, ArrowLeft, Upload, X } from "lucide-react"
 import Link from "next/link"
 
+interface PetFormData {
+  name: string;
+  type: string;
+  breed: string;
+  age: string;
+  weight: string;
+  color: string;
+  gender: string;
+  medicalHistory: string;
+  allergies: string;
+  vaccinations: string;
+  healthStatus: string;
+}
+
 export default function AddPet() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<PetFormData>({
     name: "",
     type: "",
     breed: "",
@@ -25,6 +39,7 @@ export default function AddPet() {
     medicalHistory: "",
     allergies: "",
     vaccinations: "",
+    healthStatus: "stable"
   })
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -75,9 +90,15 @@ export default function AddPet() {
 
       const formDataToSend = new FormData();
       
-      // Append form data
+      // Append form data with proper array handling
       Object.entries(formData).forEach(([key, value]) => {
-        formDataToSend.append(key, value.toString());
+        if (key === 'medicalHistory' || key === 'vaccinations') {
+          // Split text areas by newlines and filter out empty lines
+          const arrayValue = value.split('\n').filter((line: string) => line.trim() !== '');
+          formDataToSend.append(key, JSON.stringify(arrayValue));
+        } else {
+          formDataToSend.append(key, value.toString());
+        }
       });
       
       // Append file if selected
@@ -247,18 +268,20 @@ export default function AddPet() {
                     value={formData.color}
                     onChange={(e) => handleChange("color", e.target.value)}
                     placeholder="e.g., Golden"
+                    required
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="gender">Gender</Label>
-                  <Select value={formData.gender} onValueChange={(value) => handleChange("gender", value)}>
+                  <Select value={formData.gender} onValueChange={(value) => handleChange("gender", value)} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="male">Male</SelectItem>
                       <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="unknown">Unknown</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

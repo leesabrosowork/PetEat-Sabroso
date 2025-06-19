@@ -33,17 +33,21 @@ const upload = multer({
       cb('Error: Only PDF, JPEG, JPG & PNG files are allowed!');
     }
   }
-}).single('businessPermit');
+}).fields([
+  { name: 'businessPermit', maxCount: 1 },
+  { name: 'identificationCard', maxCount: 1 }
+]);
 
 exports.signup = async (req, res) => {
     try {
-        const { username, email, password, contactNumber } = req.body;
+        const { username, email, password, contactNumber, fullName, address } = req.body;
 
         // Check if user already exists
         const existingUser = await User.findOne({ 
             $or: [
                 { email },
-                { contactNumber }
+                { username },
+                ...(contactNumber ? [{ contactNumber }] : [])
             ]
         });
 
@@ -52,6 +56,8 @@ exports.signup = async (req, res) => {
                 success: false,
                 message: existingUser.email === email ? 
                     'Email already in use' : 
+                    existingUser.username === username ?
+                    'Username already in use' :
                     'Contact number already in use'
             });
         }
@@ -66,10 +72,13 @@ exports.signup = async (req, res) => {
             email,
             password, // Will be hashed by the pre-save middleware
             contactNumber,
+            fullName,
+            address,
             role: 'pet owner',
             isVerified: false,
             otp,
-            otpExpires
+            otpExpires,
+            needsOnboarding: true
         });
 
         // Send OTP email
@@ -93,9 +102,10 @@ exports.signup = async (req, res) => {
         });
 
     } catch (error) {
+        console.error('Signup error:', error);
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message || 'An error occurred during signup.'
         });
     }
 };
@@ -225,33 +235,42 @@ exports.login = async (req, res) => {
 
 exports.vetClinicSignup = async (req, res) => {
   upload(req, res, async function(err) {
-    if (err) {
+    if (err instanceof multer.MulterError) {
       return res.status(400).json({
         success: false,
-        message: err
+        message: 'File upload error: ' + err.message
+      });
+    } else if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.toString()
       });
     }
 
     try {
       const {
         clinicName,
-        ownerName,
+        fullName,
+        username,
         email,
         password,
-        phoneNumber,
-        address,
+        contactNumber,
+        landline,
+        location,
         licenseNumber,
-        clinicType,
-        openingHours,
-        servicesOffered,
-        animalsCatered
+        description,
+        website,
+        socialMedia,
+        operatingHours,
+        petsManaged
       } = req.body;
 
       // Check if clinic already exists
       const existingClinic = await VetClinic.findOne({
         $or: [
           { email },
-          { phoneNumber },
+          { username },
+          { contactNumber },
           { licenseNumber }
         ]
       });
@@ -261,8 +280,10 @@ exports.vetClinicSignup = async (req, res) => {
           success: false,
           message: existingClinic.email === email ? 
             'Email already in use' : 
-            existingClinic.phoneNumber === phoneNumber ?
-            'Phone number already in use' :
+            existingClinic.username === username ?
+            'Username already in use' :
+            existingClinic.contactNumber === contactNumber ?
+            'Contact number already in use' :
             'License number already in use'
         });
       }
@@ -274,33 +295,26 @@ exports.vetClinicSignup = async (req, res) => {
       // Create new clinic as not verified
       const newClinic = await VetClinic.create({
         clinicName,
-        ownerName,
+        fullName,
+        username,
         email,
         password,
-        phoneNumber,
-        location: {
-          address: JSON.parse(address).address || '',
-          city: JSON.parse(address).city || '',
-          province: JSON.parse(address).province || '',
-          zipCode: JSON.parse(address).zipCode || ''
-        },
+        contactNumber,
+        landline,
+        location: JSON.parse(location),
         licenseNumber,
-        businessPermit: req.file ? `/uploads/business-permits/${req.file.filename}` : null,
-        clinicType,
-        openingHours: openingHours ? JSON.parse(openingHours) : {
-          monday: { isOpen: true, start: "08:00", end: "18:00" },
-          tuesday: { isOpen: true, start: "08:00", end: "18:00" },
-          wednesday: { isOpen: true, start: "08:00", end: "18:00" },
-          thursday: { isOpen: true, start: "08:00", end: "18:00" },
-          friday: { isOpen: true, start: "08:00", end: "18:00" },
-          saturday: { isOpen: true, start: "09:00", end: "15:00" },
-          sunday: { isOpen: false, start: "09:00", end: "15:00" }
-        },
-        servicesOffered: servicesOffered ? JSON.parse(servicesOffered) : [],
-        animalsCatered: animalsCatered ? JSON.parse(animalsCatered) : [],
+        description,
+        website,
+        socialMedia: JSON.parse(socialMedia),
+        businessPermit: req.files?.businessPermit ? `/uploads/business-permits/${req.files.businessPermit[0].filename}` : null,
+        identificationCard: req.files?.identificationCard ? `/uploads/business-permits/${req.files.identificationCard[0].filename}` : null,
+        operatingHours: JSON.parse(operatingHours),
+        petsManaged: JSON.parse(petsManaged),
+        status: 'pending',
         isVerified: false,
         otp,
-        otpExpires
+        otpExpires,
+        needsOnboarding: true
       });
 
       // Send OTP email
@@ -325,9 +339,10 @@ exports.vetClinicSignup = async (req, res) => {
       });
 
     } catch (error) {
+      console.error('Vet clinic signup error:', error);
       res.status(500).json({
         success: false,
-        message: error.message
+        message: error.message || 'An error occurred during signup.'
       });
     }
   });

@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { EMRViewer } from "@/components/EMRViewer"
+import { toast } from "@/components/ui/use-toast"
 
 interface Pet {
   _id: string;
@@ -78,9 +80,35 @@ export default function UserDashboard() {
   const [selectedEMR, setSelectedEMR] = useState<any>(null);
   const [deletePetId, setDeletePetId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showNoEMRDialog, setShowNoEMRDialog] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
+    const role = localStorage.getItem("role")
+
+    // Check if user is not a pet owner, redirect to appropriate dashboard
+    if (role && role !== "pet owner" && role !== "user") {
+      console.log(`Redirecting ${role} from user dashboard to correct dashboard`)
+      switch (role) {
+        case "vet clinic":
+          router.push("/dashboard/vet-clinic")
+          return
+        case "doctor":
+          router.push("/dashboard/doctor")
+          return
+        case "admin":
+          router.push("/dashboard/admin")
+          return
+        case "super admin":
+          router.push("/dashboard/super-admin")
+          return
+        case "staff":
+          router.push("/dashboard/staff")
+          return
+      }
+      return
+    }
+    
     if (userData) {
       try {
         const parsedUser = JSON.parse(userData)
@@ -184,6 +212,37 @@ export default function UserDashboard() {
     }
   };
 
+  const handleViewEMR = async (petId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+      
+      // Get EMRs for this specific pet
+      const res = await fetch(`http://localhost:8080/api/emr/pet/${petId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (!res.ok) throw new Error("Failed to fetch EMRs");
+      
+      const data = await res.json();
+      
+      if (data.success && data.data.length > 0) {
+        // If EMR exists, show it in the EMR viewer
+        setSelectedEMR(data.data[0]); // Show the most recent EMR
+        setIsEMRViewerOpen(true);
+      } else {
+        // If no EMR exists, show the "No Medical Record" dialog
+        setShowNoEMRDialog(true);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch medical records",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -243,6 +302,18 @@ export default function UserDashboard() {
 </h1>
           <p className="text-gray-600">Manage your pets and appointments</p>
         </div>
+
+        {/* Add EMR Viewer */}
+        {selectedEMR && (
+          <EMRViewer
+            emrId={selectedEMR._id}
+            isOpen={isEMRViewerOpen}
+            onClose={() => {
+              setIsEMRViewerOpen(false);
+              setSelectedEMR(null);
+            }}
+          />
+        )}
 
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">
@@ -394,23 +465,18 @@ export default function UserDashboard() {
                         <strong>Age:</strong> {pet.age} years
                       </p>
                       <p>
-                        <strong>Weight:</strong> {pet.weight} kg
+                        <strong>Weight:</strong> {pet.weight} lbs
                       </p>
                       <p>
                         <strong>Color:</strong> {pet.color}
                       </p>
-                      <Button className="mt-2" variant="outline" onClick={() => {
-                        // Find EMRs for this pet
-                        const petEMRs = emrs.filter(emr => emr.petId === pet._id);
-                        if (petEMRs.length > 0) {
-                          // Show the first EMR for this pet
-                          setSelectedEMR(petEMRs[0]);
-                          setIsEMRViewerOpen(true);
-                        } else {
-                          alert("No medical records found for this pet");
-                        }
-                      }}>
-                        View EMR
+                      <Button 
+                        className="mt-2" 
+                        variant="outline" 
+                        onClick={() => handleViewEMR(pet._id)}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        View Medical Records
                       </Button>
                     </div>
                   </CardContent>
@@ -604,18 +670,6 @@ export default function UserDashboard() {
         </Tabs>
       </div>
 
-      {isEMRViewerOpen && selectedEMR && (
-        <EMRViewer
-          emrId={selectedEMR._id}
-          isOpen={isEMRViewerOpen}
-          onClose={() => {
-            setIsEMRViewerOpen(false)
-            setSelectedEMR(null)
-          }}
-          isDoctor={false}
-        />
-      )}
-
       {selectedPrescription && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-8 rounded-lg w-full max-w-lg">
@@ -629,6 +683,23 @@ export default function UserDashboard() {
           </div>
         </div>
       )}
+
+      {/* No EMR Dialog */}
+      <Dialog open={showNoEMRDialog} onOpenChange={setShowNoEMRDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>No Medical Records</DialogTitle>
+            <DialogDescription>
+              There are no medical records available for this pet. Medical records will be created during veterinary visits.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setShowNoEMRDialog(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

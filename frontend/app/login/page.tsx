@@ -51,12 +51,17 @@ export default function LoginPage() {
       })
 
       const data = await response.json()
+      console.log('Login response:', data) // Debug log
 
       if (response.ok) {
         // Store user data and token in localStorage
         localStorage.setItem("user", JSON.stringify(data.data.user))
         localStorage.setItem("role", data.data.role)
         localStorage.setItem("token", data.data.token)
+        
+        // Debug the role
+        console.log('Role from server:', data.data.role)
+        console.log('Role stored in localStorage:', localStorage.getItem("role"))
 
         // Join the room based on user role
         const roomId = `${data.data.role}_${data.data.user._id}`
@@ -74,7 +79,10 @@ export default function LoginPage() {
         })
 
         // Redirect based on role
-        switch (data.data.role) {
+        const role = data.data.role
+        console.log(`Redirecting to dashboard/${role === 'vet clinic' ? 'vet-clinic' : role}`)
+        
+        switch (role) {
           case "user":
           case "pet owner":
             router.push("/dashboard/user")
@@ -92,19 +100,43 @@ export default function LoginPage() {
             router.push("/dashboard/super-admin")
             break
           case "vet clinic":
+            console.log('Redirecting vet clinic user to /dashboard/vet-clinic')
             router.push("/dashboard/vet-clinic")
             break
           default:
             router.push("/")
         }
       } else {
-        toast({
-          title: "Login failed",
-          description: data.message || "Please check your credentials and try again.",
-          variant: "destructive",
-        })
+        console.log('Login failed:', data.message) // Debug log
+        
+        // Check if the error is due to an unapproved vet clinic
+        if (data.message && (
+          data.message.includes('pending approval') || 
+          data.message.includes('Your account is pending approval')
+        )) {
+          toast({
+            title: "Account Pending Approval",
+            description: "Please wait for PetEat's approval.",
+            variant: "destructive",
+            duration: 5000, // Show for 5 seconds
+          })
+        } else if (data.message && data.message.includes('rejected')) {
+          toast({
+            title: "Account Rejected",
+            description: data.message,
+            variant: "destructive",
+            duration: 5000,
+          })
+        } else {
+          toast({
+            title: "Login failed",
+            description: data.message || "Please check your credentials and try again.",
+            variant: "destructive",
+          })
+        }
       }
     } catch (error) {
+      console.error('Login error:', error) // Debug log
       toast({
         title: "Error",
         description: "An error occurred. Please try again.",

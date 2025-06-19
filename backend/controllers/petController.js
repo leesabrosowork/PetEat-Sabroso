@@ -2,11 +2,12 @@ const Pet = require('../models/petModel');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const cloudinary = require('../config/cloudinary');
 
-// Configure multer for pet picture uploads
+// Configure multer for temporary storage
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const uploadPath = path.join(__dirname, '../uploads/pet-pictures');
+        const uploadPath = path.join(__dirname, '../temp');
         // Create directory if it doesn't exist
         if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
@@ -16,7 +17,7 @@ const storage = multer.diskStorage({
     filename: function (req, file, cb) {
         // Generate unique filename with timestamp
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'pet-' + uniqueSuffix + path.extname(file.originalname));
+        cb(null, 'temp-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
 
@@ -35,6 +36,25 @@ const upload = multer({
     }
 });
 
+// Helper function to upload to Cloudinary
+const uploadToCloudinary = async (file) => {
+    try {
+        const result = await cloudinary.uploader.upload(file.path, {
+            folder: 'pet-pictures',
+            use_filename: true
+        });
+        // Delete the temporary file
+        fs.unlinkSync(file.path);
+        return result.secure_url;
+    } catch (error) {
+        // Delete the temporary file in case of error
+        if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+        }
+        throw error;
+    }
+};
+
 // Create new pet
 exports.createPet = async (req, res) => {
     try {
@@ -52,12 +72,27 @@ exports.createPet = async (req, res) => {
                 // Add the owner ID from the authenticated user
                 const petData = {
                     ...req.body,
-                    owner: req.user.id
+                    owner: req.user.id,
+                    // Initialize empty arrays if not provided
+                    medicalHistory: [],
+                    vaccinations: []
                 };
 
-                // Add profile picture path if file was uploaded
+                // Convert string values to appropriate types
+                if (petData.age) petData.age = Number(petData.age);
+                if (petData.weight) petData.weight = Number(petData.weight);
+
+                // Upload to Cloudinary if file was uploaded
                 if (req.file) {
-                    petData.profilePicture = `uploads/pet-pictures/${req.file.filename}`;
+                    try {
+                        petData.profilePicture = await uploadToCloudinary(req.file);
+                    } catch (uploadError) {
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Error uploading image to cloud storage',
+                            error: uploadError.message
+                        });
+                    }
                 }
 
                 const newPet = await Pet.create(petData);
@@ -149,9 +184,17 @@ exports.updatePet = async (req, res) => {
             try {
                 const updateData = { ...req.body };
 
-                // Add profile picture path if file was uploaded
+                // Upload to Cloudinary if file was uploaded
                 if (req.file) {
-                    updateData.profilePicture = `uploads/pet-pictures/${req.file.filename}`;
+                    try {
+                        updateData.profilePicture = await uploadToCloudinary(req.file);
+                    } catch (uploadError) {
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Error uploading image to cloud storage',
+                            error: uploadError.message
+                        });
+                    }
                 }
 
                 const pet = await Pet.findOneAndUpdate(

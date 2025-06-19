@@ -69,7 +69,7 @@ export default function OtpVerification({ email, isVetClinic }: { email: string,
       if (response.ok) {
         setSuccess(true)
         // Check if this is a pet owner or vet clinic
-        if (data.userType === 'pet_owner' && !data.requiresApproval) {
+        if (data.userType === "pet_owner" && !data.requiresApproval) {
           setShowSuccessSplash(true)
         } else {
           setShowApprovalSplash(true)
