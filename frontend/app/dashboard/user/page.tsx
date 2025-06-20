@@ -2,17 +2,23 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
 import { useSocket } from "@/app/context/SocketContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2 } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2, Settings, Moon, Sun, Laptop } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { EMRViewer } from "@/components/EMRViewer"
 import { toast } from "@/components/ui/use-toast"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Switch } from "@/components/ui/switch"
+import { getUserPreferences, saveUserPreferences } from "@/lib/storage"
 
 interface Pet {
   _id: string;
@@ -60,6 +66,7 @@ interface DashboardData {
 }
 
 export default function UserDashboard() {
+  const { theme, setTheme } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     pets: [],
@@ -81,6 +88,10 @@ export default function UserDashboard() {
   const [deletePetId, setDeletePetId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showNoEMRDialog, setShowNoEMRDialog] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -243,6 +254,67 @@ export default function UserDashboard() {
     }
   };
 
+  // Load user preferences when settings dialog opens
+  useEffect(() => {
+    if (settingsOpen) {
+      const preferences = getUserPreferences();
+      setNotificationsEnabled(preferences.notificationsEnabled);
+    }
+  }, [settingsOpen]);
+
+  // Save notification preference when changed
+  const handleNotificationsChange = (checked: boolean) => {
+    setNotificationsEnabled(checked);
+    saveUserPreferences({ notificationsEnabled: checked });
+    toast({
+      title: checked ? "Notifications Enabled" : "Notifications Disabled",
+      description: checked 
+        ? "You will now receive notifications about appointments and updates." 
+        : "You will no longer receive notifications.",
+    });
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true)
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) throw new Error("No authentication token found")
+      
+      const res = await fetch("http://localhost:8080/api/users/delete-account", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      
+      if (!res.ok) throw new Error("Failed to delete account")
+      
+      const data = await res.json()
+      
+      if (data.success) {
+        toast({
+          title: "Account Deleted",
+          description: "Your account and all associated data have been successfully deleted.",
+        })
+        
+        // Clear local storage and redirect to home page
+        localStorage.removeItem("user")
+        localStorage.removeItem("token")
+        localStorage.removeItem("role")
+        router.push("/")
+      } else {
+        throw new Error(data.message || "Failed to delete account")
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete account. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirmation(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -274,20 +346,101 @@ export default function UserDashboard() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Image src="/peteat-logo.png" alt="PetEat Logo" width={24} height={24} />
-            <span className="text-xl font-bold">PetEat</span>
+            <span className="text-xl font-bold dark:text-white">PetEat</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              <span className="text-sm font-medium">{user.username}</span>
+              <User className="h-4 w-4 dark:text-gray-300" />
+              <span className="text-sm font-medium dark:text-gray-300">{user?.username}</span>
             </div>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
+
+            {/* Settings Dialog */}
+            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" title="Settings" className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Settings</DialogTitle>
+                  <DialogDescription>
+                    Customize your account preferences.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-6 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="theme">Theme</Label>
+                    <RadioGroup
+                      defaultValue={theme}
+                      onValueChange={setTheme}
+                      className="grid grid-cols-3 gap-2"
+                    >
+                      <div className="flex items-center justify-center space-y-2 border rounded-md p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <div className="space-y-1 text-center">
+                          <Sun className="h-5 w-5 mx-auto" />
+                          <RadioGroupItem value="light" id="light" className="sr-only" />
+                          <Label htmlFor="light" className="block text-sm">Light</Label>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center space-y-2 border rounded-md p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <div className="space-y-1 text-center">
+                          <Moon className="h-5 w-5 mx-auto" />
+                          <RadioGroupItem value="dark" id="dark" className="sr-only" />
+                          <Label htmlFor="dark" className="block text-sm">Dark</Label>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center space-y-2 border rounded-md p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <div className="space-y-1 text-center">
+                          <Laptop className="h-5 w-5 mx-auto" />
+                          <RadioGroupItem value="system" id="system" className="sr-only" />
+                          <Label htmlFor="system" className="block text-sm">System</Label>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="notifications">Notifications</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Receive notifications about appointments and updates.
+                      </p>
+                    </div>
+                    <Switch
+                      id="notifications"
+                      checked={notificationsEnabled}
+                      onCheckedChange={handleNotificationsChange}
+                    />
+                  </div>
+                  <div className="border-t pt-4">
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-medium text-destructive">Danger Zone</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Permanently delete your account and all associated data.
+                      </p>
+                      <Button
+                        variant="destructive"
+                        onClick={() => {
+                          setSettingsOpen(false);
+                          setTimeout(() => setShowDeleteConfirmation(true), 100);
+                        }}
+                        className="w-full"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" /> Delete Account
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Button variant="outline" size="sm" onClick={handleLogout} className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
               <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>
@@ -700,6 +853,47 @@ export default function UserDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Account Dialog */}
+      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Delete Your Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this account? All your data will be lost.
+              <div className="mt-4 space-y-2">
+                <ul className="list-disc pl-5">
+                  <li>Your personal information will be removed</li>
+                  <li>All your registered pets will be deleted</li>
+                  <li>All medical records will be permanently lost</li>
+                  <li>All appointments and prescriptions will be deleted</li>
+                </ul>
+              </div>
+              <p className="mt-2 font-semibold">This action cannot be undone.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault() // Prevent the dialog from closing automatically
+                handleDeleteAccount()
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <div className="animate-spin h-4 w-4 mr-2 border-2 border-b-0 border-r-0 rounded-full"></div>
+                  Deleting...
+                </>
+              ) : (
+                "Delete Account"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

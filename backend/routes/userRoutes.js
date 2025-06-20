@@ -25,4 +25,7 @@ router.put('/profile', protect, userController.updateUserProfile);
 // Get user's pets
 router.get('/pets', protect, userController.getUserPets);
 
+// Delete user account
+router.delete('/delete-account', protect, userController.deleteAccount);
+
 module.exports = router; 

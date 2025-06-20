@@ -2,6 +2,7 @@ const User = require('../models/userModel');
 const Pet = require('../models/petModel');
 const Appointment = require('../models/appointmentModel');
 const Prescription = require('../models/prescriptionModel');
+const EMR = require('../models/emrModel');
 
 // Create new user
 exports.createUser = async (req, res) => {
@@ -146,6 +147,70 @@ exports.getUserPets = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error fetching pets',
+            error: error.message
+        });
+    }
+};
+
+// Delete user account and all associated data
+exports.deleteAccount = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        // Start a transaction to ensure all operations succeed or fail together
+        const session = await User.startSession();
+        session.startTransaction();
+        
+        try {
+            // Find user's pets first
+            const pets = await Pet.find({ owner: userId });
+            const petIds = pets.map(pet => pet._id);
+            
+            // Delete all EMRs related to the user's pets
+            if (petIds.length > 0) {
+                await EMR.deleteMany({ petId: { $in: petIds } }, { session });
+            }
+            
+            // Delete all user's pets
+            await Pet.deleteMany({ owner: userId }, { session });
+            
+            // Delete all user's appointments
+            await Appointment.deleteMany({ user: userId }, { session });
+            
+            // Delete all user's prescriptions
+            await Prescription.deleteMany({ user: userId }, { session });
+            
+            // Finally, delete the user account
+            const deletedUser = await User.findByIdAndDelete(userId).session(session);
+            
+            if (!deletedUser) {
+                // If user not found, abort transaction
+                await session.abortTransaction();
+                session.endSession();
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found'
+                });
+            }
+            
+            // Commit the transaction
+            await session.commitTransaction();
+            session.endSession();
+            
+            res.json({
+                success: true,
+                message: 'Account and all associated data deleted successfully'
+            });
+        } catch (error) {
+            // If any error occurs, abort the transaction
+            await session.abortTransaction();
+            session.endSession();
+            throw error; // Re-throw for outer catch
+        }
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete account',
             error: error.message
         });
     }
