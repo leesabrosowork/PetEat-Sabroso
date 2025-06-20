@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Edit, Plus, Trash2 } from "lucide-react"
+import { Edit, Plus, Trash2, Minus } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 interface InventoryItem {
@@ -42,6 +42,7 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
+  const [isUpdatingStock, setIsUpdatingStock] = useState<Record<string, boolean>>({})
   const [newItem, setNewItem] = useState({
     item: "",
     stock: 0,
@@ -178,86 +179,137 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
   }
 
   // Add or subtract stock
-  const handleChangeStock = async (id: string, amount: number) => {
+  const handleChangeStock = async (id: string, change: number) => {
     try {
+      setIsUpdatingStock(prev => ({ ...prev, [id]: true }))
       const token = localStorage.getItem("token")
+      
+      const payload = { 
+        amount: Number(change) // Server expects 'amount' field
+      }
+      
+      console.log('Sending stock update:', { id, payload })
+      
+      console.log('Sending request to:', `http://localhost:8080/api/super-admin/inventory/${id}/stock`)
+      console.log('Request payload:', payload)
+      
       const response = await fetch(`http://localhost:8080/api/super-admin/inventory/${id}/stock`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify(payload),
       })
-      const data = await response.json()
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: `Stock ${amount > 0 ? "increased" : "decreased"} successfully`,
-        })
-        onInventoryUpdated()
-      } else {
-        toast({
-          title: "Error",
-          description: data.message,
-          variant: "destructive",
-        })
+
+      let responseData
+      try {
+        // First try to parse as JSON
+        responseData = await response.json()
+      } catch (e) {
+        // If not JSON, get the response as text
+        const text = await response.text()
+        throw new Error(`Invalid JSON response: ${text}`)
       }
-    } catch (error) {
+      
+      console.log('Raw server response:', responseData)
+      
+      if (!response.ok) {
+        console.error('Stock update failed:', { 
+          status: response.status, 
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          response: responseData 
+        })
+        
+        // Handle different error response formats
+        const errorMessage = responseData?.message || 
+                            responseData?.error || 
+                            responseData?.statusText || 
+                            `Server responded with ${response.status}: ${response.statusText}`
+                            
+        throw new Error(errorMessage)
+      }
+
+      console.log('Stock update successful:', responseData)
+      onInventoryUpdated()
+    } catch (error: any) {
+      console.error('Error updating stock:', error)
+      const errorMessage = error.message || 'Failed to update stock'
       toast({
         title: "Error",
-        description: "Failed to update stock",
+        description: errorMessage,
         variant: "destructive",
       })
+    } finally {
+      setIsUpdatingStock(prev => ({
+        ...prev,
+        [id]: false,
+      }))
     }
   }
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Inventory Management</h2>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Inventory Management</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Manage your clinic's inventory items and stock levels</p>
+        </div>
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
-          Add Item
+          Add New Item
         </Button>
       </div>
 
-      <Table>
-        <TableHeader>
+      <Table className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+        <TableHeader className="bg-gray-50 dark:bg-gray-700">
           <TableRow>
-            <TableHead>Item Name</TableHead>
-            <TableHead>Stock</TableHead>
-            <TableHead>Min Stock</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Last Updated</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead className="text-gray-900 dark:text-white">Item Name</TableHead>
+            <TableHead className="text-gray-900 dark:text-white">Stock Level</TableHead>
+            <TableHead className="text-gray-900 dark:text-white">Min Stock</TableHead>
+            <TableHead className="text-gray-900 dark:text-white">Category</TableHead>
+            <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
+            <TableHead className="text-gray-900 dark:text-white">Last Updated</TableHead>
+            <TableHead className="text-right text-gray-900 dark:text-white">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {inventory.filter(item => item).map((item) => (
-            <TableRow key={item._id}>
-              <TableCell>{item.item}</TableCell>
+            <TableRow key={item._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+              <TableCell className="font-medium text-gray-900 dark:text-white">{item.item}</TableCell>
               <TableCell>
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="outline"
-                    size="icon"
+                    size="sm"
                     onClick={() => handleChangeStock(item._id, -1)}
-                    disabled={item.stock <= 0}
+                    disabled={isUpdatingStock[item._id] || item.stock <= 0}
+                    className="h-8 w-8 p-0"
                     aria-label="Decrease stock"
                   >
-                    −
+                    <Minus className="h-3 w-3" />
                   </Button>
-                  <span className="w-8 text-center">{item.stock}</span>
+                  <span className={`w-8 text-center font-medium ${
+                    item.stock < item.minStock
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-gray-900 dark:text-white'
+                  }`}>
+                    {item.stock}
+                  </span>
                   <Button
                     variant="outline"
-                    size="icon"
+                    size="sm"
                     onClick={() => handleChangeStock(item._id, 1)}
+                    disabled={isUpdatingStock[item._id]}
+                    className="h-8 w-8 p-0"
                     aria-label="Increase stock"
                   >
-                    +
+                    <Plus className="h-3 w-3" />
                   </Button>
+                  {isUpdatingStock[item._id] && (
+                    <div className="ml-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-gray-100" />
+                  )}
                 </div>
               </TableCell>
               <TableCell>{item.minStock}</TableCell>
@@ -304,7 +356,7 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
 
       {/* Create Item Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Create New Inventory Item</DialogTitle>
             <DialogDescription>

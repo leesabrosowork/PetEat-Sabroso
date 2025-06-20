@@ -122,7 +122,7 @@ export function SettingsDialog({ userId }: SettingsDialogProps) {
             <div className="space-y-2">
               <Label htmlFor="theme">Theme</Label>
               <RadioGroup
-                defaultValue={theme}
+                value={theme}
                 onValueChange={setTheme}
                 className="grid grid-cols-3 gap-2"
               >

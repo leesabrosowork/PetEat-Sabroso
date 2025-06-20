@@ -8,7 +8,8 @@ import UserManagement from "@/components/super-admin/UserManagement"
 import PetManagement from "@/components/super-admin/PetManagement"
 import InventoryManagement from "@/components/super-admin/InventoryManagement"
 import { Button } from "@/components/ui/button"
-import { LogOut } from "lucide-react"
+import { LogOut, Sun, Moon } from "lucide-react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
 import VetClinicApproval from '@/components/super-admin/VetClinicApproval'
@@ -22,6 +23,29 @@ export default function SuperAdminDashboard() {
   const [inventory, setInventory] = useState([])
   const router = useRouter()
   const { toast } = useToast()
+  const [darkMode, setDarkMode] = useState(false)
+
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    const newDarkMode = !darkMode
+    setDarkMode(newDarkMode)
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('darkMode', 'true')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('darkMode', 'false')
+    }
+  }
+
+  // Initialize dark mode from localStorage
+  useEffect(() => {
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true'
+    setDarkMode(savedDarkMode)
+    if (savedDarkMode) {
+      document.documentElement.classList.add('dark')
+    }
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem("token")
@@ -127,27 +151,46 @@ export default function SuperAdminDashboard() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
+            <div className="flex items-center space-x-4">
+              <Image
+                src="/peteat-logo.png"
+                alt="PetEat Logo"
+                width={40}
+                height={40}
+                className="h-10 w-auto"
+              />
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Super Admin Dashboard</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button variant="outline" size="icon" onClick={toggleDarkMode} className="h-10 w-10">
+                {darkMode ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+                <span className="sr-only">Toggle dark mode</span>
+              </Button>
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
+            </div>
           </div>
 
-          <div className="bg-white shadow rounded-lg">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
             <div className="border-b border-gray-200">
               <nav className="flex -mb-px">
                 <button
                   onClick={() => setActiveTab('admins')}
                   className={`${
                     activeTab === 'admins'
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm`}
+                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500'
+                  } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm transition-colors duration-200`}
                 >
                   Admin Management
                 </button>

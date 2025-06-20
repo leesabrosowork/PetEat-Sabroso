@@ -11,8 +11,8 @@ function SuccessSplash() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[250px]">
       <img src="/peteat-logo.png" alt="PetEat Logo" width={64} height={64} className="mb-4" />
-      <div className="text-xl font-semibold mb-2">OTP verified successfully!</div>
-      <div className="text-base text-center mb-4">Your account has been created. You can now login to your account.</div>
+      <div className="text-xl font-semibold mb-2 text-black">OTP verified successfully!</div>
+      <div className="text-base text-center mb-4 text-black">Your account has been created. You can now login to your account.</div>
       <button
         className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
         onClick={() => router.push("/login")}
@@ -29,8 +29,8 @@ function ApprovalSplash() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[250px]">
       <img src="/peteat-logo.png" alt="PetEat Logo" width={64} height={64} className="mb-4" />
-      <div className="text-xl font-semibold mb-2">OTP successful!</div>
-      <div className="text-base text-center mb-4">Please wait for PetEat's approval of your sign up.</div>
+      <div className="text-xl font-semibold mb-2 text-black">OTP successful!</div>
+      <div className="text-base text-center mb-4 text-black">Please wait for PetEat's approval of your sign up.</div>
       <button
         className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
         onClick={() => router.push("/")}

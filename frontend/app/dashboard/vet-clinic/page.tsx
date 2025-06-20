@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useSocket } from "@/app/context/SocketContext"
+import { Sun, Moon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -159,7 +160,7 @@ interface DashboardData {
   lowStockItems: number;
 }
 
-export default function VetClinicDashboard() {
+function VetClinicDashboard() {
   const pathname = usePathname();
   const prevPathRef = useRef<string | null>(null);
   const router = useRouter();
@@ -202,6 +203,12 @@ export default function VetClinicDashboard() {
 
   // Dialog states
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('darkMode') === 'true';
+    }
+    return false;
+  });
   const [petDialogOpen, setPetDialogOpen] = useState(false);
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
   const [inventoryDialogOpen, setInventoryDialogOpen] = useState(false);
@@ -214,6 +221,23 @@ export default function VetClinicDashboard() {
   const [addPrescriptionDialogOpen, setAddPrescriptionDialogOpen] = useState(false);
   const [users, setUsers] = useState<{ _id: string; name: string; }[]>([]);
   const [medicines, setMedicines] = useState<{ _id: string; item: string; }[]>([]);
+
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    localStorage.setItem('darkMode', String(newMode));
+    document.documentElement.classList.toggle('dark', newMode);
+  };
+
+  // Set initial dark mode
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedMode = localStorage.getItem('darkMode') === 'true';
+      setIsDarkMode(savedMode);
+      document.documentElement.classList.toggle('dark', savedMode);
+    }
+  }, []);
 
   // Check authentication on mount
   useEffect(() => {
@@ -429,15 +453,34 @@ export default function VetClinicDashboard() {
   const fetchMedicines = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:8080/api/inventory", {
-        headers: { Authorization: `Bearer ${token}` },
+      if (!token) {
+        console.error('No authentication token found');
+        return;
+      }
+      
+      const res = await fetch("http://localhost:8080/api/vet-clinic/inventory", {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) setMedicines(data.data);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to fetch inventory');
+      }
+      
+      const data = await res.json();
+      if (data.success) {
+        setMedicines(data.data);
       }
     } catch (error) {
       console.error("Error fetching medicines:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to fetch inventory",
+        variant: "destructive",
+      });
     }
   };
 
@@ -717,25 +760,46 @@ export default function VetClinicDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white shadow-sm border-b dark:bg-gray-800 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
-              <h1 className="text-xl font-semibold text-gray-900">Vet Clinic Dashboard</h1>
+              <Image 
+                src="/peteat-logo.png" 
+                alt="PetEat Logo" 
+                width={32} 
+                height={32} 
+                className="dark:invert-0"
+              />
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Vet Clinic Dashboard</h1>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                <span className="text-sm font-medium">{user.name}</span>
-              </div>
-              <BackendStatus />
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleDarkMode}
+                className="ml-2"
+                aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDarkMode ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
               </Button>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  <span className="text-sm font-medium dark:text-gray-200">{user?.name || 'User'}</span>
+                </div>
+                <BackendStatus />
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -747,7 +811,7 @@ export default function VetClinicDashboard() {
           {/* Pets Overview */}
           <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => document.getElementById('pets-tab')?.click()}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Pets</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Total Pets</CardTitle>
               <Heart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -772,7 +836,7 @@ export default function VetClinicDashboard() {
           {/* Medical Records Overview */}
           <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => document.getElementById('medical-records-tab')?.click()}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Medical Records</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Medical Records</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -786,7 +850,7 @@ export default function VetClinicDashboard() {
           {/* Appointments Overview */}
           <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => document.getElementById('appointments-tab')?.click()}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Appointments</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Appointments</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -800,7 +864,7 @@ export default function VetClinicDashboard() {
           {/* Video Consultations Overview */}
           <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => document.getElementById('video-consultations-tab')?.click()}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Video Consultations</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Video Consultations</CardTitle>
               <Video className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -815,13 +879,13 @@ export default function VetClinicDashboard() {
         {/* Tabs */}
         <Tabs defaultValue="overview" className="space-y-6" onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="pets" id="pets-tab">Pets</TabsTrigger>
-            <TabsTrigger value="medical-records" id="medical-records-tab">Medical Records</TabsTrigger>
-            <TabsTrigger value="appointments" id="appointments-tab">Appointments</TabsTrigger>
-            <TabsTrigger value="video-consultations" id="video-consultations-tab">Video Consultations</TabsTrigger>
-            <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
-            <TabsTrigger value="inventory">Inventory</TabsTrigger>
+            <TabsTrigger value="overview" className="dark:text-white">Overview</TabsTrigger>
+            <TabsTrigger value="pets" id="pets-tab" className="dark:text-white">Pets</TabsTrigger>
+            <TabsTrigger value="medical-records" id="medical-records-tab" className="dark:text-white">Medical Records</TabsTrigger>
+            <TabsTrigger value="appointments" id="appointments-tab" className="dark:text-white">Appointments</TabsTrigger>
+            <TabsTrigger value="video-consultations" id="video-consultations-tab" className="dark:text-white">Video Consultations</TabsTrigger>
+            <TabsTrigger value="prescriptions" className="dark:text-white">Prescriptions</TabsTrigger>
+            <TabsTrigger value="inventory" className="dark:text-white">Inventory</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -830,7 +894,7 @@ export default function VetClinicDashboard() {
               {/* Activity Feed */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
+                  <CardTitle className="text-gray-900 dark:text-white">Recent Activity</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {activityLoading ? (
@@ -867,7 +931,7 @@ export default function VetClinicDashboard() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle>Registered Pets</CardTitle>
+                    <CardTitle className="text-gray-900 dark:text-white">Pets Overview</CardTitle>
                     <CardDescription>All pets registered with your clinic</CardDescription>
                   </div>
                   <Button onClick={() => setAddPetDialogOpen(true)}>
@@ -886,18 +950,18 @@ export default function VetClinicDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Picture</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Breed</TableHead>
-                        <TableHead>Age</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Picture</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Name</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Breed</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Age</TableHead>
                         <TableHead>Owner</TableHead>
-                        <TableHead>Health Status</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Health Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pets.map((pet) => (
-                        <TableRow key={pet._id}>
+                        <TableRow key={pet._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                           <TableCell>
                             {pet.profilePicture ? (
                               <img 
@@ -911,10 +975,10 @@ export default function VetClinicDashboard() {
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="font-medium">{pet.name}</TableCell>
-                          <TableCell>{pet.breed}</TableCell>
-                          <TableCell>{pet.age} years</TableCell>
-                          <TableCell>{pet.owner?.name || 'N/A'}</TableCell>
+                          <TableCell className="font-medium text-gray-900 dark:text-white">{pet.name}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{pet.breed}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{pet.age} years</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{pet.owner?.name || 'N/A'}</TableCell>
                           <TableCell>
                             <Badge className={getHealthStatusColor(pet.healthStatus)}>
                               {getHealthStatusIcon(pet.healthStatus)}
@@ -939,7 +1003,7 @@ export default function VetClinicDashboard() {
           <TabsContent value="medical-records">
             <Card>
               <CardHeader>
-                <CardTitle>Medical Records</CardTitle>
+                <CardTitle className="text-gray-900 dark:text-white">Medical Records</CardTitle>
                 <CardDescription>Electronic Medical Records for all pets</CardDescription>
               </CardHeader>
               <CardContent>
@@ -952,27 +1016,27 @@ export default function VetClinicDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Pet Name</TableHead>
-                        <TableHead>Species</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Pet Name</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Species</TableHead>
                         <TableHead>Owner</TableHead>
-                        <TableHead>Last Visit</TableHead>
-                        <TableHead>Vaccinations</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Last Visit</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Vaccinations</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {medicalRecords.map((record) => (
-                        <TableRow key={record._id}>
-                          <TableCell className="font-medium">{record.name}</TableCell>
-                          <TableCell>{record.species}</TableCell>
-                          <TableCell>{record.owner?.name || 'N/A'}</TableCell>
+                        <TableRow key={record._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                          <TableCell className="font-medium text-gray-900 dark:text-white">{record.name}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{record.species}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{record.owner?.name || 'N/A'}</TableCell>
                           <TableCell>
                             {record.visitHistory.length > 0 
                               ? new Date(record.visitHistory[record.visitHistory.length - 1].date).toLocaleDateString()
                               : 'No visits'
                             }
                           </TableCell>
-                          <TableCell>{record.vaccinations.length} vaccines</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{record.vaccinations.length} vaccines</TableCell>
                           <TableCell>
                             <Button variant="outline" size="sm" onClick={() => handleViewMedicalRecord(record)}>
                               View EMR
@@ -991,7 +1055,7 @@ export default function VetClinicDashboard() {
           <TabsContent value="appointments">
             <Card>
               <CardHeader>
-                <CardTitle>Appointments</CardTitle>
+                <CardTitle className="text-gray-900 dark:text-white">Upcoming Appointments</CardTitle>
                 <CardDescription>All scheduled appointments</CardDescription>
               </CardHeader>
               <CardContent>
@@ -1007,7 +1071,7 @@ export default function VetClinicDashboard() {
                         <TableHead>Date & Time</TableHead>
                         <TableHead>Pet</TableHead>
                         <TableHead>Owner</TableHead>
-                        <TableHead>Type</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Type</TableHead>
                         <TableHead>Doctor</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
@@ -1015,17 +1079,17 @@ export default function VetClinicDashboard() {
                     </TableHeader>
                     <TableBody>
                       {appointments.map((appointment) => (
-                        <TableRow key={appointment._id}>
+                        <TableRow key={appointment._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                           <TableCell>
                             {new Date(appointment.startTime).toLocaleDateString()} <br />
                             {new Date(appointment.startTime).toLocaleTimeString()}
                           </TableCell>
-                          <TableCell className="font-medium">{appointment.pet?.name || 'N/A'}</TableCell>
-                          <TableCell>{appointment.user?.name || 'N/A'}</TableCell>
+                          <TableCell className="font-medium text-gray-900 dark:text-white">{appointment.pet?.name || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{appointment.user?.name || 'N/A'}</TableCell>
                           <TableCell>
                             <Badge variant="outline">{appointment.type}</Badge>
                           </TableCell>
-                          <TableCell>{appointment.doctor?.name || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{appointment.doctor?.name || 'N/A'}</TableCell>
                           <TableCell>
                             <Badge className={
                               appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
@@ -1053,7 +1117,7 @@ export default function VetClinicDashboard() {
           <TabsContent value="video-consultations">
             <Card>
               <CardHeader>
-                <CardTitle>Video Consultations</CardTitle>
+                <CardTitle className="text-gray-900 dark:text-white">Video Consultations</CardTitle>
                 <CardDescription>Remote consultation sessions</CardDescription>
               </CardHeader>
               <CardContent>
@@ -1076,14 +1140,14 @@ export default function VetClinicDashboard() {
                     </TableHeader>
                     <TableBody>
                       {videoConsultations.map((consultation) => (
-                        <TableRow key={consultation._id}>
+                        <TableRow key={consultation._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                           <TableCell>
                             {new Date(consultation.startTime).toLocaleDateString()} <br />
                             {new Date(consultation.startTime).toLocaleTimeString()}
                           </TableCell>
-                          <TableCell className="font-medium">{consultation.pet?.name || 'N/A'}</TableCell>
-                          <TableCell>{consultation.user?.name || 'N/A'}</TableCell>
-                          <TableCell>{consultation.doctor?.name || 'N/A'}</TableCell>
+                          <TableCell className="font-medium text-gray-900 dark:text-white">{consultation.pet?.name || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{consultation.user?.name || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{consultation.doctor?.name || 'N/A'}</TableCell>
                           <TableCell>
                             <Badge className={
                               consultation.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
@@ -1113,7 +1177,7 @@ export default function VetClinicDashboard() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle>Prescriptions</CardTitle>
+                    <CardTitle className="text-gray-900 dark:text-white">Prescriptions</CardTitle>
                     <CardDescription>All prescribed medications</CardDescription>
                   </div>
                   <Button onClick={() => setAddPrescriptionDialogOpen(true)}>
@@ -1132,24 +1196,24 @@ export default function VetClinicDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Date</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Date</TableHead>
                         <TableHead>Pet</TableHead>
                         <TableHead>Owner</TableHead>
-                        <TableHead>Medicine</TableHead>
-                        <TableHead>Description</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Medicine</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Description</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {prescriptions.map((prescription) => (
-                        <TableRow key={prescription._id}>
+                        <TableRow key={prescription._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                           <TableCell>
                             {new Date(prescription.createdAt).toLocaleDateString()}
                           </TableCell>
-                          <TableCell className="font-medium">{prescription.pet?.name || 'N/A'}</TableCell>
-                          <TableCell>{prescription.user?.name || 'N/A'}</TableCell>
-                          <TableCell>{prescription.medicine?.item || 'N/A'}</TableCell>
-                          <TableCell className="max-w-xs truncate">
+                          <TableCell className="font-medium text-gray-900 dark:text-white">{prescription.pet?.name || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{prescription.user?.name || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{prescription.medicine?.item || 'N/A'}</TableCell>
+                          <TableCell className="max-w-xs truncate text-gray-900 dark:text-white">
                             {prescription.description}
                           </TableCell>
                           <TableCell>
@@ -1182,7 +1246,7 @@ export default function VetClinicDashboard() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle>Inventory Management</CardTitle>
+                    <CardTitle className="text-gray-900 dark:text-white">Inventory Management</CardTitle>
                     <CardDescription>Clinic supplies and medications</CardDescription>
                   </div>
                   <Button onClick={() => setAddInventoryDialogOpen(true)}>
@@ -1201,19 +1265,19 @@ export default function VetClinicDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Item Name</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Min Stock</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Item Name</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Category</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Quantity</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Min Stock</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {inventory.map((item) => (
-                        <TableRow key={item._id}>
-                          <TableCell className="font-medium">{item.item}</TableCell>
-                          <TableCell>{item.category}</TableCell>
+                        <TableRow key={item._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                          <TableCell className="font-medium text-blue-600 dark:text-blue-400">{item.item}</TableCell>
+                          <TableCell className="text-blue-600 dark:text-blue-400">{item.category}</TableCell>
                           <TableCell>
                             <div className="flex items-center space-x-2">
                               <Button
@@ -1245,7 +1309,7 @@ export default function VetClinicDashboard() {
                               {item.status}
                             </Badge>
                           </TableCell>
-                          <TableCell>{item.minStock}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{item.minStock}</TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
                               <Button variant="outline" size="sm" onClick={() => handleUpdateInventory(item)}>
@@ -1322,4 +1386,6 @@ export default function VetClinicDashboard() {
       />
     </div>
   );
-} 
+}
+
+export default VetClinicDashboard;

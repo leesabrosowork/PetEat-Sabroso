@@ -450,10 +450,10 @@ export default function UserDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-  Welcome back, {user?.name || user?.username || 'User'}!
-</h1>
-          <p className="text-gray-600">Manage your pets and appointments</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Welcome back, {user?.name || user?.username || 'User'}!
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300">Manage your pets and appointments</p>
         </div>
 
         {/* Add EMR Viewer */}
@@ -482,32 +482,32 @@ export default function UserDashboard() {
             <div className="grid md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">My Pets</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">My Pets</CardTitle>
                   <Image src="/peteat-logo.png" alt="PetEat Logo" width={16} height={16} />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.pets.length}</div>
-                  <p className="text-xs text-muted-foreground">Registered pets</p>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.pets.length}</div>
+                  <p className="text-xs text-gray-600 dark:text-gray-300">Registered pets</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Upcoming Appointments</CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Upcoming Appointments</CardTitle>
+                  <Calendar className="h-4 w-4 text-gray-600 dark:text-gray-300" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{upcomingAppointments.length}</div>
-                  <p className="text-xs text-muted-foreground">Scheduled appointments</p>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{upcomingAppointments.length}</div>
+                  <p className="text-xs text-gray-600 dark:text-gray-300">Scheduled appointments</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Prescriptions</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Active Prescriptions</CardTitle>
+                  <FileText className="h-4 w-4 text-gray-600 dark:text-gray-300" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.prescriptions.length}</div>
-                  <p className="text-xs text-muted-foreground">Current medications</p>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.prescriptions.length}</div>
+                  <p className="text-xs text-gray-600 dark:text-gray-300">Current medications</p>
                 </CardContent>
               </Card>
             </div>
@@ -515,7 +515,7 @@ export default function UserDashboard() {
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Appointments</CardTitle>
+                  <CardTitle className="text-gray-900 dark:text-white">Recent Appointments</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
