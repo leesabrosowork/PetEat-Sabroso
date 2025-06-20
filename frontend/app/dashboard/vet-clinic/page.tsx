@@ -36,6 +36,7 @@ import { AddPetDialog } from "@/components/AddPetDialog"
 import { AddInventoryDialog } from "@/components/AddInventoryDialog"
 import { AddPrescriptionDialog } from "@/components/AddPrescriptionDialog"
 import { BackendStatus } from "@/components/BackendStatus"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 interface User {
   _id: string;
@@ -100,6 +101,7 @@ interface Appointment {
   doctor: {
     name: string;
   };
+  notes?: string;
 }
 
 interface VideoConsultation {
@@ -221,6 +223,10 @@ function VetClinicDashboard() {
   const [addPrescriptionDialogOpen, setAddPrescriptionDialogOpen] = useState(false);
   const [users, setUsers] = useState<{ _id: string; name: string; }[]>([]);
   const [medicines, setMedicines] = useState<{ _id: string; item: string; }[]>([]);
+
+  // Add state for selected appointment and dialog open
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -730,6 +736,9 @@ function VetClinicDashboard() {
     }
   }
 
+  // Add useEffect to fetch appointments on mount
+  useEffect(() => { fetchAppointments(); }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1071,8 +1080,7 @@ function VetClinicDashboard() {
                         <TableHead>Date & Time</TableHead>
                         <TableHead>Pet</TableHead>
                         <TableHead>Owner</TableHead>
-                        <TableHead className="text-gray-900 dark:text-white">Type</TableHead>
-                        <TableHead>Doctor</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Reason</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -1086,23 +1094,43 @@ function VetClinicDashboard() {
                           </TableCell>
                           <TableCell className="font-medium text-gray-900 dark:text-white">{appointment.pet?.name || 'N/A'}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{appointment.user?.name || 'N/A'}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{appointment.type}</Badge>
-                          </TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{appointment.doctor?.name || 'N/A'}</TableCell>
+                          <TableCell><span className="text-gray-900 dark:text-white">{appointment.notes || 'No reason provided'}</span></TableCell>
                           <TableCell>
                             <Badge className={
+                              appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                               appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
                               appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              'bg-red-100 text-red-800'
+                              appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
                             }>
-                              {appointment.status}
+                              {appointment.status === 'pending' ? 'Pending' : appointment.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button variant="outline" size="sm" onClick={() => handleViewAppointmentDetails(appointment)}>
-                              View Details
-                            </Button>
+                            {appointment.status === 'pending' ? (
+                              <div className="flex gap-2">
+                                <Button variant="default" size="sm" onClick={async () => {
+                                  const token = localStorage.getItem('token');
+                                  await fetch(`http://localhost:8080/api/vet-clinic/appointments/${appointment._id}/approve`, {
+                                    method: 'PATCH',
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                  });
+                                  await fetchAppointments();
+                                }}>Approve</Button>
+                                <Button variant="destructive" size="sm" onClick={async () => {
+                                  const token = localStorage.getItem('token');
+                                  await fetch(`http://localhost:8080/api/vet-clinic/appointments/${appointment._id}/reject`, {
+                                    method: 'PATCH',
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                  });
+                                  await fetchAppointments();
+                                }}>Reject</Button>
+                              </div>
+                            ) : (
+                              <Button variant="outline" size="sm" onClick={() => { setSelectedAppointment(appointment); setDetailsOpen(true); }}>
+                                View Details
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1384,6 +1412,27 @@ function VetClinicDashboard() {
         users={users}
         medicines={medicines}
       />
+
+      {/* Dialog for appointment details */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Appointment Details</DialogTitle>
+            <DialogDescription>
+              {selectedAppointment && (
+                <div className="space-y-2">
+                  <div><strong>Date:</strong> {new Date(selectedAppointment.startTime).toLocaleDateString()}</div>
+                  <div><strong>Time:</strong> {new Date(selectedAppointment.startTime).toLocaleTimeString()}</div>
+                  <div><strong>Pet:</strong> {selectedAppointment.pet?.name || 'N/A'}</div>
+                  <div><strong>Owner:</strong> {selectedAppointment.user?.name || 'N/A'}</div>
+                  <div><strong>Reason:</strong> {selectedAppointment.notes || 'No reason provided'}</div>
+                  <div><strong>Status:</strong> {selectedAppointment.status}</div>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

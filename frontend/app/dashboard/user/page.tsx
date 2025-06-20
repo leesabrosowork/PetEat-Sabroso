@@ -42,6 +42,7 @@ interface Appointment {
   endTime: string;
   status: string;
   doctor: Doctor;
+  type: string;
 }
 
 interface Medicine {
@@ -345,6 +346,17 @@ export default function UserDashboard() {
     apt => apt.status === 'scheduled'
   )
 
+  // Before rendering, define a function or variable to get the status label as a string
+  function getStatusLabel(status: string) {
+    if (status === 'pending') return 'Pending';
+    if (status === 'scheduled') return 'Scheduled';
+    if (status === 'completed') return 'Completed';
+    if (status === 'rejected') return 'Rejected';
+    return status;
+  }
+
+  const videoAppointments = dashboardData.appointments.filter(a => a.type === 'consultation');
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -522,14 +534,20 @@ export default function UserDashboard() {
                     {dashboardData.appointments.slice(0, 3).map((appointment) => (
                       <div key={appointment._id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>
-                          <p className="font-medium">Appointment with {appointment.doctor.name}</p>
+                          <p className="font-medium">Appointment{appointment.doctor ? ` with ${appointment.doctor.name}` : ''}</p>
                           <p className="text-sm text-gray-500">
                             {new Date(appointment.startTime).toLocaleDateString()} at{" "}
                             {new Date(appointment.startTime).toLocaleTimeString()}
                           </p>
                         </div>
-                        <Badge variant={appointment.status === "scheduled" ? "default" : "secondary"}>
-                          {appointment.status}
+                        <Badge className={
+                          appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                          appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }>
+                          {getStatusLabel(appointment.status)}
                         </Badge>
                       </div>
                     ))}
@@ -557,8 +575,8 @@ export default function UserDashboard() {
                       Add New Pet
                     </Button>
                   </Link>
-                  {upcomingAppointments.length > 0 && (
-                    <Link href={`/dashboard/user/video-consultation?appointment=${upcomingAppointments[0]._id}`}>
+                  {videoAppointments.length > 0 && (
+                    <Link href={`/dashboard/user/video-consultation?appointment=${videoAppointments[0]._id}`}>
                       <Button variant="outline" className="w-full justify-start">
                         <Video className="h-4 w-4 mr-2" />
                         Start Video Consultation
@@ -666,12 +684,18 @@ export default function UserDashboard() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">Appointment with {appointment.doctor.name}</h3>
-                          <Badge variant={appointment.status === "scheduled" ? "default" : "secondary"}>
-                            {appointment.status}
+                          <h3 className="font-semibold">Appointment{appointment.doctor ? ` with ${appointment.doctor.name}` : ''}</h3>
+                          <Badge className={
+                            appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                            appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }>
+                            {getStatusLabel(appointment.status)}
                           </Badge>
                         </div>
-                        <p className="text-gray-600">{appointment.doctor.email}</p>
+                        <p className="text-gray-600">{appointment.doctor ? appointment.doctor.email : null}</p>
                         <div className="flex items-center gap-4 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />

@@ -28,16 +28,51 @@ interface Doctor {
   availability: 'available' | 'not available';
 }
 
+interface Clinic {
+  _id: string;
+  clinicName: string;
+  location?: { address?: string; city?: string; province?: string };
+  operatingHours?: { mondayToFriday?: string; saturday?: string; sunday?: string };
+}
+
 interface TimeSlot {
   startTime: number;
   endTime: number;
 }
 
+// Add a utility to get the day of week and parse operating hours
+function getDayKey(dateStr: string) {
+  const date = new Date(dateStr);
+  const day = date.getDay();
+  if (day === 0) return 'sunday';
+  if (day === 6) return 'saturday';
+  return 'mondayToFriday';
+}
+
+function parseTimeRange(range: string) {
+  if (!range || range.toLowerCase() === 'closed') return null;
+  const [start, end] = range.split('-');
+  return { start, end };
+}
+
+function isTimeInRange(time: Date, start: string, end: string) {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const startMinutes = sh * 60 + sm;
+  const endMinutes = eh * 60 + em;
+  const tMinutes = time.getHours() * 60 + time.getMinutes();
+  return tMinutes >= startMinutes && tMinutes < endMinutes;
+}
+
 export default function ScheduleAppointment() {
+  const [step, setStep] = useState(0)
   const [pets, setPets] = useState<Pet[]>([])
   const [doctors, setDoctors] = useState<Doctor[]>([])
+  const [clinics, setClinics] = useState<Clinic[]>([])
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([])
   const [formData, setFormData] = useState({
+    appointmentType: "",
+    clinicId: "",
     petId: "",
     doctorId: "",
     date: "",
@@ -59,127 +94,48 @@ export default function ScheduleAppointment() {
           router.push('/login')
           return
         }
-
         // Fetch user's pets
         const petsResponse = await fetch('http://localhost:8080/api/users/pets', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         })
         const petsData = await petsResponse.json()
-        if (petsData.success) {
-          setPets(petsData.data)
-        }
-
+        if (petsData.success) setPets(petsData.data)
         // Fetch all doctors
         const doctorsResponse = await fetch('http://localhost:8080/api/appointments/doctors', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         })
         const doctorsData = await doctorsResponse.json()
-        if (doctorsData.success) {
-          setDoctors(doctorsData.data)
-        }
+        if (doctorsData.success) setDoctors(doctorsData.data)
+        // Fetch all clinics (public)
+        const clinicsResponse = await fetch('http://localhost:8080/api/vet-clinic/public-list')
+        const clinicsData = await clinicsResponse.json()
+        if (clinicsData.success) setClinics(clinicsData.data)
       } catch (error) {
-        console.error('Error fetching initial data:', error)
-        toast({
-          title: "Error",
-          description: "Failed to load initial data. Please try again.",
-          variant: "destructive",
-        })
+        toast({ title: "Error", description: "Failed to load initial data. Please try again.", variant: "destructive" })
       } finally {
         setInitialLoading(false)
       }
     }
-
     fetchInitialData()
   }, [router, toast])
 
   useEffect(() => {
     const fetchAvailableSlots = async () => {
-      if (!formData.doctorId || !formData.date) return
-
+      if (!formData.clinicId || !formData.date) return;
       try {
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem('token');
         const response = await fetch(
-          `http://localhost:8080/api/appointments/available-slots?doctorId=${formData.doctorId}&date=${formData.date}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }
-        )
-        const data = await response.json()
-        if (data.success) {
-          setAvailableSlots(data.data)
-        }
+          `http://localhost:8080/api/appointments/available-slots?clinicId=${formData.clinicId}&date=${formData.date}`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+        const data = await response.json();
+        if (data.success) setAvailableSlots(data.data);
       } catch (error) {
-        console.error('Error fetching available slots:', error)
-        toast({
-          title: "Error",
-          description: "Failed to load available time slots.",
-          variant: "destructive",
-        })
+        toast({ title: "Error", description: "Failed to load available time slots.", variant: "destructive" });
       }
-    }
-
-    fetchAvailableSlots()
-  }, [formData.doctorId, formData.date, toast])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    try {
-      const token = localStorage.getItem('token')
-      const requestData = {
-        petId: formData.petId,
-        doctorId: formData.doctorId,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-        type: formData.type,
-        notes: formData.notes
-      };
-      
-      console.log('Sending appointment data:', requestData);
-
-      const response = await fetch('http://localhost:8080/api/appointments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(requestData)
-      })
-
-      const data = await response.json()
-      console.log('Server response:', data);
-
-      if (data.success) {
-        toast({
-          title: "Success",
-          description: "Appointment scheduled successfully!",
-        })
-        router.push("/dashboard/user")
-      } else {
-        toast({
-          title: "Error",
-          description: data.message || "Failed to schedule appointment.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error('Error scheduling appointment:', error)
-      toast({
-        title: "Error",
-        description: "An error occurred while scheduling the appointment.",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
+    };
+    fetchAvailableSlots();
+  }, [formData.clinicId, formData.date, toast]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -196,6 +152,67 @@ export default function ScheduleAppointment() {
     }
   }
 
+  const handleNext = () => setStep((s) => s + 1)
+  const handleBack = () => setStep((s) => s - 1)
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      // Map appointmentType to backend type
+      const mappedType =
+        formData.appointmentType === "video"
+          ? "consultation"
+          : formData.appointmentType === "inperson"
+          ? "checkup"
+          : "";
+      const requestData = {
+        petId: formData.petId,
+        doctorId: formData.doctorId,
+        clinicId: formData.clinicId,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        type: mappedType,
+        notes: formData.notes,
+        appointmentType: formData.appointmentType,
+      }
+      const response = await fetch('http://localhost:8080/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(requestData)
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast({ title: "Success", description: "Appointment scheduled successfully!" })
+        router.push("/dashboard/user")
+      } else {
+        toast({ title: "Error", description: data.message || "Failed to schedule appointment.", variant: "destructive" })
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "An error occurred while scheduling the appointment.", variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Get selected clinic's operating hours for the selected date
+  const selectedClinic = clinics.find(c => c._id === formData.clinicId);
+  let filteredSlots = availableSlots;
+  if (selectedClinic && formData.date && selectedClinic.operatingHours) {
+    const dayKey = getDayKey(formData.date);
+    const hoursStr = selectedClinic.operatingHours[dayKey] || '';
+    const range = parseTimeRange(hoursStr);
+    if (range) {
+      filteredSlots = availableSlots.filter(slot => {
+        const slotDate = new Date(slot.startTime);
+        return isTimeInRange(slotDate, range.start, range.end);
+      });
+    } else {
+      filteredSlots = [];
+    }
+  }
+
   if (initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -207,33 +224,170 @@ export default function ScheduleAppointment() {
     )
   }
 
-  const availableDoctors = doctors.filter(doctor => doctor.availability === 'available')
-
-  if (availableDoctors.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 py-8">
-          <Link href="/dashboard/user" className="flex items-center gap-2 text-blue-600 hover:underline mb-4">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Link>
-          <Card className="max-w-2xl mx-auto">
-            <CardContent className="p-8 text-center">
-              <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-              <h2 className="text-2xl font-semibold mb-2">No Doctors Available</h2>
-              <p className="text-gray-600 mb-4">
-                We apologize, but there are currently no doctors available for appointments.
-                Please try again later.
-              </p>
-              <Link href="/dashboard/user">
-                <Button>Return to Dashboard</Button>
-              </Link>
-            </CardContent>
-          </Card>
+  // Step content
+  const steps = [
+    // Step 0: Appointment Type
+    <Card key="step-0" className="max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Select Appointment Type</CardTitle>
+        <CardDescription>Choose how you want to consult</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Select value={formData.appointmentType} onValueChange={v => handleChange("appointmentType", v)} required>
+          <SelectTrigger>
+            <SelectValue placeholder="Select type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="video">Video Consultation</SelectItem>
+            <SelectItem value="inperson">In Person Visit</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex gap-4 justify-end">
+          <Button onClick={handleNext} disabled={!formData.appointmentType}>Next</Button>
         </div>
-      </div>
-    )
-  }
+      </CardContent>
+    </Card>,
+    // Step 1: Clinic
+    <Card key="step-1" className="max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Select Clinic</CardTitle>
+        <CardDescription>Choose a clinic for your appointment</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Select value={formData.clinicId} onValueChange={v => handleChange("clinicId", v)} required>
+          <SelectTrigger>
+            <SelectValue placeholder="Select clinic" />
+          </SelectTrigger>
+          <SelectContent>
+            {clinics.map(clinic => (
+              <SelectItem key={clinic._id} value={clinic._id}>
+                {clinic.clinicName} {clinic.location?.city ? `(${clinic.location.city})` : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex gap-4 justify-between">
+          <Button variant="outline" onClick={handleBack}>Back</Button>
+          <Button onClick={handleNext} disabled={!formData.clinicId}>Next</Button>
+        </div>
+      </CardContent>
+    </Card>,
+    // Step 2: Pet
+    <Card key="step-2" className="max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Select Pet</CardTitle>
+        <CardDescription>Choose which pet this appointment is for</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Select value={formData.petId} onValueChange={v => handleChange("petId", v)} required>
+          <SelectTrigger>
+            <SelectValue placeholder="Choose your pet" />
+          </SelectTrigger>
+          <SelectContent>
+            {pets.map((pet) => (
+              <SelectItem key={pet._id} value={pet._id}>
+                {pet.name} ({pet.type})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex gap-4 justify-between">
+          <Button variant="outline" onClick={handleBack}>Back</Button>
+          <Button onClick={handleNext} disabled={!formData.petId}>Next</Button>
+        </div>
+      </CardContent>
+    </Card>,
+    // Step 3: Date & Time
+    <Card key="step-3" className="max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Select Date & Time</CardTitle>
+        <CardDescription>Pick a date and available time slot</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="date">Date</Label>
+          <Input
+            id="date"
+            type="date"
+            value={formData.date}
+            onChange={e => handleChange("date", e.target.value)}
+            min={new Date().toISOString().split("T")[0]}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="time">Time</Label>
+          <Select
+            value={formData.startTime}
+            onValueChange={v => handleTimeSlotSelect(parseInt(v))}
+            required
+            disabled={!formData.date || filteredSlots.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={
+                !formData.date ? "Select a date first" :
+                filteredSlots.length === 0 ? "No available slots" :
+                formData.startTime ? new Date(parseInt(formData.startTime)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
+                "Select time"
+              } />
+            </SelectTrigger>
+            <SelectContent>
+              {filteredSlots.map((slot) => (
+                <SelectItem key={slot.startTime} value={slot.startTime.toString()}>
+                  {new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex gap-4 justify-between">
+          <Button variant="outline" onClick={handleBack}>Back</Button>
+          <Button onClick={handleNext} disabled={!formData.date || !formData.startTime}>Next</Button>
+        </div>
+      </CardContent>
+    </Card>,
+    // Step 4: Consultation Reason
+    <Card key="step-4" className="max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Consultation Reason</CardTitle>
+        <CardDescription>Tell us the reason for your visit</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Textarea
+          id="notes"
+          placeholder="Any specific concerns or information about your pet..."
+          value={formData.notes}
+          onChange={e => handleChange("notes", e.target.value)}
+          rows={4}
+        />
+        <div className="flex gap-4 justify-between">
+          <Button variant="outline" onClick={handleBack}>Back</Button>
+          <Button onClick={handleNext} disabled={!formData.notes}>Next</Button>
+        </div>
+      </CardContent>
+    </Card>,
+    // Step 5: Review & Submit
+    <Card key="step-5" className="max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Review & Submit</CardTitle>
+        <CardDescription>Check your details before submitting</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <strong>Appointment Type:</strong> {formData.appointmentType === 'video' ? 'Video Consultation' : 'In Person Visit'}<br />
+          <strong>Clinic:</strong> {clinics.find(c => c._id === formData.clinicId)?.clinicName}<br />
+          <strong>Pet:</strong> {pets.find(p => p._id === formData.petId)?.name}<br />
+          <strong>Date:</strong> {formData.date}<br />
+          <strong>Time:</strong> {formData.startTime ? new Date(parseInt(formData.startTime)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}<br />
+          <strong>Reason:</strong> {formData.notes}<br />
+        </div>
+        <div className="flex gap-4 justify-between">
+          <Button variant="outline" onClick={handleBack}>Back</Button>
+          <Button onClick={handleSubmit} disabled={loading}>{loading ? "Scheduling..." : "Submit"}</Button>
+        </div>
+      </CardContent>
+    </Card>
+  ]
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -246,146 +400,7 @@ export default function ScheduleAppointment() {
           <h1 className="text-3xl font-bold text-gray-900">Schedule Appointment</h1>
           <p className="text-gray-600">Book a visit for your pet</p>
         </div>
-
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              New Appointment
-            </CardTitle>
-            <CardDescription>Fill out the form below to schedule an appointment</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="pet">Select Pet</Label>
-                  <Select value={formData.petId} onValueChange={(value) => handleChange("petId", value)} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose your pet" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pets.map((pet) => (
-                        <SelectItem key={pet._id} value={pet._id}>
-                          {pet.name} ({pet.type})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="doctor">Select Doctor</Label>
-                  <Select 
-                    value={formData.doctorId} 
-                    onValueChange={(value) => handleChange("doctorId", value)} 
-                    required
-                    disabled={availableDoctors.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        availableDoctors.length === 0 
-                          ? "No doctors available at the moment" 
-                          : "Choose a doctor"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableDoctors.map((doctor) => (
-                        <SelectItem key={doctor._id} value={doctor._id}>
-                          {doctor.name} - {doctor.specialty}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {availableDoctors.length === 0 && (
-                    <p className="text-sm text-red-500 mt-1">
-                      All doctors are currently unavailable. Please try again later.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date">Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => handleChange("date", e.target.value)}
-                    min={new Date().toISOString().split("T")[0]}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="time">Time</Label>
-                  <Select 
-                    value={formData.startTime} 
-                    onValueChange={(value) => handleTimeSlotSelect(parseInt(value))} 
-                    required
-                    disabled={!formData.date || !formData.doctorId || availableSlots.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        !formData.date ? "Select a date first" :
-                        !formData.doctorId ? "Select a doctor first" :
-                        availableSlots.length === 0 ? "No available slots" :
-                        formData.startTime ? new Date(parseInt(formData.startTime)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
-                        "Select time"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableSlots.map((slot) => (
-                        <SelectItem key={slot.startTime} value={slot.startTime.toString()}>
-                          {new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="type">Appointment Type</Label>
-                <Select value={formData.type} onValueChange={(value) => handleChange("type", value)} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select appointment type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="checkup">General Checkup</SelectItem>
-                    <SelectItem value="vaccination">Vaccination</SelectItem>
-                    <SelectItem value="consultation">Consultation</SelectItem>
-                    <SelectItem value="surgery">Surgery</SelectItem>
-                    <SelectItem value="emergency">Emergency</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Additional Notes</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Any specific concerns or information about your pet..."
-                  value={formData.notes}
-                  onChange={(e) => handleChange("notes", e.target.value)}
-                  rows={4}
-                />
-              </div>
-
-              <div className="flex gap-4">
-                <Button type="submit" className="flex-1" disabled={loading}>
-                  {loading ? "Scheduling..." : "Schedule Appointment"}
-                </Button>
-                <Link href="/dashboard/user">
-                  <Button type="button" variant="outline">
-                    Cancel
-                  </Button>
-                </Link>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        {steps[step]}
       </div>
     </div>
   )

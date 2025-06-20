@@ -1,6 +1,7 @@
 const Appointment = require('../models/appointmentModel');
 const Doctor = require('../models/doctorModel');
 const Pet = require('../models/petModel');
+const VetClinic = require('../models/vetClinicModel');
 
 // Get available time slots for a specific date and doctor
 const getAvailableTimeSlots = async (doctorId, date) => {
@@ -59,36 +60,92 @@ exports.getAllDoctors = async (req, res) => {
 // Get available time slots
 exports.getAvailableTimeSlots = async (req, res) => {
     try {
-        const { doctorId, date } = req.query;
+        const { doctorId, clinicId, date } = req.query;
 
-        if (!doctorId || !date) {
-            return res.status(400).json({
-                success: false,
-                message: 'Doctor ID and date are required'
-            });
+        // If doctorId is provided, use the old logic
+        if (doctorId && date) {
+            // Check if doctor exists and is available
+            const doctor = await Doctor.findById(doctorId);
+            if (!doctor) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Doctor not found'
+                });
+            }
+            if (doctor.availability === 'not available') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Doctor is not available for appointments'
+                });
+            }
+            const availableSlots = await getAvailableTimeSlots(doctorId, date);
+            return res.json({ success: true, data: availableSlots });
         }
 
-        // Check if doctor exists and is available
-        const doctor = await Doctor.findById(doctorId);
-        if (!doctor) {
-            return res.status(404).json({
-                success: false,
-                message: 'Doctor not found'
+        // If clinicId is provided, generate slots based on clinic operating hours
+        if (clinicId && date) {
+            const clinic = await VetClinic.findById(clinicId);
+            if (!clinic) {
+                return res.status(404).json({ success: false, message: 'Clinic not found' });
+            }
+            // Determine which hours to use
+            const day = new Date(date).getDay();
+            let hoursStr = '';
+            if (day === 0) hoursStr = clinic.operatingHours.sunday;
+            else if (day === 6) hoursStr = clinic.operatingHours.saturday;
+            else hoursStr = clinic.operatingHours.mondayToFriday;
+            // Debug logs
+            console.log('ClinicId:', clinicId, 'Date:', date);
+            console.log('Operating hours string:', hoursStr);
+            if (!hoursStr || hoursStr.toLowerCase() === 'closed') {
+                console.log('Clinic is closed on this day.');
+                return res.json({ success: true, data: [] });
+            }
+            const [start, end] = hoursStr.split('-');
+            const [sh, sm] = start.split(':').map(Number);
+            const [eh, em] = end.split(':').map(Number);
+            // Generate 30-min slots within the open hours
+            const slots = [];
+            let current = new Date(date);
+            current.setHours(sh, sm, 0, 0);
+            const endTime = new Date(date);
+            endTime.setHours(eh, em, 0, 0);
+            while (current < endTime) {
+                const slotStart = new Date(current);
+                current.setMinutes(current.getMinutes() + 30);
+                const slotEnd = new Date(current);
+                slots.push({ startTime: slotStart.getTime(), endTime: slotEnd.getTime() });
+            }
+            console.log('Generated slots:', slots);
+            // Double booking prevention: filter out slots that overlap with existing appointments for this clinic
+            const startOfDay = new Date(date);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(date);
+            endOfDay.setHours(23, 59, 59, 999);
+            const existingAppointments = await Appointment.find({
+                clinic: clinicId,
+                startTime: { $gte: startOfDay, $lte: endOfDay },
+                status: 'scheduled'
             });
+            console.log('Existing appointments:', existingAppointments);
+            const availableSlots = slots.filter(slot => {
+                return !existingAppointments.some(app => {
+                    const appStart = new Date(app.startTime).getTime();
+                    const appEnd = new Date(app.endTime).getTime();
+                    return (
+                        (slot.startTime >= appStart && slot.startTime < appEnd) ||
+                        (slot.endTime > appStart && slot.endTime <= appEnd) ||
+                        (slot.startTime <= appStart && slot.endTime >= appEnd)
+                    );
+                });
+            });
+            console.log('Available slots:', availableSlots);
+            return res.json({ success: true, data: availableSlots });
         }
 
-        if (doctor.availability === 'not available') {
-            return res.status(400).json({
-                success: false,
-                message: 'Doctor is not available for appointments'
-            });
-        }
-
-        const availableSlots = await getAvailableTimeSlots(doctorId, date);
-
-        res.json({
-            success: true,
-            data: availableSlots
+        return res.status(400).json({
+            success: false,
+            message: 'Either doctorId or clinicId and date are required'
         });
     } catch (error) {
         res.status(500).json({
@@ -103,19 +160,19 @@ exports.getAvailableTimeSlots = async (req, res) => {
 exports.createAppointment = async (req, res) => {
     try {
         console.log('Received appointment data:', req.body);
-        const { petId, doctorId, startTime, endTime, type, notes } = req.body;
+        const { petId, doctorId, clinicId, startTime, endTime, type, notes } = req.body;
 
         // Log the parsed values
         console.log('Parsed values:', {
-            petId, doctorId, startTime, endTime, type, notes,
+            petId, doctorId, clinicId, startTime, endTime, type, notes,
             userId: req.user?.id
         });
 
         // Validate required fields
-        if (!petId || !doctorId || !startTime || !endTime || !type) {
+        if (!petId || !clinicId || !startTime || !endTime || !type) {
             console.log('Missing required fields:', {
                 hasPetId: !!petId,
-                hasDoctorId: !!doctorId,
+                hasClinicId: !!clinicId,
                 hasStartTime: !!startTime,
                 hasEndTime: !!endTime,
                 hasType: !!type
@@ -126,22 +183,24 @@ exports.createAppointment = async (req, res) => {
             });
         }
 
-        // Check if doctor exists and is available
-        const doctor = await Doctor.findById(doctorId);
-        if (!doctor) {
-            console.log('Doctor not found:', doctorId);
-            return res.status(404).json({
-                success: false,
-                message: 'Doctor not found'
-            });
-        }
-
-        if (doctor.availability === 'not available') {
-            console.log('Doctor not available:', doctorId);
-            return res.status(400).json({
-                success: false,
-                message: 'Doctor is not available for appointments'
-            });
+        // If doctorId is provided, check doctor
+        let doctor = null;
+        if (doctorId) {
+            doctor = await Doctor.findById(doctorId);
+            if (!doctor) {
+                console.log('Doctor not found:', doctorId);
+                return res.status(404).json({
+                    success: false,
+                    message: 'Doctor not found'
+                });
+            }
+            if (doctor.availability === 'not available') {
+                console.log('Doctor not available:', doctorId);
+                return res.status(400).json({
+                    success: false,
+                    message: 'Doctor is not available for appointments'
+                });
+            }
         }
 
         // Check if pet exists and belongs to the user
@@ -177,14 +236,14 @@ exports.createAppointment = async (req, res) => {
         // Create appointment
         const appointmentData = {
             pet: petId,
-            doctor: doctorId,
             user: req.user.id,
+            clinic: clinicId,
             startTime: appointmentStartTime,
             endTime: appointmentEndTime,
             type,
-            notes: notes || '',
-            status: 'scheduled'
+            notes: notes || ''
         };
+        if (doctorId) appointmentData.doctor = doctorId;
         console.log('Creating appointment with data:', appointmentData);
 
         const appointment = new Appointment(appointmentData);

@@ -4,6 +4,9 @@ const vetClinicController = require('../controllers/vetClinicController');
 const { protect, authorize } = require('../middleware/auth');
 const activityController = require('../controllers/activityController');
 
+// PUBLIC: Get all approved clinics
+router.get('/public-list', vetClinicController.getAllApprovedClinics);
+
 // Apply authentication middleware to all routes
 router.use(protect);
 router.use(authorize('vet clinic'));
@@ -23,6 +26,8 @@ router.put('/medical-records/:petId', vetClinicController.updateMedicalRecord);
 
 // Appointments
 router.get('/appointments', vetClinicController.getAppointments);
+router.patch('/appointments/:id/approve', vetClinicController.approveAppointment);
+router.patch('/appointments/:id/reject', vetClinicController.rejectAppointment);
 
 // Video consultations
 router.get('/video-consultations', vetClinicController.getVideoConsultations);

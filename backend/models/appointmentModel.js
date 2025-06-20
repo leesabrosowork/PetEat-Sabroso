@@ -31,12 +31,17 @@ const appointmentSchema = new mongoose.Schema({
     doctor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Doctor',
+        required: false
+    },
+    clinic: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'VetClinic',
         required: true
     },
     status: {
         type: String,
-        enum: ['scheduled', 'completed', 'cancelled'],
-        default: 'scheduled'
+        enum: ['pending', 'scheduled', 'completed', 'cancelled', 'rejected'],
+        default: 'pending'
     }
 }, {
     timestamps: true

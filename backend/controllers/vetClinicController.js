@@ -161,13 +161,12 @@ exports.getMedicalRecords = async (req, res) => {
 exports.getAppointments = async (req, res) => {
     try {
         const clinicId = req.user._id;
-        
-        const appointments = await Appointment.find()
+        const appointments = await Appointment.find({ type: { $ne: 'consultation' } })
             .populate('pet')
             .populate('user', 'name email')
             .populate('doctor', 'name')
+            .select('+notes')
             .sort({ startTime: 1 });
-
         res.json({
             success: true,
             data: appointments
@@ -184,13 +183,11 @@ exports.getAppointments = async (req, res) => {
 exports.getVideoConsultations = async (req, res) => {
     try {
         const clinicId = req.user._id;
-        
         const videoConsultations = await Appointment.find({ type: 'consultation' })
             .populate('pet')
             .populate('user', 'name email')
             .populate('doctor', 'name')
             .sort({ startTime: 1 });
-
         res.json({
             success: true,
             data: videoConsultations
@@ -520,5 +517,53 @@ exports.updateInventoryStock = async (req, res) => {
             success: false,
             message: error.message
         });
+    }
+};
+
+// PUBLIC: Get all approved clinics
+exports.getAllApprovedClinics = async (req, res) => {
+    try {
+        const clinics = await VetClinic.find({ status: 'approved' }).select('-password -otp -otpExpires');
+        res.json({
+            success: true,
+            data: clinics
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Approve an appointment
+exports.approveAppointment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const appointment = await Appointment.findById(id);
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+        appointment.status = 'scheduled';
+        await appointment.save();
+        res.json({ success: true, message: 'Appointment approved', data: appointment });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Reject an appointment
+exports.rejectAppointment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const appointment = await Appointment.findById(id);
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+        appointment.status = 'rejected';
+        await appointment.save();
+        res.json({ success: true, message: 'Appointment rejected', data: appointment });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 }; 
