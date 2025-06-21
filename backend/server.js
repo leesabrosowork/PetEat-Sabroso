@@ -39,6 +39,9 @@ const io = new Server(httpServer, {
 // Initialize Socket.IO
 initializeSocket(io);
 
+// Export io for use in other files
+module.exports.io = io;
+
 // Connect to MongoDB
 const connectDB = async () => {
   try {

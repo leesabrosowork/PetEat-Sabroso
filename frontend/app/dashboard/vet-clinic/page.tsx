@@ -23,7 +23,8 @@ import {
   Activity,
   AlertCircle,
   CheckCircle,
-  Clock as ClockIcon
+  Clock as ClockIcon,
+  Building2 as Hospital
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -37,6 +38,9 @@ import { AddInventoryDialog } from "@/components/AddInventoryDialog"
 import { AddPrescriptionDialog } from "@/components/AddPrescriptionDialog"
 import { BackendStatus } from "@/components/BackendStatus"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { AdmitPetDialog } from "@/components/AdmitPetDialog"
+import { UpdateTreatmentDialog } from "@/components/UpdateTreatmentDialog"
+import { DischargePetDialog } from "@/components/DischargePetDialog"
 
 interface User {
   _id: string;
@@ -146,6 +150,33 @@ interface Activity {
   createdAt: string;
 }
 
+interface PetUnderTreatment {
+  _id: string;
+  pet: Pet;
+  clinic: {
+    _id: string;
+    name: string;
+    address: string;
+    contactNumber: string;
+    email: string;
+  };
+  status: 'Critical' | 'Stable' | 'Improving' | 'Recovered';
+  room: string;
+  admissionDate: string;
+  lastUpdated: string;
+  clinicalNotes: string;
+  diagnosis: string;
+  discharged: boolean;
+  treatmentHistory: {
+    date: string;
+    notes: string;
+    updatedBy: {
+      _id: string;
+      name: string;
+    };
+  }[];
+}
+
 interface DashboardData {
   totalPets: number;
   petsByStatus: {
@@ -191,6 +222,7 @@ function VetClinicDashboard() {
   const [videoConsultations, setVideoConsultations] = useState<VideoConsultation[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [petsUnderTreatment, setPetsUnderTreatment] = useState<PetUnderTreatment[]>([]);
   
   // Loading states for tabs
   const [petsLoading, setPetsLoading] = useState(false);
@@ -199,6 +231,7 @@ function VetClinicDashboard() {
   const [videoConsultationsLoading, setVideoConsultationsLoading] = useState(false);
   const [prescriptionsLoading, setPrescriptionsLoading] = useState(false);
   const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [petsUnderTreatmentLoading, setPetsUnderTreatmentLoading] = useState(false);
 
   const [activityFeed, setActivityFeed] = useState<Activity[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -221,6 +254,11 @@ function VetClinicDashboard() {
   const [addPetDialogOpen, setAddPetDialogOpen] = useState(false);
   const [addInventoryDialogOpen, setAddInventoryDialogOpen] = useState(false);
   const [addPrescriptionDialogOpen, setAddPrescriptionDialogOpen] = useState(false);
+  const [admitPetDialogOpen, setAdmitPetDialogOpen] = useState(false);
+  const [updateTreatmentDialogOpen, setUpdateTreatmentDialogOpen] = useState(false);
+  const [dischargePetDialogOpen, setDischargePetDialogOpen] = useState(false);
+  const [selectedPetForAdmission, setSelectedPetForAdmission] = useState<Pet | null>(null);
+  const [selectedTreatment, setSelectedTreatment] = useState<PetUnderTreatment | null>(null);
   const [users, setUsers] = useState<{ _id: string; name: string; }[]>([]);
   const [medicines, setMedicines] = useState<{ _id: string; item: string; }[]>([]);
 
@@ -357,6 +395,28 @@ function VetClinicDashboard() {
       console.error("Error fetching appointments:", error);
     } finally {
       setAppointmentsLoading(false);
+    }
+  };
+
+  // Fetch pets under treatment
+  const fetchPetsUnderTreatment = async () => {
+    setPetsUnderTreatmentLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:8080/api/pets-under-treatment/clinic", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setPetsUnderTreatment(data.data);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching pets under treatment:", error);
+    } finally {
+      setPetsUnderTreatmentLoading(false);
     }
   };
 
@@ -553,6 +613,9 @@ function VetClinicDashboard() {
       case 'video-consultations':
         fetchVideoConsultations();
         break;
+      case 'pets-under-treatment':
+        fetchPetsUnderTreatment();
+        break;
       case 'prescriptions':
         fetchPrescriptions();
         break;
@@ -603,6 +666,7 @@ function VetClinicDashboard() {
   const handleRefreshData = () => {
     fetchDashboardData();
     fetchActivityFeed();
+    fetchPetsUnderTreatment();
     // Refresh current tab data
     const currentTab = document.querySelector('[data-state="active"]')?.getAttribute('data-value');
     if (currentTab) {
@@ -738,8 +802,129 @@ function VetClinicDashboard() {
     }
   }
 
-  // Add useEffect to fetch appointments on mount
-  useEffect(() => { fetchAppointments(); }, []);
+  // Handle admitting a pet for treatment
+  const handleAdmitPet = async (petId: string, data: { room: string, diagnosis: string, clinicalNotes: string }) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:8080/api/pets-under-treatment/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          petId,
+          room: data.room,
+          diagnosis: data.diagnosis,
+          clinicalNotes: data.clinicalNotes
+        }),
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Pet admitted for treatment successfully",
+        });
+        setAdmitPetDialogOpen(false);
+        fetchPetsUnderTreatment(); // Refresh pets under treatment data
+        fetchActivityFeed(); // Refresh activity feed
+      } else {
+        toast({
+          title: "Error",
+          description: responseData.message || "Failed to admit pet for treatment",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to admit pet for treatment",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle updating pet treatment status
+  const handleUpdateTreatmentStatus = async (treatmentId: string, data: { status: string, clinicalNotes: string, room?: string }) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:8080/api/pets-under-treatment/update/${treatmentId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Treatment status updated successfully",
+        });
+        fetchPetsUnderTreatment(); // Refresh pets under treatment data
+      } else {
+        toast({
+          title: "Error",
+          description: responseData.message || "Failed to update treatment status",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update treatment status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle discharging a pet from treatment
+  const handleDischargePet = async (treatmentId: string, dischargeNotes: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:8080/api/pets-under-treatment/discharge/${treatmentId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ dischargeNotes }),
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Pet discharged successfully",
+        });
+        fetchPetsUnderTreatment(); // Refresh pets under treatment data
+      } else {
+        toast({
+          title: "Error",
+          description: responseData.message || "Failed to discharge pet",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to discharge pet",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Add useEffect to fetch appointments and pets under treatment on mount
+  useEffect(() => { 
+    fetchAppointments();
+    fetchPetsUnderTreatment();
+  }, []);
 
   if (loading) {
     return (
@@ -885,16 +1070,31 @@ function VetClinicDashboard() {
               </p>
             </CardContent>
           </Card>
+          
+          {/* Pets Under Treatment Overview */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => document.getElementById('pets-under-treatment-tab')?.click()}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Pets Under Treatment</CardTitle>
+              <Hospital className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{petsUnderTreatment.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Currently in care
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Tabs */}
         <Tabs defaultValue="overview" className="space-y-6" onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview" className="dark:text-white">Overview</TabsTrigger>
             <TabsTrigger value="pets" id="pets-tab" className="dark:text-white">Pets</TabsTrigger>
             <TabsTrigger value="medical-records" id="medical-records-tab" className="dark:text-white">Medical Records</TabsTrigger>
             <TabsTrigger value="appointments" id="appointments-tab" className="dark:text-white">Appointments</TabsTrigger>
             <TabsTrigger value="video-consultations" id="video-consultations-tab" className="dark:text-white">Video Consultations</TabsTrigger>
+            <TabsTrigger value="pets-under-treatment" id="pets-under-treatment-tab" className="dark:text-white">Pets Under Treatment</TabsTrigger>
             <TabsTrigger value="prescriptions" className="dark:text-white">Prescriptions</TabsTrigger>
             <TabsTrigger value="inventory" className="dark:text-white">Inventory</TabsTrigger>
           </TabsList>
@@ -1236,6 +1436,122 @@ function VetClinicDashboard() {
             </Card>
           </TabsContent>
 
+          {/* Pets Under Treatment Tab */}
+          <TabsContent value="pets-under-treatment">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-gray-900 dark:text-white">Pets Under Treatment</CardTitle>
+                    <CardDescription>All pets currently receiving care at your clinic</CardDescription>
+                  </div>
+                  <Button onClick={() => setAdmitPetDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Admit Pet
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {petsUnderTreatmentLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Loading pets under treatment...</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Pet Details</TableHead>
+                        <TableHead>Room</TableHead>
+                        <TableHead>Admitted</TableHead>
+                        <TableHead>Diagnosis</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Last Updated</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {petsUnderTreatment.map((treatment) => (
+                        <TableRow key={treatment._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">{treatment.pet.name}</p>
+                              <p className="text-sm text-gray-500">{treatment.pet.breed} • {treatment.pet.age} years</p>
+                              <p className="text-sm text-gray-500">
+                                Owner: {treatment.pet.owner ? treatment.pet.owner.name : 'N/A'}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{treatment.room}</TableCell>
+                          <TableCell>{new Date(treatment.admissionDate).toLocaleDateString()}</TableCell>
+                          <TableCell className="max-w-xs truncate text-gray-900 dark:text-white">
+                            {treatment.diagnosis || 'Not specified'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={
+                              treatment.status === 'Critical' ? 'bg-red-100 text-red-800' :
+                              treatment.status === 'Stable' ? 'bg-blue-100 text-blue-800' :
+                              treatment.status === 'Improving' ? 'bg-green-100 text-green-800' :
+                              treatment.status === 'Recovered' ? 'bg-emerald-100 text-emerald-800' :
+                              'bg-gray-100 text-gray-800'
+                            }>
+                              {treatment.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(treatment.lastUpdated).toLocaleDateString()}<br />
+                            {new Date(treatment.lastUpdated).toLocaleTimeString()}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col space-y-2">
+                              <div className="flex space-x-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedTreatment(treatment);
+                                    setUpdateTreatmentDialogOpen(true);
+                                  }}
+                                >
+                                  Update Status
+                                </Button>
+                              </div>
+                              <div className="flex space-x-2">
+                                <Button variant="outline" size="sm">
+                                  Contact Owner
+                                </Button>
+                              </div>
+                              <div className="flex space-x-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="text-red-600 hover:text-red-700"
+                                  onClick={() => {
+                                    setSelectedTreatment(treatment);
+                                    setDischargePetDialogOpen(true);
+                                  }}
+                                >
+                                  Discharge
+                                </Button>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {petsUnderTreatment.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8">
+                            <p className="text-gray-500">No pets currently under treatment</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Prescriptions Tab */}
           <TabsContent value="prescriptions">
             <Card>
@@ -1470,6 +1786,30 @@ function VetClinicDashboard() {
           </DialogHeader>
         </DialogContent>
       </Dialog>
+
+      {/* Admit Pet Dialog */}
+      <AdmitPetDialog
+        open={admitPetDialogOpen}
+        onOpenChange={setAdmitPetDialogOpen}
+        onAdmit={handleAdmitPet}
+        pets={pets}
+      />
+
+      {/* Update Treatment Dialog */}
+      <UpdateTreatmentDialog
+        open={updateTreatmentDialogOpen}
+        onOpenChange={setUpdateTreatmentDialogOpen}
+        onUpdate={handleUpdateTreatmentStatus}
+        treatment={selectedTreatment}
+      />
+
+      {/* Discharge Pet Dialog */}
+      <DischargePetDialog
+        open={dischargePetDialogOpen}
+        onOpenChange={setDischargePetDialogOpen}
+        onDischarge={handleDischargePet}
+        treatment={selectedTreatment}
+      />
     </div>
   );
 }

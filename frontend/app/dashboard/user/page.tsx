@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2, Settings, Moon, Sun, Laptop } from "lucide-react"
+import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2, Settings, Moon, Sun, Laptop, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { EMRViewer } from "@/components/EMRViewer"
@@ -60,10 +60,38 @@ interface Prescription {
   createdAt: string;
 }
 
+interface PetUnderTreatment {
+  _id: string;
+  pet: Pet;
+  clinic: {
+    _id: string;
+    name: string;
+    address: string;
+    contactNumber: string;
+    email: string;
+  };
+  status: 'Critical' | 'Stable' | 'Improving' | 'Recovered';
+  room: string;
+  admissionDate: string;
+  lastUpdated: string;
+  clinicalNotes: string;
+  diagnosis: string;
+  discharged: boolean;
+  treatmentHistory: {
+    date: string;
+    notes: string;
+    updatedBy: {
+      _id: string;
+      name: string;
+    };
+  }[];
+}
+
 interface DashboardData {
   pets: Pet[];
   appointments: Appointment[];
   prescriptions: Prescription[];
+  petsUnderTreatment: PetUnderTreatment[];
 }
 
 export default function UserDashboard() {
@@ -72,7 +100,8 @@ export default function UserDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     pets: [],
     appointments: [],
-    prescriptions: []
+    prescriptions: [],
+    petsUnderTreatment: []
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -85,7 +114,9 @@ export default function UserDashboard() {
   const [emrsLoading, setEmrsLoading] = useState(true);
   const [emrsError, setEmrsError] = useState<string | null>(null);
   const [isEMRViewerOpen, setIsEMRViewerOpen] = useState(false);
-  const [selectedEMR, setSelectedEMR] = useState<any>(null);
+  const [selectedEMR, setSelectedEMR] = useState<any | null>(null);
+  const [selectedTreatment, setSelectedTreatment] = useState<any | null>(null);
+  const [isTreatmentDialogOpen, setIsTreatmentDialogOpen] = useState(false);
   const [deletePetId, setDeletePetId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showNoEMRDialog, setShowNoEMRDialog] = useState(false);
@@ -146,10 +177,12 @@ export default function UserDashboard() {
     socket.on("pets_updated", handleRealtimeUpdate);
     socket.on("appointments_updated", handleRealtimeUpdate);
     socket.on("prescriptions_updated", handleRealtimeUpdate);
+    socket.on("pets_under_treatment_updated", handleRealtimeUpdate);
     return () => {
       socket.off("pets_updated", handleRealtimeUpdate);
       socket.off("appointments_updated", handleRealtimeUpdate);
       socket.off("prescriptions_updated", handleRealtimeUpdate);
+      socket.off("pets_under_treatment_updated", handleRealtimeUpdate);
     };
   }, [socket, user]);
 
@@ -159,13 +192,25 @@ export default function UserDashboard() {
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
+      
+      // Fetch main dashboard data
       const res = await fetch(`http://localhost:8080/api/users/${userId}/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch dashboard data");
       const data = await res.json();
+      
+      // Fetch pets under treatment data
+      const petsUnderTreatmentRes = await fetch("http://localhost:8080/api/pets-under-treatment/user", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const petsUnderTreatmentData = await petsUnderTreatmentRes.json();
+      
       if (data.success) {
-        setDashboardData(data.data);
+        setDashboardData({
+          ...data.data,
+          petsUnderTreatment: petsUnderTreatmentData.success ? petsUnderTreatmentData.data : []
+        });
       } else {
         setError(data.message);
       }
@@ -446,7 +491,8 @@ export default function UserDashboard() {
                         }}
                         className="w-full"
                       >
-                        <Trash2 className="h-4 w-4 mr-2" /> Delete Account
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Account
                       </Button>
                     </div>
                   </div>
@@ -482,12 +528,55 @@ export default function UserDashboard() {
           />
         )}
 
+        {/* Treatment Details Dialog */}
+        {selectedTreatment && (
+          <Dialog open={isTreatmentDialogOpen} onOpenChange={setIsTreatmentDialogOpen}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Treatment Details - {selectedTreatment.pet.name}</DialogTitle>
+                <DialogDescription>
+                  Admission info and latest notes from the clinic.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 text-sm">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-gray-500">Clinic</p>
+                    <p className="font-medium">{selectedTreatment.clinic.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Room</p>
+                    <p className="font-medium">{selectedTreatment.room}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Status</p>
+                    <p className="font-medium">{selectedTreatment.status}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Admitted</p>
+                    <p className="font-medium">{new Date(selectedTreatment.admissionDate).toLocaleString()}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-gray-500">Diagnosis</p>
+                  <p>{selectedTreatment.diagnosis || 'No diagnosis recorded'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Clinic Notes</p>
+                  <p>{selectedTreatment.clinicalNotes || 'No notes recorded'}</p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="pets">My Pets</TabsTrigger>
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
             <TabsTrigger value="video-consultations">Video Consultations</TabsTrigger>
+            <TabsTrigger value="pets-under-treatment">Pets Under Treatment</TabsTrigger>
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
             <TabsTrigger value="medical-records">Medical Records</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
@@ -803,6 +892,86 @@ export default function UserDashboard() {
                       Schedule Video Consultation
                     </Button>
                   </Link>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="pets-under-treatment" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Pets Under Treatment</h2>
+            </div>
+            <div className="space-y-4">
+              {dashboardData.petsUnderTreatment.map((treatment) => (
+                <Card key={treatment._id}>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">{treatment.pet.name}</h3>
+                            <Badge className={
+                              treatment.status === 'Critical' ? 'bg-red-100 text-red-800' :
+                              treatment.status === 'Stable' ? 'bg-blue-100 text-blue-800' :
+                              treatment.status === 'Improving' ? 'bg-green-100 text-green-800' :
+                              treatment.status === 'Recovered' ? 'bg-emerald-100 text-emerald-800' :
+                              'bg-gray-100 text-gray-800'
+                            }>
+                              {treatment.status}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600">{treatment.pet.breed} • {treatment.pet.age} years</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-500">Clinic</p>
+                            <p className="font-medium">{treatment.clinic.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Room</p>
+                            <p className="font-medium">{treatment.room}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Admitted</p>
+                            <p className="font-medium">{new Date(treatment.admissionDate).toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Last Updated</p>
+                            <p className="font-medium">{new Date(treatment.lastUpdated).toLocaleDateString()} {new Date(treatment.lastUpdated).toLocaleTimeString()}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="pt-2">
+                          <p className="text-sm text-gray-500">Diagnosis</p>
+                          <p className="text-sm">{treatment.diagnosis || 'No diagnosis recorded'}</p>
+                        </div>
+                        
+                        <div className="pt-2">
+                          <p className="text-sm text-gray-500">Clinic Notes</p>
+                          <p className="text-sm">{treatment.clinicalNotes || 'No notes recorded'}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline" size="sm">
+                          <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                          Message Clinic
+                        </Button>
+                        <Button size="sm" onClick={() => { setSelectedTreatment(treatment); setIsTreatmentDialogOpen(true); }}>
+                           <FileText className="h-3.5 w-3.5 mr-1.5" />
+                           View Details
+                         </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {dashboardData.petsUnderTreatment.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">None of your pets are currently under treatment</p>
                 </div>
               )}
             </div>

@@ -124,10 +124,13 @@ exports.getUserPets = async (req, res) => {
     try {
         console.log('req.user in getUserPets:', req.user);
         let pets;
-        if (req.user.role === 'doctor') {
-            pets = await Pet.find().populate('owner');
+        // Vet clinics and doctors need to see the full pet list, whereas individual pet owners
+        // should only see their own pets. Populate owner data so that the frontend can
+        // match against either `name` or `fullName`.
+        if (req.user.role === 'doctor' || req.user.role === 'vet clinic') {
+            pets = await Pet.find().populate('owner', 'name fullName email');
         } else {
-            pets = await Pet.find({ owner: req.user.id });
+            pets = await Pet.find({ owner: req.user.id }).populate('owner', 'name fullName email');
         }
         console.log('Pets being sent:', pets);
         res.json({
