@@ -342,6 +342,7 @@ export default function UserDashboard() {
     )
   }
 
+  // Filter all upcoming appointments (both in-person and video consultations)
   const upcomingAppointments = dashboardData.appointments.filter(
     apt => apt.status === 'scheduled'
   )
@@ -356,6 +357,7 @@ export default function UserDashboard() {
   }
 
   const videoAppointments = dashboardData.appointments.filter(a => a.type === 'consultation');
+  const inPersonAppointments = dashboardData.appointments.filter(a => a.type !== 'consultation');
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -481,10 +483,11 @@ export default function UserDashboard() {
         )}
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="pets">My Pets</TabsTrigger>
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
+            <TabsTrigger value="video-consultations">Video Consultations</TabsTrigger>
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
             <TabsTrigger value="medical-records">Medical Records</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
@@ -509,7 +512,9 @@ export default function UserDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-gray-900 dark:text-white">{upcomingAppointments.length}</div>
-                  <p className="text-xs text-gray-600 dark:text-gray-300">Scheduled appointments</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-300">
+                    {inPersonAppointments.filter(apt => apt.status === 'scheduled').length} in-person • {videoAppointments.filter(apt => apt.status === 'scheduled').length} video
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -527,28 +532,38 @@ export default function UserDashboard() {
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-gray-900 dark:text-white">Recent Appointments</CardTitle>
+                  <CardTitle className="text-gray-900 dark:text-white">Recent Appointments & Consultations</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     {dashboardData.appointments.slice(0, 3).map((appointment) => (
                       <div key={appointment._id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>
-                          <p className="font-medium">Appointment{appointment.doctor ? ` with ${appointment.doctor.name}` : ''}</p>
+                          <p className="font-medium">
+                            {appointment.type === 'consultation' ? 'Video Consultation' : 'Appointment'}
+                            {appointment.doctor ? ` with ${appointment.doctor.name}` : ''}
+                          </p>
                           <p className="text-sm text-gray-500">
                             {new Date(appointment.startTime).toLocaleDateString()} at{" "}
                             {new Date(appointment.startTime).toLocaleTimeString()}
                           </p>
                         </div>
-                        <Badge className={
-                          appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                          appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }>
-                          {getStatusLabel(appointment.status)}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-2">
+                          <Badge className={
+                            appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                            appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }>
+                            {getStatusLabel(appointment.status)}
+                          </Badge>
+                          {appointment.type === 'consultation' && (
+                            <Badge variant="outline" className="border-blue-200 text-blue-800">
+                              Video
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     ))}
                     {dashboardData.appointments.length === 0 && (
@@ -678,13 +693,71 @@ export default function UserDashboard() {
               </Link>
             </div>
             <div className="space-y-4">
-              {dashboardData.appointments.map((appointment) => (
+              {inPersonAppointments.map((appointment) => (
                 <Card key={appointment._id}>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold">Appointment{appointment.doctor ? ` with ${appointment.doctor.name}` : ''}</h3>
+                          <Badge className={
+                            appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                            appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }>
+                            {getStatusLabel(appointment.status)}
+                          </Badge>
+                        </div>
+                        <p className="text-gray-600">{appointment.doctor ? appointment.doctor.email : null}</p>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            {new Date(appointment.startTime).toLocaleDateString()}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {new Date(appointment.startTime).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {inPersonAppointments.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">No in-person appointments scheduled</p>
+                  <Link href="/dashboard/user/schedule-appointment">
+                    <Button>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Schedule Your First Appointment
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="video-consultations" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Video Consultations</h2>
+              <Link href="/dashboard/user/schedule-appointment">
+                <Button>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Schedule New
+                </Button>
+              </Link>
+            </div>
+            <div className="space-y-4">
+              {videoAppointments.map((appointment) => (
+                <Card key={appointment._id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">Consultation{appointment.doctor ? ` with Dr. ${appointment.doctor.name}` : ''}</h3>
                           <Badge className={
                             appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                             appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
@@ -721,13 +794,13 @@ export default function UserDashboard() {
                   </CardContent>
                 </Card>
               ))}
-              {dashboardData.appointments.length === 0 && (
+              {videoAppointments.length === 0 && (
                 <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">No appointments scheduled</p>
+                  <p className="text-gray-500 mb-4">No video consultations scheduled</p>
                   <Link href="/dashboard/user/schedule-appointment">
                     <Button>
                       <Calendar className="h-4 w-4 mr-2" />
-                      Schedule Your First Appointment
+                      Schedule Video Consultation
                     </Button>
                   </Link>
                 </div>

@@ -34,7 +34,8 @@ exports.getDashboardData = async (req, res) => {
         
         const upcomingAppointments = await Appointment.countDocuments({
             startTime: { $gte: today },
-            status: 'scheduled'
+            type: { $ne: 'consultation' },
+            status: { $in: ['pending', 'scheduled'] }
         });
         
         const completedAppointments = await Appointment.countDocuments({
@@ -46,7 +47,7 @@ exports.getDashboardData = async (req, res) => {
         const videoConsultations = await Appointment.countDocuments({
             type: 'consultation',
             startTime: { $gte: today },
-            status: 'scheduled'
+            status: { $in: ['pending', 'scheduled'] }
         });
 
         // Get prescriptions count
@@ -161,7 +162,7 @@ exports.getMedicalRecords = async (req, res) => {
 exports.getAppointments = async (req, res) => {
     try {
         const clinicId = req.user._id;
-        const appointments = await Appointment.find({ type: { $ne: 'consultation' } })
+        const appointments = await Appointment.find()
             .populate('pet')
             .populate('user', 'name email')
             .populate('doctor', 'name')

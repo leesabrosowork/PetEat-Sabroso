@@ -347,7 +347,10 @@ function VetClinicDashboard() {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          setAppointments(data.data);
+          // Filter to only in-person appointments (not consultations)
+          const allAppointments = data.data;
+          const inPersonAppointments = allAppointments.filter((a: Appointment) => a.type !== 'consultation');
+          setAppointments(inPersonAppointments);
         }
       }
     } catch (error) {
@@ -362,14 +365,19 @@ function VetClinicDashboard() {
     setVideoConsultationsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:8080/api/vet-clinic/video-consultations", {
+      const res = await fetch("http://localhost:8080/api/vet-clinic/appointments", {
         headers: { Authorization: `Bearer ${token}` },
       });
       
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          setVideoConsultations(data.data);
+          // Filter to only consultation type appointments
+          const allAppointments = data.data;
+          const consultationAppointments = allAppointments.filter(
+            (appointment: Appointment) => appointment.type === 'consultation'
+          );
+          setVideoConsultations(consultationAppointments);
         }
       }
     } catch (error) {
@@ -590,13 +598,7 @@ function VetClinicDashboard() {
     });
   };
 
-  const handleJoinVideoCall = (consultation: VideoConsultation) => {
-    toast({
-      title: "Video Consultation",
-      description: `Joining video call for ${consultation.pet?.name || 'N/A'} with ${consultation.doctor?.name || 'N/A'}`,
-    });
-    // TODO: Implement actual video call functionality
-  };
+  // This function has been replaced with inline code in the button
 
   const handleRefreshData = () => {
     fetchDashboardData();
@@ -865,7 +867,7 @@ function VetClinicDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{dashboardData.upcomingAppointments}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {dashboardData.completedAppointments} completed today
+                Pending & scheduled in-person visits
               </p>
             </CardContent>
           </Card>
@@ -879,7 +881,7 @@ function VetClinicDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{dashboardData.videoConsultations}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Scheduled consultations
+                Pending & scheduled video consultations
               </p>
             </CardContent>
           </Card>
@@ -1064,8 +1066,8 @@ function VetClinicDashboard() {
           <TabsContent value="appointments">
             <Card>
               <CardHeader>
-                <CardTitle className="text-gray-900 dark:text-white">Upcoming Appointments</CardTitle>
-                <CardDescription>All scheduled appointments</CardDescription>
+                <CardTitle className="text-gray-900 dark:text-white">In-Person Appointments</CardTitle>
+                <CardDescription>All appointments (pending and scheduled)</CardDescription>
               </CardHeader>
               <CardContent>
                 {appointmentsLoading ? (
@@ -1115,7 +1117,9 @@ function VetClinicDashboard() {
                                     method: 'PATCH',
                                     headers: { 'Authorization': `Bearer ${token}` }
                                   });
+                                  // Refresh all appointment data
                                   await fetchAppointments();
+                                  await fetchVideoConsultations();
                                 }}>Approve</Button>
                                 <Button variant="destructive" size="sm" onClick={async () => {
                                   const token = localStorage.getItem('token');
@@ -1123,7 +1127,9 @@ function VetClinicDashboard() {
                                     method: 'PATCH',
                                     headers: { 'Authorization': `Bearer ${token}` }
                                   });
+                                  // Refresh all appointment data
                                   await fetchAppointments();
+                                  await fetchVideoConsultations();
                                 }}>Reject</Button>
                               </div>
                             ) : (
@@ -1146,7 +1152,7 @@ function VetClinicDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-gray-900 dark:text-white">Video Consultations</CardTitle>
-                <CardDescription>Remote consultation sessions</CardDescription>
+                <CardDescription>All video consultations (pending and scheduled)</CardDescription>
               </CardHeader>
               <CardContent>
                 {videoConsultationsLoading ? (
@@ -1178,17 +1184,48 @@ function VetClinicDashboard() {
                           <TableCell className="text-gray-900 dark:text-white">{consultation.doctor?.name || 'N/A'}</TableCell>
                           <TableCell>
                             <Badge className={
+                              consultation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                               consultation.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
                               consultation.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              'bg-red-100 text-red-800'
+                              consultation.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
                             }>
-                              {consultation.status}
+                              {consultation.status === 'pending' ? 'Pending' : consultation.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button variant="outline" size="sm" onClick={() => handleJoinVideoCall(consultation)}>
-                              Join Call
-                            </Button>
+                            {consultation.status === 'pending' ? (
+                              <div className="flex gap-2">
+                                <Button variant="default" size="sm" onClick={async () => {
+                                  const token = localStorage.getItem('token');
+                                  await fetch(`http://localhost:8080/api/vet-clinic/appointments/${consultation._id}/approve`, {
+                                    method: 'PATCH',
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                  });
+                                  // Refresh all appointment data
+                                  await fetchAppointments();
+                                  await fetchVideoConsultations();
+                                }}>Approve</Button>
+                                <Button variant="destructive" size="sm" onClick={async () => {
+                                  const token = localStorage.getItem('token');
+                                  await fetch(`http://localhost:8080/api/vet-clinic/appointments/${consultation._id}/reject`, {
+                                    method: 'PATCH',
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                  });
+                                  // Refresh all appointment data
+                                  await fetchAppointments();
+                                  await fetchVideoConsultations();
+                                }}>Reject</Button>
+                              </div>
+                            ) : consultation.status === 'scheduled' ? (
+                              <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/doctor/video-consultation?appointment=${consultation._id}`}>
+                                Join Call
+                              </Button>
+                            ) : (
+                              <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/doctor/video-consultation?appointment=${consultation._id}`}>
+                                View Details
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
