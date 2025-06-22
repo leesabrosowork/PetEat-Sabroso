@@ -118,20 +118,28 @@ exports.getMedicalRecords = async (req, res) => {
         const clinicId = req.user._id;
         
         // Get all EMRs and populate the petId field with owner information
-        const medicalRecords = await EMR.find()
+        const emrRecords = await EMR.find()
             .populate('petId', 'name type breed owner')
             .sort('-createdAt');
 
-        // Transform the data to match the frontend interface
-        const transformedRecords = medicalRecords.map(emr => ({
+        console.log(`Found ${emrRecords.length} records in EMR collection`);
+
+        // Get all PetMedicalRecord records
+        const petMedicalRecords = await PetMedicalRecord.find()
+            .sort('-createdAt');
+
+        console.log(`Found ${petMedicalRecords.length} records in PetMedicalRecord collection`);
+
+        // Transform EMR data to match the frontend interface
+        const transformedEmrRecords = emrRecords.map(emr => ({
             _id: emr._id,
-            petId: emr.petId._id,
+            petId: emr.petId?._id || 'unknown',
             name: emr.name,
             species: emr.species,
             breed: emr.breed,
             age: emr.age,
             sex: emr.sex,
-            owner: emr.petId.owner ? {
+            owner: emr.petId?.owner ? {
                 name: emr.petId.owner.name,
                 phone: emr.petId.owner.contactNumber || emr.petId.owner.phone,
                 email: emr.petId.owner.email
@@ -145,9 +153,39 @@ exports.getMedicalRecords = async (req, res) => {
             visitHistory: emr.visitHistory || []
         }));
 
+        // Transform PetMedicalRecord data to match the frontend interface
+        const transformedPetRecords = petMedicalRecords.map(record => ({
+            _id: record._id,
+            petId: record.petId,
+            name: record.name,
+            species: record.species,
+            breed: record.breed,
+            age: record.age,
+            sex: record.sex,
+            owner: record.owner || {
+                name: 'N/A',
+                phone: 'N/A',
+                email: 'N/A'
+            },
+            vaccinations: record.vaccinations || [],
+            medicalHistory: record.medicalHistory || [],
+            visitHistory: record.visitHistory || []
+        }));
+
+        // Combine both record types
+        const combinedRecords = [...transformedEmrRecords, ...transformedPetRecords];
+        console.log(`Returning ${combinedRecords.length} total medical records`);
+
+        // Sort by creation date (newest first)
+        combinedRecords.sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+            const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+            return dateB - dateA;
+        });
+
         res.json({
             success: true,
-            data: transformedRecords
+            data: combinedRecords
         });
     } catch (error) {
         console.error('Get medical records error:', error);
@@ -328,14 +366,17 @@ exports.updatePetHealthStatus = async (req, res) => {
 // Create medical record
 exports.createMedicalRecord = async (req, res) => {
     try {
+        console.log('Creating medical record with data:', req.body);
         const medicalRecord = new PetMedicalRecord(req.body);
         await medicalRecord.save();
+        console.log('Successfully created medical record:', medicalRecord._id);
 
         res.status(201).json({
             success: true,
             data: medicalRecord
         });
     } catch (error) {
+        console.error('Error creating medical record:', error);
         res.status(400).json({
             success: false,
             message: error.message
@@ -567,5 +608,49 @@ exports.rejectAppointment = async (req, res) => {
         res.json({ success: true, message: 'Appointment rejected', data: appointment });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Delete a medical record
+exports.deleteMedicalRecord = async (req, res) => {
+    try {
+        const recordId = req.params.id;
+        console.log(`Attempting to delete medical record with ID: ${recordId}`);
+        
+        // Explicitly import both models to avoid any confusion
+        const EMR = require('../models/emrModel');
+        const PetMedicalRecord = require('../models/petMedicalRecord');
+        
+        // Try to find and delete from EMR collection first
+        console.log('Checking EMR collection...');
+        let deletedRecord = await EMR.findByIdAndDelete(recordId);
+        console.log('EMR deletion result:', deletedRecord ? 'Found and deleted' : 'Not found');
+        
+        // If not found in EMR, try PetMedicalRecord collection
+        if (!deletedRecord) {
+            console.log('Checking PetMedicalRecord collection...');
+            deletedRecord = await PetMedicalRecord.findByIdAndDelete(recordId);
+            console.log('PetMedicalRecord deletion result:', deletedRecord ? 'Found and deleted' : 'Not found');
+        }
+        
+        if (!deletedRecord) {
+            console.log('Medical record not found in either collection');
+            return res.status(404).json({
+                success: false,
+                message: 'Medical record not found'
+            });
+        }
+        
+        console.log('Medical record deleted successfully');
+        res.json({
+            success: true,
+            message: 'Medical record deleted successfully'
+        });
+    } catch (error) {
+        console.error('Delete medical record error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
 }; 

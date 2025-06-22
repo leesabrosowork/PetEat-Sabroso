@@ -23,6 +23,7 @@ router.post('/pets', vetClinicController.addPet);
 router.get('/medical-records', vetClinicController.getMedicalRecords);
 router.post('/medical-records', vetClinicController.createMedicalRecord);
 router.put('/medical-records/:petId', vetClinicController.updateMedicalRecord);
+router.delete('/medical-records/:id', vetClinicController.deleteMedicalRecord);
 
 // Appointments
 router.get('/appointments', vetClinicController.getAppointments);

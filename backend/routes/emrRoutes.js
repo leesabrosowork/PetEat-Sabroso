@@ -26,22 +26,74 @@ router.get('/user/pets', protect, async (req, res) => {
     try {
         const Pet = require('../models/petModel');
         const EMR = require('../models/emrModel');
+        const PetMedicalRecord = require('../models/petMedicalRecord');
         
         // Get user's pets
         const pets = await Pet.find({ owner: req.user._id });
         const petIds = pets.map(pet => pet._id);
         
-        // Get EMRs for all user's pets
+        // Get EMRs from the EMR collection
         const emrs = await EMR.find({ petId: { $in: petIds } })
             .populate('doctor', 'name email')
             .populate('petId', 'name type breed')
             .sort('-createdAt');
+            
+        // Get medical records from the PetMedicalRecord collection
+        const petMedicalRecords = await PetMedicalRecord.find({ 
+            petId: { $in: petIds.map(id => id.toString()) } 
+        }).sort('-createdAt');
+        
+        // Transform PetMedicalRecord format to match EMR format for consistent frontend display
+        const transformedPetMedicalRecords = petMedicalRecords.map(record => {
+            const matchingPet = pets.find(pet => pet._id.toString() === record.petId);
+            
+            return {
+                _id: record._id,
+                petId: matchingPet ? {
+                    _id: matchingPet._id,
+                    name: matchingPet.name,
+                    type: matchingPet.type || matchingPet.species,
+                    breed: matchingPet.breed
+                } : null,
+                name: record.name,
+                species: record.species,
+                breed: record.breed,
+                age: record.age,
+                sex: record.sex,
+                vaccinations: record.vaccinations || [],
+                medicalHistory: record.medicalHistory || [],
+                visitHistory: record.visitHistory || [],
+                currentVisit: {
+                    date: record.createdAt,
+                    status: 'active',
+                    notes: record.visitHistory && record.visitHistory.length > 0 
+                        ? record.visitHistory[record.visitHistory.length - 1].notes 
+                        : ''
+                },
+                doctor: {
+                    name: record.visitHistory && record.visitHistory.length > 0 
+                        ? record.visitHistory[record.visitHistory.length - 1].veterinarian 
+                        : 'Unknown',
+                    email: ''
+                },
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt,
+                recordType: 'petMedicalRecord' // Add a field to distinguish record types
+            };
+        });
+        
+        // Combine both types of records
+        const allRecords = [...emrs, ...transformedPetMedicalRecords];
+        
+        // Sort by createdAt date, newest first
+        allRecords.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         
         res.json({
             success: true,
-            data: emrs
+            data: allRecords
         });
     } catch (error) {
+        console.error('Error fetching EMRs:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching EMRs',

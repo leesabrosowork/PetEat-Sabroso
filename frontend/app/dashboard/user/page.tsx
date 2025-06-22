@@ -302,6 +302,7 @@ export default function UserDashboard() {
         setShowNoEMRDialog(true);
       }
     } catch (error) {
+      console.error("Error fetching medical records:", error);
       toast({
         title: "Error",
         description: "Failed to fetch medical records",
@@ -1008,75 +1009,66 @@ export default function UserDashboard() {
               <h2 className="text-2xl font-bold">My Pets</h2>
               <Link href="/dashboard/user/add-pet">
                 <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Pet
+                  <Plus className="mr-2 h-4 w-4" /> Add Pet
                 </Button>
               </Link>
             </div>
-             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {dashboardData.pets.map((pet) => (
                 <Card key={pet._id}>
-                  <CardHeader>
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col items-center text-center space-y-4">
+                      <div className="relative w-24 h-24 rounded-full overflow-hidden">
                         {pet.profilePicture ? (
-                          <img 
-                            src={`http://localhost:8080/${pet.profilePicture}`} 
-                            alt={pet.name} 
-                            className="w-full h-full object-cover"
+                          <Image
+                            src={pet.profilePicture}
+                            alt={pet.name}
+                            fill
+                            className="object-cover"
                           />
                         ) : (
-                          <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
+                          <Image
+                            src="/placeholder.jpg"
+                            alt={pet.name}
+                            fill
+                            className="object-cover"
+                          />
                         )}
                       </div>
                       <div>
-                        <CardTitle>{pet.name}</CardTitle>
-                        <CardDescription>{pet.breed}</CardDescription>
+                        <h3 className="text-xl font-semibold">{pet.name}</h3>
+                        <p className="text-gray-500">{pet.breed}</p>
+                        <p className="text-sm text-gray-500">Age: {pet.age} years</p>
+                        <p className="text-sm text-gray-500">Weight: {pet.weight} kg</p>
                       </div>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="ml-auto"
-                        onClick={() => handleDeletePet(pet._id)}
-                        disabled={deleting}
-                        title="Delete Pet"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <p>
-                        <strong>Age:</strong> {pet.age} years
-                      </p>
-                      <p>
-                        <strong>Weight:</strong> {pet.weight} lbs
-                      </p>
-                      <p>
-                        <strong>Color:</strong> {pet.color}
-                      </p>
-                      <Button 
-                        className="mt-2" 
-                        variant="outline" 
-                        onClick={() => handleViewEMR(pet._id)}
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        View Medical Records
-                      </Button>
+                      <div className="flex gap-2 w-full">
+                        <Button 
+                          variant="outline" 
+                          className="flex-1"
+                          onClick={() => handleViewEMR(pet._id)}
+                        >
+                          <FileText className="mr-2 h-4 w-4" /> Medical Records
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          size="icon" 
+                          onClick={() => {
+                            setDeletePetId(pet._id);
+                            setShowDeleteConfirmation(true);
+                          }}
+                          disabled={deleting}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
               {dashboardData.pets.length === 0 && (
-                <div className="col-span-full text-center py-8">
-                  <p className="text-gray-500 mb-4">No pets registered yet</p>
-                  <Link href="/dashboard/user/add-pet">
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Your First Pet
-                    </Button>
-                  </Link>
+                <div className="col-span-3 text-center py-8">
+                  <p className="text-gray-500">You don't have any pets yet.</p>
+                  <p className="text-gray-500">Click "Add Pet" to register your first pet.</p>
                 </div>
               )}
             </div>
@@ -1334,38 +1326,58 @@ export default function UserDashboard() {
                     <CardHeader>
                       <div className="flex justify-between items-center">
                         <CardTitle className="text-lg">
-                          {emr.name || "Unknown Pet"} - {emr.currentVisit?.date ? new Date(emr.currentVisit.date).toLocaleDateString() : "N/A"}
+                          {emr.petId?.name || emr.name || "Unknown Pet"} - {emr.currentVisit?.date ? new Date(emr.currentVisit.date).toLocaleDateString() : new Date(emr.createdAt).toLocaleDateString()}
                         </CardTitle>
-                        <Badge
-                          variant={
-                            emr.currentVisit?.status === "active"
-                              ? "default"
-                              : emr.currentVisit?.status === "ongoing"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                        >
-                          {emr.currentVisit?.status || "N/A"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          {emr.recordType === 'petMedicalRecord' && (
+                            <Badge variant="outline">Vet Clinic Record</Badge>
+                          )}
+                          <Badge
+                            variant={
+                              emr.currentVisit?.status === "active"
+                                ? "default"
+                                : emr.currentVisit?.status === "ongoing"
+                                ? "secondary"
+                                : "destructive"
+                            }
+                          >
+                            {emr.currentVisit?.status || "N/A"}
+                          </Badge>
+                        </div>
                       </div>
+                      <CardDescription>
+                        {emr.breed || "N/A"} • {emr.species || "N/A"} • {emr.age || "N/A"} years old
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-600 mb-2">
-                        <strong>Species:</strong> {emr.species || "N/A"}
-                      </p>
-                      <p className="text-sm text-gray-600 mb-2">
-                        <strong>Breed:</strong> {emr.breed || "N/A"}
-                      </p>
-                      <p className="text-sm text-gray-600 mb-2">
-                        <strong>Diagnosis:</strong> {emr.currentVisit?.diagnosis || "N/A"}
-                      </p>
-                      <p className="text-sm text-gray-600 mb-2">
-                        <strong>Treatment:</strong> {emr.currentVisit?.treatment || "N/A"}
-                      </p>
-                      <p className="text-sm text-gray-600 mb-2">
-                        <strong>Doctor:</strong> {emr.doctor?.name || "N/A"}
-                      </p>
-                      <div className="flex gap-2 mt-4">
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            <strong>Created:</strong> {new Date(emr.createdAt).toLocaleString()}
+                          </p>
+                          <p className="text-sm text-gray-600 mb-2">
+                            <strong>Doctor/Vet:</strong> {emr.doctor?.name || "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          {emr.currentVisit?.diagnosis && (
+                            <p className="text-sm text-gray-600 mb-2">
+                              <strong>Diagnosis:</strong> {emr.currentVisit.diagnosis}
+                            </p>
+                          )}
+                          {emr.currentVisit?.treatment && (
+                            <p className="text-sm text-gray-600 mb-2">
+                              <strong>Treatment:</strong> {emr.currentVisit.treatment}
+                            </p>
+                          )}
+                          {emr.currentVisit?.notes && (
+                            <p className="text-sm text-gray-600 mb-2">
+                              <strong>Notes:</strong> {emr.currentVisit.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
@@ -1374,7 +1386,7 @@ export default function UserDashboard() {
                             setIsEMRViewerOpen(true);
                           }}
                         >
-                          View Details
+                          View Full Details
                         </Button>
                       </div>
                     </CardContent>
@@ -1520,25 +1532,49 @@ export default function UserDashboard() {
         </div>
       )}
 
-      {/* No EMR Dialog */}
-      <Dialog open={showNoEMRDialog} onOpenChange={setShowNoEMRDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>No Medical Records</DialogTitle>
-            <DialogDescription>
-              There are no medical records available for this pet. Medical records will be created during veterinary visits.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => setShowNoEMRDialog(false)}>
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* No Medical Record Dialog */}
+      <AlertDialog open={showNoEMRDialog} onOpenChange={setShowNoEMRDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>No Medical Records Found</AlertDialogTitle>
+            <AlertDialogDescription>
+              This pet doesn't have any medical records yet. Medical records will be created when your pet visits a veterinarian.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Pet Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirmation && deletePetId !== null} onOpenChange={setShowDeleteConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your pet's profile and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletePetId) {
+                  handleDeletePet(deletePetId);
+                  setDeletePetId(null);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Account Dialog */}
-      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+      <AlertDialog open={showDeleteConfirmation && deletePetId === null} onOpenChange={setShowDeleteConfirmation}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-red-600">Delete Your Account</AlertDialogTitle>

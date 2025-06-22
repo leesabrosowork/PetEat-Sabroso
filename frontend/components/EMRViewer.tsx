@@ -89,11 +89,18 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
         )
     }
 
+    const isPetMedicalRecord = emr.recordType === 'petMedicalRecord';
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Medical Record</DialogTitle>
+                    <DialogTitle className="flex items-center gap-2">
+                        Medical Record
+                        {isPetMedicalRecord && (
+                            <Badge variant="outline" className="ml-2">Vet Clinic Record</Badge>
+                        )}
+                    </DialogTitle>
                     <DialogDescription>
                         Details for {emr.name}
                     </DialogDescription>
@@ -133,16 +140,22 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <h4 className="text-sm font-medium text-gray-500">Name</h4>
-                                <p>{emr.petId?.owner?.name || 'N/A'}</p>
+                                <p>{emr.petId?.owner?.name || (isPetMedicalRecord ? emr.owner?.name : 'N/A')}</p>
                             </div>
                             <div>
                                 <h4 className="text-sm font-medium text-gray-500">Phone</h4>
-                                <p>{emr.petId?.owner?.phone || 'N/A'}</p>
+                                <p>{emr.petId?.owner?.phone || (isPetMedicalRecord ? emr.owner?.phone : 'N/A')}</p>
                             </div>
                             <div>
                                 <h4 className="text-sm font-medium text-gray-500">Email</h4>
-                                <p>{emr.petId?.owner?.email || 'N/A'}</p>
+                                <p>{emr.petId?.owner?.email || (isPetMedicalRecord ? emr.owner?.email : 'N/A')}</p>
                             </div>
+                            {isPetMedicalRecord && emr.owner?.address && (
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-500">Address</h4>
+                                    <p>{emr.owner.address}</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -153,7 +166,7 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <h4 className="text-sm font-medium text-gray-500">Visit Date</h4>
-                                    <p>{new Date(emr.currentVisit.date).toLocaleDateString()}</p>
+                                    <p>{new Date(emr.currentVisit.date || emr.createdAt).toLocaleDateString()}</p>
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-medium text-gray-500">Status</h4>
@@ -166,7 +179,7 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                                                 : "destructive"
                                         }
                                     >
-                                        {emr.currentVisit.status}
+                                        {emr.currentVisit.status || "Active"}
                                     </Badge>
                                 </div>
                             </div>
@@ -227,7 +240,7 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                             <h3 className="text-lg font-semibold">Vaccinations</h3>
                             <div className="space-y-4">
                                 {emr.vaccinations.map((vaccination: any, index: number) => (
-                                    <div key={index} className="grid grid-cols-4 gap-4 p-4 border rounded">
+                                    <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded">
                                         <div>
                                             <h5 className="font-medium">{vaccination.name}</h5>
                                             <p className="text-sm text-gray-500">Administered: {new Date(vaccination.dateAdministered).toLocaleDateString()}</p>
@@ -250,18 +263,17 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                             <h3 className="text-lg font-semibold">Medical History</h3>
                             <div className="space-y-4">
                                 {emr.medicalHistory.map((condition: any, index: number) => (
-                                    <div key={index} className="grid grid-cols-2 gap-4 p-4 border rounded">
+                                    <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded">
                                         <div>
                                             <h5 className="font-medium">{condition.condition}</h5>
-                                            <p className="text-sm text-gray-500">Diagnosed: {new Date(condition.diagnosisDate).toLocaleDateString()}</p>
-                                            <p className="text-sm text-gray-500">Treatment: {condition.treatment}</p>
+                                            <p className="text-sm text-gray-500">Diagnosis Date: {new Date(condition.diagnosisDate).toLocaleDateString()}</p>
+                                            <Badge className="mt-1" variant={condition.status === 'ongoing' ? 'default' : 'secondary'}>
+                                                {condition.status === 'ongoing' ? 'Ongoing' : 'Resolved'}
+                                            </Badge>
                                         </div>
                                         <div>
-                                            <Badge
-                                                variant={condition.status === "resolved" ? "default" : "secondary"}
-                                            >
-                                                {condition.status}
-                                            </Badge>
+                                            <h5 className="text-sm font-medium text-gray-500">Treatment</h5>
+                                            <p className="whitespace-pre-wrap">{condition.treatment}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -275,14 +287,15 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                             <h3 className="text-lg font-semibold">Visit History</h3>
                             <div className="space-y-4">
                                 {emr.visitHistory.map((visit: any, index: number) => (
-                                    <div key={index} className="grid grid-cols-2 gap-4 p-4 border rounded">
+                                    <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded">
                                         <div>
                                             <h5 className="font-medium">{visit.reason}</h5>
                                             <p className="text-sm text-gray-500">Date: {new Date(visit.date).toLocaleDateString()}</p>
                                             <p className="text-sm text-gray-500">Veterinarian: {visit.veterinarian}</p>
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-500">Notes: {visit.notes}</p>
+                                            <h5 className="text-sm font-medium text-gray-500">Notes</h5>
+                                            <p className="whitespace-pre-wrap">{visit.notes}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -294,16 +307,11 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                     {emr.attachments && emr.attachments.length > 0 && (
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold">Attachments</h3>
-                            <div className="space-y-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {emr.attachments.map((attachment: any, index: number) => (
-                                    <div key={index} className="flex items-center gap-2">
-                                        <a
-                                            href={attachment.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-500 hover:underline"
-                                        >
-                                            {attachment.description || `Attachment ${index + 1}`}
+                                    <div key={index} className="p-4 border rounded">
+                                        <a href={attachment} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                            Attachment {index + 1}
                                         </a>
                                     </div>
                                 ))}
@@ -311,13 +319,20 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                         </div>
                     )}
 
-                    {isDoctor && handleDeleteEMR && (
-                        <div className="flex justify-end gap-2">
-                            <Button
-                                variant="destructive"
-                                onClick={() => handleDeleteEMR(emrId)}
+                    {/* Doctor Actions */}
+                    {isDoctor && (
+                        <div className="flex justify-end gap-2 pt-4 border-t">
+                            <Button 
+                                variant="outline" 
+                                onClick={() => onEdit && onEdit(emr)}
                             >
-                                Delete EMR
+                                Edit
+                            </Button>
+                            <Button 
+                                variant="destructive" 
+                                onClick={() => handleDeleteEMR && handleDeleteEMR(emr._id)}
+                            >
+                                Delete
                             </Button>
                         </div>
                     )}

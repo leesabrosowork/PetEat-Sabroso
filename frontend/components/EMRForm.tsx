@@ -149,16 +149,41 @@ export default function EMRForm({ isOpen, onClose, onSubmit, initialData, pets }
     // Fetch inventory items for dropdowns
     const fetchInventory = async () => {
       try {
-        const res = await fetch("/api/inventory");
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("No authentication token found");
+          return;
+        }
+        
+        const res = await fetch("http://localhost:8080/api/vet-clinic/inventory", {
+          headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+        
+        if (!res.ok) {
+          throw new Error("Failed to fetch inventory");
+        }
+        
         const data = await res.json();
-        setInventory(data || []);
-        setMedicationsList(
-          (data || []).filter((item: InventoryItem) => item.category.toLowerCase() === "medication").map((item: InventoryItem) => item.item)
-        );
-        setVaccinesList(
-          (data || []).filter((item: InventoryItem) => item.category.toLowerCase().includes("vaccine")).map((item: InventoryItem) => item.item)
-        );
+        if (data.success) {
+          const inventoryItems = data.data || [];
+          setInventory(inventoryItems);
+          setMedicationsList(
+            inventoryItems.filter((item: InventoryItem) => 
+              item.category.toLowerCase() === "medication" || 
+              item.category.toLowerCase().includes("medicine")
+            ).map((item: InventoryItem) => item.item)
+          );
+          setVaccinesList(
+            inventoryItems.filter((item: InventoryItem) => 
+              item.category.toLowerCase().includes("vaccine")
+            ).map((item: InventoryItem) => item.item)
+          );
+        }
       } catch (err) {
+        console.error("Error fetching inventory:", err);
         setInventory([]);
         setMedicationsList([]);
         setVaccinesList([]);
@@ -167,8 +192,15 @@ export default function EMRForm({ isOpen, onClose, onSubmit, initialData, pets }
     fetchInventory();
   }, []);
 
+  useEffect(() => {
+    // Log pets for debugging
+    console.log("EMRForm pets:", pets);
+  }, [pets]);
+
   const handlePetChange = (petId: string) => {
-    const selectedPet = pets.find(pet => pet._id === petId)
+    console.log("Selected pet ID:", petId);
+    const selectedPet = pets.find(pet => pet._id === petId);
+    console.log("Selected pet:", selectedPet);
     if (selectedPet) {
       setFormData(prev => ({
         ...prev,

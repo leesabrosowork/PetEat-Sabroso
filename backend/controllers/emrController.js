@@ -1,6 +1,7 @@
 const EMR = require('../models/emrModel');
 const Pet = require('../models/petModel');
 const User = require('../models/userModel');
+const PetMedicalRecord = require('../models/petMedicalRecord');
 
 // @desc    Create new EMR
 // @route   POST /api/emr
@@ -67,16 +68,71 @@ exports.createEMR = async (req, res) => {
 // @access  Private
 exports.getPetEMRs = async (req, res) => {
     try {
-        const emrs = await EMR.find({ petId: req.params.petId })
+        const petId = req.params.petId;
+        
+        // Get EMRs from EMR collection
+        const emrs = await EMR.find({ petId })
             .populate('doctor', 'name email')
             .populate('petId', 'name type breed owner')
             .sort('-createdAt');
+            
+        // Get records from PetMedicalRecord collection
+        const petMedicalRecords = await PetMedicalRecord.find({ petId: petId.toString() })
+            .sort('-createdAt');
+            
+        // Get the pet details for transforming records
+        const pet = await Pet.findById(petId);
+        
+        // Transform PetMedicalRecord format to match EMR format
+        const transformedPetMedicalRecords = petMedicalRecords.map(record => {
+            return {
+                _id: record._id,
+                petId: {
+                    _id: pet._id,
+                    name: pet.name,
+                    type: pet.type || pet.species,
+                    breed: pet.breed,
+                    owner: pet.owner
+                },
+                name: record.name,
+                species: record.species,
+                breed: record.breed,
+                age: record.age,
+                sex: record.sex,
+                vaccinations: record.vaccinations || [],
+                medicalHistory: record.medicalHistory || [],
+                visitHistory: record.visitHistory || [],
+                currentVisit: {
+                    date: record.createdAt,
+                    status: 'active',
+                    notes: record.visitHistory && record.visitHistory.length > 0 
+                        ? record.visitHistory[record.visitHistory.length - 1].notes 
+                        : ''
+                },
+                doctor: {
+                    name: record.visitHistory && record.visitHistory.length > 0 
+                        ? record.visitHistory[record.visitHistory.length - 1].veterinarian 
+                        : 'Unknown',
+                    email: ''
+                },
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt,
+                recordType: 'petMedicalRecord' // Add a field to distinguish record types
+            };
+        });
+        
+        // Combine both types of records
+        const allRecords = [...emrs, ...transformedPetMedicalRecords];
+        
+        // Sort by createdAt date, newest first
+        allRecords.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         res.json({
             success: true,
-            data: emrs
+            data: allRecords
         });
     } catch (error) {
+        console.error('Error fetching pet EMRs:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching EMRs',
@@ -113,9 +169,63 @@ exports.getAllEMRs = async (req, res) => {
 // @access  Private
 exports.getEMRById = async (req, res) => {
     try {
-        const emr = await EMR.findById(req.params.id)
+        // First try to find in EMR collection
+        let emr = await EMR.findById(req.params.id)
             .populate('doctor', 'name email')
             .populate('petId', 'name type breed owner');
+
+        // If not found in EMR collection, try PetMedicalRecord collection
+        if (!emr) {
+            const petMedicalRecord = await PetMedicalRecord.findById(req.params.id);
+            
+            if (petMedicalRecord) {
+                // Get the pet details
+                const pet = await Pet.findOne({ _id: petMedicalRecord.petId });
+                
+                if (!pet) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Pet not found for this medical record'
+                    });
+                }
+                
+                // Transform to match EMR format
+                emr = {
+                    _id: petMedicalRecord._id,
+                    petId: {
+                        _id: pet._id,
+                        name: pet.name,
+                        type: pet.type || pet.species,
+                        breed: pet.breed,
+                        owner: pet.owner
+                    },
+                    name: petMedicalRecord.name,
+                    species: petMedicalRecord.species,
+                    breed: petMedicalRecord.breed,
+                    age: petMedicalRecord.age,
+                    sex: petMedicalRecord.sex,
+                    vaccinations: petMedicalRecord.vaccinations || [],
+                    medicalHistory: petMedicalRecord.medicalHistory || [],
+                    visitHistory: petMedicalRecord.visitHistory || [],
+                    currentVisit: {
+                        date: petMedicalRecord.createdAt,
+                        status: 'active',
+                        notes: petMedicalRecord.visitHistory && petMedicalRecord.visitHistory.length > 0 
+                            ? petMedicalRecord.visitHistory[petMedicalRecord.visitHistory.length - 1].notes 
+                            : ''
+                    },
+                    doctor: {
+                        name: petMedicalRecord.visitHistory && petMedicalRecord.visitHistory.length > 0 
+                            ? petMedicalRecord.visitHistory[petMedicalRecord.visitHistory.length - 1].veterinarian 
+                            : 'Unknown',
+                        email: ''
+                    },
+                    createdAt: petMedicalRecord.createdAt,
+                    updatedAt: petMedicalRecord.updatedAt,
+                    recordType: 'petMedicalRecord'
+                };
+            }
+        }
 
         if (!emr) {
             return res.status(404).json({
@@ -129,6 +239,7 @@ exports.getEMRById = async (req, res) => {
             data: emr
         });
     } catch (error) {
+        console.error('Error fetching EMR by ID:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching EMR',

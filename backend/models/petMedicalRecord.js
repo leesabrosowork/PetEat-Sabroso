@@ -22,7 +22,7 @@ const VisitRecordSchema = new mongoose.Schema({
 }, { _id: false });
 
 const PetMedicalRecordSchema = new mongoose.Schema({
-  petId: { type: String, required: true, unique: true },
+  petId: { type: String, required: true },
   name: { type: String, required: true },
   species: { type: String, required: true },
   breed: { type: String, required: true },

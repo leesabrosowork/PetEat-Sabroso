@@ -43,6 +43,8 @@ import { AdmitPetDialog } from "@/components/AdmitPetDialog"
 import { UpdateTreatmentDialog } from "@/components/UpdateTreatmentDialog"
 import { DischargePetDialog } from "@/components/DischargePetDialog"
 import { Input } from "@/components/ui/input"
+import EMRForm from "@/components/EMRForm"
+import { useToast } from "@/components/ui/use-toast"
 
 interface User {
   _id: string;
@@ -204,6 +206,7 @@ function VetClinicDashboard() {
   const prevPathRef = useRef<string | null>(null);
   const router = useRouter();
   const { socket } = useSocket();
+  const { toast } = useToast();
   
   // Chat state
   const [inboxTab, setInboxTab] = useState(false);
@@ -270,6 +273,7 @@ function VetClinicDashboard() {
   const [inventoryDialogOpen, setInventoryDialogOpen] = useState(false);
   const [selectedMedicalRecord, setSelectedMedicalRecord] = useState<MedicalRecord | null>(null);
   const [medicalRecordDialogOpen, setMedicalRecordDialogOpen] = useState(false);
+  const [addMedicalRecordDialogOpen, setAddMedicalRecordDialogOpen] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [prescriptionDialogOpen, setPrescriptionDialogOpen] = useState(false);
   const [addPetDialogOpen, setAddPetDialogOpen] = useState(false);
@@ -360,15 +364,26 @@ function VetClinicDashboard() {
     setPetsLoading(true);
     try {
       const token = localStorage.getItem("token");
+      console.log("Fetching pets with token:", token ? "Token exists" : "No token");
+      
       const res = await fetch("http://localhost:8080/api/vet-clinic/pets", {
         headers: { Authorization: `Bearer ${token}` },
       });
       
+      console.log("Pets API response status:", res.status);
+      
       if (res.ok) {
         const data = await res.json();
+        console.log("Pets API response data:", data);
+        
         if (data.success) {
+          console.log("Setting pets data:", data.data);
           setPets(data.data);
+        } else {
+          console.error("API returned success: false", data.message);
         }
+      } else {
+        console.error("Failed to fetch pets, status:", res.status);
       }
     } catch (error) {
       console.error("Error fetching pets:", error);
@@ -382,15 +397,24 @@ function VetClinicDashboard() {
     setMedicalRecordsLoading(true);
     try {
       const token = localStorage.getItem("token");
+      console.log("Fetching medical records...");
       const res = await fetch("http://localhost:8080/api/vet-clinic/medical-records", {
         headers: { Authorization: `Bearer ${token}` },
       });
       
+      console.log("Medical records API response status:", res.status);
+      
       if (res.ok) {
         const data = await res.json();
+        console.log("Medical records API response:", data);
         if (data.success) {
+          console.log(`Setting ${data.data.length} medical records`);
           setMedicalRecords(data.data);
+        } else {
+          console.error("API returned success: false", data.message);
         }
+      } else {
+        console.error("Failed to fetch medical records:", res.statusText);
       }
     } catch (error) {
       console.error("Error fetching medical records:", error);
@@ -621,6 +645,7 @@ function VetClinicDashboard() {
       fetchActivityFeed();
       fetchUsers();
       fetchMedicines();
+      fetchPets(); // Fetch pets on mount
     }
   }, [user]);
 
@@ -681,6 +706,184 @@ function VetClinicDashboard() {
   const handleViewMedicalRecord = (record: MedicalRecord) => {
     setSelectedMedicalRecord(record);
     setMedicalRecordDialogOpen(true);
+  };
+
+  // Handle deleting a medical record
+  const handleDeleteMedicalRecord = async (recordId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast({
+          title: "Error",
+          description: "Authentication token not found",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const response = await fetch(`http://localhost:8080/api/vet-clinic/medical-records/${recordId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete medical record");
+      }
+      
+      // Success - refresh the medical records
+      toast({
+        title: "Success",
+        description: "Medical record deleted successfully"
+      });
+      
+      fetchMedicalRecords();
+      fetchDashboardData();
+    } catch (error) {
+      console.error("Delete medical record error:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete medical record",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Map pets to the format expected by EMRForm
+  const mapPetsForEMRForm = () => {
+    return pets.map(pet => ({
+      _id: pet._id,
+      name: pet.name,
+      type: pet.breed || 'Unknown', // Use breed as type since it's missing
+      breed: pet.breed,
+      age: pet.age,
+      gender: pet.gender,
+      profilePicture: pet.profilePicture,
+      owner: {
+        name: pet.owner?.name || 'Unknown',
+        email: pet.owner?.email || 'unknown@example.com',
+        contactNumber: pet.owner?.name || 'Unknown' // Using name as contactNumber since it's missing
+      }
+    }));
+  };
+
+  // Handle creating a medical record
+  const handleCreateMedicalRecord = (formData: any) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
+    
+    console.log("Creating medical record with form data:", formData);
+    
+    // Find the selected pet to get its details
+    const selectedPet = pets.find(pet => pet._id === formData.petId);
+    if (!selectedPet) {
+      toast({
+        title: "Error",
+        description: "Selected pet not found",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    console.log("Selected pet:", selectedPet);
+    
+    // Destructure data for backend
+    const { currentVisit, vaccinations, medicalHistory, visitHistory } = formData;
+    
+    // Create the owner object required by the PetMedicalRecord model
+    const owner = {
+      name: selectedPet.owner?.name || 'Unknown',
+      phone: selectedPet.owner?.name || 'Unknown', // Using name as fallback
+      email: selectedPet.owner?.email || 'unknown@example.com',
+      address: 'Not provided' // Required by the model
+    };
+    
+    // Format visit history if it's empty
+    const formattedVisitHistory = visitHistory && visitHistory.length > 0 ? visitHistory : [
+      {
+        date: currentVisit.date || new Date().toISOString().split('T')[0],
+        reason: currentVisit.diagnosis || 'Initial visit',
+        notes: currentVisit.notes || 'No notes provided',
+        veterinarian: user?.fullName || user?.clinicName || 'Clinic staff'
+      }
+    ];
+    
+    // Format vaccinations to match the required schema
+    const formattedVaccinations = vaccinations && vaccinations.length > 0 ? vaccinations : [];
+    
+    // Format medical history to match the required schema
+    const formattedMedicalHistory = medicalHistory && medicalHistory.length > 0 ? medicalHistory : [];
+    
+    // Create the request body according to the PetMedicalRecord model
+    const requestBody = {
+      petId: formData.petId,
+      name: selectedPet.name,
+      species: formData.species || selectedPet.breed,
+      breed: formData.breed || selectedPet.breed,
+      age: formData.age || selectedPet.age,
+      sex: formData.sex || selectedPet.gender || 'male',
+      owner: owner,
+      vaccinations: formattedVaccinations,
+      medicalHistory: formattedMedicalHistory,
+      visitHistory: formattedVisitHistory
+    };
+    
+    console.log("Sending request to API:", requestBody);
+    
+    // Use the correct API endpoint for vet clinics
+    fetch("http://localhost:8080/api/vet-clinic/medical-records", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(requestBody)
+    })
+      .then(async response => {
+        console.log("API response status:", response.status);
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("API error response:", errorData);
+          throw new Error(errorData.message || "Failed to create medical record");
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("API success response:", data);
+        if (data.success) {
+          toast({
+            title: "Success",
+            description: "Medical record created successfully"
+          });
+          
+          // Refresh the data
+          fetchMedicalRecords();
+          fetchDashboardData();
+          
+          // Make sure we're on the medical records tab
+          if (activeTabValue !== 'medical-records') {
+            handleTabChange('medical-records');
+          }
+          
+          // Close the dialog
+          setAddMedicalRecordDialogOpen(false);
+        } else {
+          throw new Error(data.message || "Failed to create medical record");
+        }
+      })
+      .catch(error => {
+        console.error("Create medical record error:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to create medical record";
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+      });
   };
 
   const handleViewPrescription = (prescription: Prescription) => {
@@ -1637,8 +1840,19 @@ function VetClinicDashboard() {
           <TabsContent value="medical-records">
             <Card>
               <CardHeader>
-                <CardTitle className="text-gray-900 dark:text-white">Medical Records</CardTitle>
-                <CardDescription>Electronic Medical Records for all pets</CardDescription>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-gray-900 dark:text-white">Medical Records</CardTitle>
+                    <CardDescription>Electronic Medical Records for all pets</CardDescription>
+                  </div>
+                  <Button onClick={() => {
+                    fetchPets(); // Fetch pets before opening the dialog
+                    setAddMedicalRecordDialogOpen(true);
+                  }}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Medical Record
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {medicalRecordsLoading ? (
@@ -2342,11 +2556,29 @@ function VetClinicDashboard() {
         onUpdate={handleRefreshData}
       />
       
-      <MedicalRecordDialog
-        record={selectedMedicalRecord}
-        open={medicalRecordDialogOpen}
-        onOpenChange={setMedicalRecordDialogOpen}
-      />
+      {/* Medical Record Dialog */}
+      {selectedMedicalRecord && (
+        <MedicalRecordDialog
+          record={selectedMedicalRecord}
+          open={medicalRecordDialogOpen}
+          onOpenChange={setMedicalRecordDialogOpen}
+          onDelete={handleDeleteMedicalRecord}
+        />
+      )}
+
+      {/* Add Medical Record Dialog */}
+      {addMedicalRecordDialogOpen && (
+        <Dialog open={addMedicalRecordDialogOpen} onOpenChange={setAddMedicalRecordDialogOpen}>
+          <DialogContent className="fixed inset-0 z-50 bg-background p-0 overflow-y-auto flex flex-col max-w-full w-full h-full rounded-none">
+            <EMRForm
+              isOpen={addMedicalRecordDialogOpen}
+              onClose={() => setAddMedicalRecordDialogOpen(false)}
+              onSubmit={(data) => handleCreateMedicalRecord(data)}
+              pets={mapPetsForEMRForm()}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
       
       <PrescriptionDetailsDialog
         prescription={selectedPrescription}
