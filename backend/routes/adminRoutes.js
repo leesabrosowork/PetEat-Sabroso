@@ -6,7 +6,6 @@ const adminAuth = require('../middleware/adminAuth');
 // Public route - Allow admin creation without authentication
 router.post('/', adminController.createAdmin);
 
-
 // Protected dashboard routes
 router.get('/dashboard/overview', adminAuth, adminController.getDashboardOverview);
 router.get('/users', adminAuth, adminController.getAllUsers);
@@ -16,8 +15,6 @@ router.get('/pets', adminAuth, adminController.getAllPets);
 router.get('/inventory', adminAuth, adminController.getInventory);
 router.get('/recent-activities', adminAuth, adminController.getRecentActivities);
 router.post('/inventory', adminAuth, adminController.createInventoryItem);
-
-module.exports = router;
 router.put('/settings', adminAuth, adminController.updateSettings);
 router.put('/users/:id', adminAuth, adminController.updateUser);
 router.delete('/users/:id', adminAuth, adminController.deleteUser);
@@ -30,3 +27,5 @@ router.put('/inventory/:id', adminAuth, adminController.updateInventoryItem);
 router.delete('/inventory/:id', adminAuth, adminController.deleteInventoryItem);
 router.patch('/inventory/:id/stock', adminAuth, adminController.updateInventoryStock);
 router.post('/reset-seed', adminAuth, adminController.resetAndSeed);
+
+module.exports = router;

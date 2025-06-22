@@ -37,14 +37,19 @@ export function EditInventoryItemDialog({ isOpen, onClose, onUpdateInventoryItem
   }, [item])
 
   const handleSubmit = () => {
+    if (!item?._id) {
+      console.error('Cannot update item: Missing _id', item);
+      return;
+    }
+    
     onUpdateInventoryItem({
-      ...item,
+      _id: item._id, // Ensure _id is preserved
       item: itemName,
       category,
-      stock: parseInt(stock),
-      minStock: parseInt(minStock),
-    })
-    onClose()
+      stock: parseInt(stock, 10) || 0,
+      minStock: parseInt(minStock, 10) || 0,
+    });
+    onClose();
   }
 
   return (

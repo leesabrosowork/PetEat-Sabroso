@@ -58,12 +58,10 @@ exports.getUserDashboard = async (req, res) => {
 
         const pets = await Pet.find({ owner: userId });
         const appointments = await Appointment.find({ user: userId })
-            .populate('doctor', 'name email')
             .sort({ startTime: 'desc' });
         const prescriptions = await Prescription.find({ user: userId })
             .populate('pet', 'name')
-            .populate('doctor', 'name')
-            .populate('medicine', 'name')
+            .populate('medicine', 'item')
             .sort({ createdAt: 'desc' });
 
         res.json({

@@ -987,12 +987,11 @@ export default function UserDashboard() {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="space-y-2">
-                        <h3 className="font-semibold">Pet: {prescription.pet.name}</h3>
+                        <h3 className="font-semibold">Pet: {prescription.pet?.name || 'N/A'}</h3>
                         <p className="text-gray-600">Medicine: {prescription.medicine.item}</p>
-                        <p className="text-gray-600">Doctor: {prescription.doctor.name}</p>
                         <p className="text-sm text-gray-500">Date: {new Date(prescription.createdAt).toLocaleDateString()}</p>
                       </div>
-                      <Button variant="outline" onClick={() => setSelectedPrescription(prescription)}>View Details</Button>
+                      
                     </div>
                   </CardContent>
                 </Card>

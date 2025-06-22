@@ -14,7 +14,7 @@ exports.getDashboardData = async (req, res) => {
         const clinicId = req.user._id;
         
         // Get all pets (for now, get all pets since we don't have clinic-specific associations yet)
-        const pets = await Pet.find().populate('owner');
+        const pets = await Pet.find().populate('owner', 'username fullName name email');
         
         // Count pets by health status
         const petsByStatus = {
@@ -91,7 +91,7 @@ exports.getPets = async (req, res) => {
         const clinicId = req.user._id;
         
         // Get all pets (for now, get all pets since we don't have clinic-specific associations yet)
-        const pets = await Pet.find().populate('owner', 'name email');
+        const pets = await Pet.find().populate('owner', 'username fullName name email');
 
         // Add health status if not present (default to stable)
         const petsWithStatus = pets.map(pet => ({
@@ -164,7 +164,7 @@ exports.getAppointments = async (req, res) => {
         const clinicId = req.user._id;
         const appointments = await Appointment.find()
             .populate('pet')
-            .populate('user', 'name email')
+            .populate('user', 'username fullName name email')
             .populate('doctor', 'name')
             .select('+notes')
             .sort({ startTime: 1 });
@@ -186,7 +186,7 @@ exports.getVideoConsultations = async (req, res) => {
         const clinicId = req.user._id;
         const videoConsultations = await Appointment.find({ type: 'consultation' })
             .populate('pet')
-            .populate('user', 'name email')
+            .populate('user', 'username fullName name email')
             .populate('doctor', 'name')
             .sort({ startTime: 1 });
         res.json({
@@ -208,7 +208,7 @@ exports.getPrescriptions = async (req, res) => {
         
         const prescriptions = await Prescription.find()
             .populate('pet')
-            .populate('user', 'name email')
+            .populate('user', 'username fullName name email')
             .populate('medicine', 'item')
             .sort({ createdAt: -1 });
 
@@ -272,6 +272,7 @@ exports.getInventory = async (req, res) => {
     try {
         const clinicId = req.user._id;
         
+        // Return all inventory items sorted by name
         const inventory = await Inventory.find().sort({ item: 1 });
 
         res.json({
@@ -462,7 +463,7 @@ exports.addPet = async (req, res) => {
         // Optionally associate with clinic: petData.clinic = req.user._id;
         const newPet = await Pet.create(petData);
         // Populate owner for response
-        await newPet.populate('owner', 'name email');
+        await newPet.populate('owner', 'username fullName name email');
         // Emit socket event for real-time update
         if (req.app.get('io')) {
             req.app.get('io').emit('pet:added', newPet);

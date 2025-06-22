@@ -101,6 +101,21 @@ export default function AdminDashboard() {
   const [isUserPermissionsDialogOpen, setIsUserPermissionsDialogOpen] = useState(false)
   const [isEditInventoryItemDialogOpen, setIsEditInventoryItemDialogOpen] = useState(false)
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null)
+  
+  const handleAddNewItem = () => {
+    // Create a new empty item
+    const newItem: Partial<InventoryItem> = {
+      _id: 'new', // Temporary ID that will be replaced by the server
+      item: '',
+      category: 'Medication', // Default category
+      stock: 0,
+      minStock: 1,
+      status: 'in-stock'
+    };
+    
+    setSelectedInventoryItem(newItem as InventoryItem);
+    setIsEditInventoryItemDialogOpen(true);
+  };
   const [isUpdatingStock, setIsUpdatingStock] = useState<Record<string, boolean>>({})
   
   const router = useRouter()
@@ -480,60 +495,147 @@ export default function AdminDashboard() {
 
   const handleUpdateInventoryItem = async (updatedItem: InventoryItem) => {
     try {
-      const token = localStorage.getItem("token")
+      console.log('Saving inventory item:', updatedItem);
+      
+      const token = localStorage.getItem("token");
       if (!token) {
-        throw new Error("No authentication token found")
+        throw new Error("No authentication token found");
       }
 
       const headers = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
-      }
+      };
 
-      const response = await fetch(`http://localhost:8080/api/admin/inventory/${updatedItem._id}`, {
-        method: 'PUT',
+      // Create a clean object with only the fields we want to save
+      const itemData = {
+        item: updatedItem.item,
+        category: updatedItem.category,
+        stock: Number(updatedItem.stock) || 0,
+        minStock: Number(updatedItem.minStock) || 1,
+        status: updatedItem.status || 'in-stock'
+      };
+
+      console.log('Saving item with data:', itemData);
+      
+      // Determine if this is a new item or an update
+      const isNewItem = updatedItem._id === 'new' || !updatedItem._id;
+      const url = isNewItem 
+        ? `http://localhost:8080/api/admin/inventory`
+        : `http://localhost:8080/api/admin/inventory/${updatedItem._id}`;
+      
+      const response = await fetch(url, {
+        method: isNewItem ? 'POST' : 'PUT',
         headers,
-        body: JSON.stringify(updatedItem)
-      })
+        body: JSON.stringify(itemData)
+      });
+
+      const responseData = await response.json();
+      console.log('Save response:', responseData);
 
       if (!response.ok) {
-        throw new Error('Failed to update inventory item')
+        throw new Error(responseData.message || `Failed to ${isNewItem ? 'create' : 'update'} inventory item`);
       }
 
-      const returnedItem = await response.json()
-      setInventory(inventory.map(item => item._id === returnedItem.data._id ? returnedItem.data : item))
-      setIsEditInventoryItemDialogOpen(false)
+      // Update the inventory with the new/updated item
+      if (isNewItem) {
+        // Add the new item to the inventory
+        setInventory(prevInventory => [...prevInventory, responseData.data]);
+      } else {
+        // Update the existing item
+        setInventory(prevInventory => 
+          prevInventory.map(item => 
+            item._id === updatedItem._id ? { ...responseData.data } : item
+          )
+        );
+      }
+      
+      setIsEditInventoryItemDialogOpen(false);
+      setSelectedInventoryItem(null);
+      
+      toast({
+        title: 'Success',
+        description: `Inventory item ${isNewItem ? 'added' : 'updated'} successfully`,
+        variant: 'default'
+      });
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
-      console.error('Error updating inventory item:', error)
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while updating the inventory item';
+      console.error('Error updating inventory item:', error);
+      
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive'
+      });
     }
   }
 
   const handleDeleteInventoryItem = async (itemId: string) => {
+    if (!itemId) {
+      console.error('Cannot delete item: No item ID provided');
+      toast({
+        title: 'Error',
+        description: 'Cannot delete item: No item ID provided',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this inventory item?')) {
+      return;
+    }
+
     try {
-      const token = localStorage.getItem("token")
+      console.log('Deleting inventory item with ID:', itemId);
+      
+      const token = localStorage.getItem("token");
       if (!token) {
-        throw new Error("No authentication token found")
+        throw new Error("No authentication token found");
       }
 
       const headers = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
-      }
+      };
 
+      console.log('Sending delete request for item ID:', itemId);
       const response = await fetch(`http://localhost:8080/api/admin/inventory/${itemId}`, {
         method: 'DELETE',
-        headers
-      })
+        headers: headers
+      });
 
-      if (!response.ok) {
-        throw new Error('Failed to delete inventory item')
+      console.log('Delete response status:', response.status);
+      
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log('Delete response data:', responseData);
+      } catch (e) {
+        console.error('Failed to parse delete response:', e);
+        throw new Error('Invalid response from server');
       }
 
-      setInventory(inventory.filter(item => item._id !== itemId))
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to delete inventory item');
+      }
+
+      // Update the UI by removing the deleted item
+      setInventory(prevInventory => prevInventory.filter(item => item._id !== itemId));
+      
+      toast({
+        title: 'Success',
+        description: 'Inventory item deleted successfully',
+        variant: 'default'
+      });
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
-      console.error('Error deleting inventory item:', error)
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while deleting the inventory item';
+      console.error('Error deleting inventory item:', error);
+      
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive'
+      });
     }
   }
 
@@ -1037,7 +1139,7 @@ export default function AdminDashboard() {
           <TabsContent value="inventory" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Inventory</h2>
-              <Button onClick={() => setIsEditInventoryItemDialogOpen(true)}>
+              <Button onClick={handleAddNewItem}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Item
               </Button>
@@ -1131,12 +1233,17 @@ export default function AdminDashboard() {
         isOpen={isUserPermissionsDialogOpen}
         onClose={() => setIsUserPermissionsDialogOpen(false)}
       />
-      <EditInventoryItemDialog
-        isOpen={isEditInventoryItemDialogOpen}
-        onClose={() => setIsEditInventoryItemDialogOpen(false)}
-        onUpdateInventoryItem={handleUpdateInventoryItem}
-        item={selectedInventoryItem}
-      />
+      {selectedInventoryItem && (
+        <EditInventoryItemDialog
+          isOpen={isEditInventoryItemDialogOpen}
+          onClose={() => {
+            setIsEditInventoryItemDialogOpen(false);
+            setSelectedInventoryItem(null);
+          }}
+          onUpdateInventoryItem={handleUpdateInventoryItem}
+          item={selectedInventoryItem}
+        />
+      )}
     </div>
   );
 }

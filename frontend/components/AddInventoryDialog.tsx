@@ -29,10 +29,29 @@ export function AddInventoryDialog({ open, onOpenChange, onAdded }: AddInventory
     'Medication',
     'Supplies', 
     'Equipment',
-    'Food'
+    'Food',
+    'Other'
   ];
 
   const handleSubmit = async () => {
+    if (!formData.category) {
+      toast({ 
+        title: "Error", 
+        description: "Please select a category", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    if (!formData.item.trim()) {
+      toast({ 
+        title: "Error", 
+        description: "Please enter an item name", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem("token");
@@ -42,7 +61,11 @@ export function AddInventoryDialog({ open, onOpenChange, onAdded }: AddInventory
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          // Ensure category is properly set
+          category: formData.category === 'Other' ? customCategory : formData.category,
+        }),
       });
       if (response.ok) {
         toast({ title: "Success", description: "Inventory item added successfully" });
@@ -67,15 +90,30 @@ export function AddInventoryDialog({ open, onOpenChange, onAdded }: AddInventory
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="item">Item Name</Label>
-            <Input id="item" value={formData.item} onChange={e => setFormData({ ...formData, item: e.target.value })} />
+            <Label htmlFor="item">Item Name *</Label>
+            <Input 
+              id="item" 
+              value={formData.item} 
+              onChange={e => setFormData({ ...formData, item: e.target.value })} 
+              placeholder="Enter item name"
+              required
+            />
           </div>
           <div>
-            <Label htmlFor="category">Category</Label>
-            <Select value={formData.category} onValueChange={value => {
-              setFormData({ ...formData, category: value === 'Other' ? customCategory : value });
-            }}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Label htmlFor="category">Category *</Label>
+            <Select 
+              value={formData.category} 
+              onValueChange={value => {
+                if (value === 'Other') {
+                  setFormData(prev => ({ ...prev, category: customCategory }));
+                } else {
+                  setFormData(prev => ({ ...prev, category: value }));
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
               <SelectContent>
                 {categories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>

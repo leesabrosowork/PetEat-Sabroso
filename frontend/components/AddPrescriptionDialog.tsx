@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,12 +12,12 @@ interface AddPrescriptionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdded: () => void;
-  pets: { _id: string; name: string; }[];
-  users: { _id: string; name: string; }[];
-  medicines: { _id: string; item: string; }[];
+  pets: { _id: string; name: string; owner: { _id: string; name: string; fullName?: string; username?: string; } }[];
+  users?: { _id: string; name: string; }[];
+  medicines: { _id: string; item: string; stock?: number; }[];
 }
 
-export function AddPrescriptionDialog({ open, onOpenChange, onAdded, pets, users, medicines }: AddPrescriptionDialogProps) {
+export function AddPrescriptionDialog({ open, onOpenChange, onAdded, pets, medicines }: AddPrescriptionDialogProps) {
   const [formData, setFormData] = useState({
     pet: '',
     user: '',
@@ -25,6 +25,16 @@ export function AddPrescriptionDialog({ open, onOpenChange, onAdded, pets, users
     description: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Automatically set owner when pet changes
+  useEffect(() => {
+    if (formData.pet) {
+      const selectedPet = pets.find(p => p._id === formData.pet) as any;
+      if (selectedPet?.owner?._id) {
+        setFormData(prev => ({ ...prev, user: selectedPet.owner._id }));
+      }
+    }
+  }, [formData.pet, pets]);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -60,24 +70,15 @@ export function AddPrescriptionDialog({ open, onOpenChange, onAdded, pets, users
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="pet">Pet</Label>
+            <Label htmlFor="pet">Pet (Owner)</Label>
             <Select value={formData.pet} onValueChange={value => setFormData({ ...formData, pet: value })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {pets.map(pet => (
-                  <SelectItem key={pet._id} value={pet._id}>{pet.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="user">Owner</Label>
-            <Select value={formData.user} onValueChange={value => setFormData({ ...formData, user: value })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {users.map(user => (
-                  <SelectItem key={user._id} value={user._id}>{user.name}</SelectItem>
-                ))}
+                {pets.map((pet: any) => {
+                  return (
+                    <SelectItem key={pet._id} value={pet._id}>{`${pet.name} — ${(pet.owner?.name || pet.owner?.fullName || pet.owner?.username || 'Unnamed')}`}</SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
