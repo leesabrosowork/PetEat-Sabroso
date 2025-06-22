@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useSocket } from "@/app/context/SocketContext"
@@ -124,6 +124,16 @@ export default function UserDashboard() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [inboxTab, setInboxTab] = useState(false);
+  const [clinics, setClinics] = useState<any[]>([]);
+  const [selectedClinic, setSelectedClinic] = useState<any | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageInput, setMessageInput] = useState("");
+  const [currentConversation, setCurrentConversation] = useState<any | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [typingStatus, setTypingStatus] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -361,6 +371,306 @@ export default function UserDashboard() {
     }
   }
 
+  // Fetch clinics for inbox
+  useEffect(() => {
+    if (!user || !inboxTab) return;
+    
+    const fetchClinics = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:8080/api/chat/clinics", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch clinics");
+        const data = await res.json();
+        setClinics(data.data.clinics || []);
+      } catch (e) {
+        console.error("Error fetching clinics:", e);
+        toast({
+          title: "Error",
+          description: "Failed to load clinics. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    const fetchConversations = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:8080/api/chat/conversations", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch conversations");
+        const data = await res.json();
+        setConversations(data.data || []);
+      } catch (e) {
+        console.error("Error fetching conversations:", e);
+      }
+    };
+    
+    fetchClinics();
+    fetchConversations();
+  }, [user, inboxTab]);
+
+  // Socket.IO event handlers for chat
+  useEffect(() => {
+    if (!socket || !currentConversation) return;
+    
+    // Join the conversation room
+    socket.emit('join_conversation', currentConversation._id);
+    
+    // Listen for new messages
+    const handleReceiveMessage = (data: any) => {
+      if (data.conversationId === currentConversation._id) {
+        setMessages(prev => [...prev, data.message]);
+      }
+      
+      // Update conversations list with new message
+      setConversations(prev => 
+        prev.map(conv => 
+          conv._id === data.conversationId 
+            ? { 
+                ...conv, 
+                lastMessageText: data.message.text,
+                lastMessageDate: new Date().toISOString(),
+                unreadCount: conv.unreadCount + 1
+              } 
+            : conv
+        )
+      );
+    };
+    
+    // Listen for typing indicators
+    const handleUserTyping = (data: any) => {
+      if (data.conversationId === currentConversation._id) {
+        setTypingStatus(`${data.user.fullName || data.user.clinicName} is typing...`);
+      }
+    };
+    
+    const handleUserStopTyping = (data: any) => {
+      if (data.conversationId === currentConversation._id) {
+        setTypingStatus("");
+      }
+    };
+    
+    // Listen for read receipts
+    const handleMessagesRead = (data: any) => {
+      if (data.conversationId === currentConversation._id) {
+        // Update read status of messages
+        setMessages(prev => 
+          prev.map(msg => ({
+            ...msg,
+            read: true
+          }))
+        );
+      }
+    };
+    
+    socket.on('receive_message', handleReceiveMessage);
+    socket.on('user_typing', handleUserTyping);
+    socket.on('user_stop_typing', handleUserStopTyping);
+    socket.on('messages_read', handleMessagesRead);
+    
+    return () => {
+      // Leave the conversation room when component unmounts or conversation changes
+      socket.emit('leave_conversation', currentConversation._id);
+      socket.off('receive_message', handleReceiveMessage);
+      socket.off('user_typing', handleUserTyping);
+      socket.off('user_stop_typing', handleUserStopTyping);
+      socket.off('messages_read', handleMessagesRead);
+    };
+  }, [socket, currentConversation]);
+
+  // Scroll chat to bottom when messages change
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  // Fetch messages when a conversation is selected
+  useEffect(() => {
+    if (!currentConversation) return;
+    
+    const fetchMessages = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`http://localhost:8080/api/chat/conversations/${currentConversation._id}/messages`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch messages");
+        const data = await res.json();
+        setMessages(data.data || []);
+      } catch (e) {
+        console.error("Error fetching messages:", e);
+        toast({
+          title: "Error",
+          description: "Failed to load messages. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchMessages();
+    
+    // Mark messages as read via Socket.IO
+    if (socket && currentConversation.unreadCount > 0) {
+      socket.emit('mark_read', {
+        conversationId: currentConversation._id,
+        userId: user._id
+      });
+    }
+  }, [currentConversation]);
+
+  // Start a new conversation or open existing one
+  const handleSelectClinic = async (clinic: any) => {
+    // Check if conversation already exists with this clinic
+    const existingConversation = conversations.find(conv => 
+      conv.participant && conv.participant._id === clinic._id
+    );
+    
+    if (existingConversation) {
+      setCurrentConversation(existingConversation);
+      setSelectedClinic(clinic);
+      return;
+    }
+    
+    // Start a new conversation
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:8080/api/chat/conversations", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ clinicId: clinic._id })
+      });
+      
+      if (!res.ok) throw new Error("Failed to start conversation");
+      
+      const data = await res.json();
+      setCurrentConversation(data.data);
+      setSelectedClinic(clinic);
+      
+      // Add to conversations list
+      setConversations(prev => [data.data, ...prev]);
+    } catch (e) {
+      console.error("Error starting conversation:", e);
+      toast({
+        title: "Error",
+        description: "Failed to start conversation. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Send message function
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !currentConversation) return;
+    
+    const messageText = messageInput.trim();
+    setMessageInput("");
+    
+    // Optimistically add message to UI
+    const optimisticMessage = {
+      _id: Date.now().toString(),
+      sender: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email
+      },
+      text: messageText,
+      createdAt: new Date().toISOString(),
+      read: false
+    };
+    
+    setMessages(prev => [...prev, optimisticMessage]);
+    
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:8080/api/chat/conversations/${currentConversation._id}/messages`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ text: messageText })
+      });
+      
+      if (!res.ok) throw new Error("Failed to send message");
+      
+      const data = await res.json();
+      
+      // Replace optimistic message with real one
+      setMessages(prev => 
+        prev.map(msg => 
+          msg._id === optimisticMessage._id ? data.data : msg
+        )
+      );
+      
+      // Update conversation in list
+      setConversations(prev => 
+        prev.map(conv => 
+          conv._id === currentConversation._id 
+            ? { 
+                ...conv, 
+                lastMessageText: messageText,
+                lastMessageDate: new Date().toISOString()
+              } 
+            : conv
+        )
+      );
+      
+      // Emit message to socket
+      if (socket) {
+        socket.emit('send_message', {
+          conversationId: currentConversation._id,
+          message: data.data
+        });
+      }
+    } catch (e) {
+      console.error("Error sending message:", e);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+      
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => msg._id !== optimisticMessage._id));
+    }
+  };
+
+  // Handle typing indicator
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessageInput(e.target.value);
+    
+    if (socket && currentConversation) {
+      socket.emit('typing', {
+        conversationId: currentConversation._id,
+        user: {
+          _id: user._id,
+          fullName: user.fullName
+        }
+      });
+      
+      // Clear typing indicator after delay
+      setTimeout(() => {
+        socket.emit('stop_typing', {
+          conversationId: currentConversation._id,
+          user: {
+            _id: user._id,
+            fullName: user.fullName
+          }
+        });
+      }, 2000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -571,7 +881,7 @@ export default function UserDashboard() {
         )}
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="pets">My Pets</TabsTrigger>
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
@@ -580,6 +890,7 @@ export default function UserDashboard() {
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
             <TabsTrigger value="medical-records">Medical Records</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="inbox" onClick={() => setInboxTab(true)}>Chat with Vet Clinics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -1084,6 +1395,113 @@ export default function UserDashboard() {
                 </CardContent>
               </Card>
             </Link>
+          </TabsContent>
+
+          <TabsContent value="inbox">
+            <div className="flex h-[600px] border rounded-lg overflow-hidden">
+              {/* Clinics list */}
+              <div className="w-1/3 border-r bg-muted p-4 overflow-y-auto">
+                <h3 className="font-bold mb-4">Conversations</h3>
+                {conversations.length > 0 && (
+                  <div className="mb-6">
+                    <ul>
+                      {conversations.map((conv) => (
+                        <li
+                          key={conv._id}
+                          className={`p-2 rounded cursor-pointer mb-2 ${currentConversation && currentConversation._id === conv._id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+                          onClick={() => {
+                            setCurrentConversation(conv);
+                            setSelectedClinic(conv.participant);
+                          }}
+                        >
+                          <div className="flex justify-between">
+                            <div className="font-medium">{conv.participant?.clinicName || conv.participant?.fullName}</div>
+                            {conv.unreadCount > 0 && (
+                              <Badge variant="destructive" className="ml-2">{conv.unreadCount}</Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">{conv.lastMessageText || "No messages yet"}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {conv.lastMessageDate ? new Date(conv.lastMessageDate).toLocaleString() : ""}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                <h3 className="font-bold mb-4">All Clinics</h3>
+                <ul>
+                  {clinics.length === 0 && <li className="text-muted-foreground">No clinics found.</li>}
+                  {clinics.map((clinic) => (
+                    <li
+                      key={clinic._id}
+                      className={`p-2 rounded cursor-pointer mb-2 ${selectedClinic && selectedClinic._id === clinic._id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+                      onClick={() => handleSelectClinic(clinic)}
+                    >
+                      <div className="font-medium">{clinic.clinicName || clinic.fullName}</div>
+                      <div className="text-xs text-muted-foreground">{clinic.email}</div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {/* Chat window */}
+              <div className="flex-1 flex flex-col">
+                {selectedClinic ? (
+                  <>
+                    <div className="border-b p-4 bg-background flex items-center">
+                      <div className="font-bold text-lg">{selectedClinic.clinicName || selectedClinic.fullName}</div>
+                      <div className="ml-2 text-xs text-muted-foreground">{selectedClinic.email}</div>
+                    </div>
+                    <div className="flex-1 p-4 overflow-y-auto bg-background">
+                      {isLoading ? (
+                        <div className="flex justify-center items-center h-full">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        </div>
+                      ) : (
+                        <>
+                          {messages.length === 0 && (
+                            <div className="text-center text-muted-foreground mt-10">No messages yet. Start the conversation!</div>
+                          )}
+                          {messages.map((msg) => (
+                            <div key={msg._id} className={`mb-2 flex ${msg.sender && user && msg.sender._id === user._id ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`rounded-lg px-3 py-2 max-w-xs ${msg.sender && user && msg.sender._id === user._id ? 'bg-primary text-primary-foreground' : 'bg-accent'}`}>
+                                <div className="text-sm">{msg.text}</div>
+                                <div className="text-xs text-muted-foreground text-right mt-1">
+                                  {new Date(msg.createdAt).toLocaleTimeString()}
+                                  {msg.sender && user && msg.sender._id === user._id && (
+                                    <span className="ml-1">{msg.read ? '✓✓' : '✓'}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {typingStatus && (
+                            <div className="text-xs text-muted-foreground italic mt-2">{typingStatus}</div>
+                          )}
+                          <div ref={chatEndRef} />
+                        </>
+                      )}
+                    </div>
+                    <div className="p-4 border-t bg-background flex gap-2">
+                      <input
+                        className="flex-1 border rounded px-3 py-2"
+                        type="text"
+                        placeholder="Type a message..."
+                        value={messageInput}
+                        onChange={handleInputChange}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSendMessage(); }}
+                      />
+                      <Button onClick={handleSendMessage} disabled={!messageInput.trim() || isLoading}>Send</Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                    Select a clinic to start a conversation.
+                  </div>
+                )}
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

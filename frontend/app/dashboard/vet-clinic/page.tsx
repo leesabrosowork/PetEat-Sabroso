@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useSocket } from "@/app/context/SocketContext"
-import { Sun, Moon } from "lucide-react"
+import { useTheme } from "next-themes"
+import { Sun, Moon, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -41,6 +42,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AdmitPetDialog } from "@/components/AdmitPetDialog"
 import { UpdateTreatmentDialog } from "@/components/UpdateTreatmentDialog"
 import { DischargePetDialog } from "@/components/DischargePetDialog"
+import { Input } from "@/components/ui/input"
 
 interface User {
   _id: string;
@@ -195,9 +197,30 @@ interface DashboardData {
 
 function VetClinicDashboard() {
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
+  const [user, setUser] = useState<any>(null);
+  const [activeTabValue, setActiveTabValue] = useState('overview');
+  const [loading, setLoading] = useState(true);
   const prevPathRef = useRef<string | null>(null);
   const router = useRouter();
   const { socket } = useSocket();
+  
+  // Chat state
+  const [inboxTab, setInboxTab] = useState(false);
+  const [petOwners, setPetOwners] = useState<any[]>([]);
+  const [selectedOwner, setSelectedOwner] = useState<any | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageInput, setMessageInput] = useState("");
+  const [currentConversation, setCurrentConversation] = useState<any | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [typingStatus, setTypingStatus] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     totalPets: 0,
@@ -211,9 +234,7 @@ function VetClinicDashboard() {
     lowStockItems: 0
   });
   
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
   
   // Tab data states
   const [pets, setPets] = useState<Pet[]>([]);
@@ -265,6 +286,11 @@ function VetClinicDashboard() {
   // Add state for selected appointment and dialog open
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // Add chat state
+  const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const [filteredPetOwners, setFilteredPetOwners] = useState<any[]>([]);
+  const [selectedPetOwner, setSelectedPetOwner] = useState<any | null>(null);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -600,6 +626,14 @@ function VetClinicDashboard() {
 
   // Handle tab changes to load data
   const handleTabChange = (value: string) => {
+    console.log("Tab changed to:", value);
+    setActiveTabValue(value);
+    
+    if (value === 'inbox') {
+      console.log("Setting inboxTab to true");
+      setInboxTab(true);
+    }
+    
     switch (value) {
       case 'pets':
         fetchPets();
@@ -926,6 +960,364 @@ function VetClinicDashboard() {
     fetchPetsUnderTreatment();
   }, []);
 
+  // Fetch pet owners for chat
+  useEffect(() => {
+    if (!user || !inboxTab) return;
+    
+    const fetchPetOwners = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:8080/api/chat/clinics", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch pet owners");
+        const data = await res.json();
+        setPetOwners(data.data.clinics || []);
+        setFilteredPetOwners(data.data.clinics || []);
+      } catch (e) {
+        console.error("Error fetching pet owners:", e);
+        toast({
+          title: "Error",
+          description: "Failed to load pet owners. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    const fetchConversations = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:8080/api/chat/conversations", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch conversations");
+        const data = await res.json();
+        setConversations(data.data || []);
+      } catch (e) {
+        console.error("Error fetching conversations:", e);
+      }
+    };
+    
+    fetchPetOwners();
+    fetchConversations();
+  }, [user, inboxTab]);
+  
+  // Search pet owners
+  useEffect(() => {
+    if (!chatSearchQuery) {
+      setFilteredPetOwners(petOwners);
+      return;
+    }
+    
+    const query = chatSearchQuery.toLowerCase();
+    const filtered = petOwners.filter(owner => 
+      (owner.fullName && owner.fullName.toLowerCase().includes(query)) || 
+      (owner.username && owner.username.toLowerCase().includes(query)) ||
+      (owner.email && owner.email.toLowerCase().includes(query))
+    );
+    
+    setFilteredPetOwners(filtered);
+  }, [chatSearchQuery, petOwners]);
+  
+  // Socket.IO event handlers for chat
+  useEffect(() => {
+    if (!socket || !currentConversation) return;
+    
+    // Join the conversation room
+    socket.emit('join_conversation', currentConversation._id);
+    
+    // Listen for new messages
+    const handleReceiveMessage = (data: any) => {
+      if (data.conversationId === currentConversation._id) {
+        setMessages(prev => [...prev, data.message]);
+      }
+      
+      // Update conversations list with new message
+      setConversations(prev => 
+        prev.map(conv => 
+          conv._id === data.conversationId 
+            ? { 
+                ...conv, 
+                lastMessageText: data.message.text,
+                lastMessageDate: new Date().toISOString(),
+                unreadCount: conv.unreadCount + 1
+              } 
+            : conv
+        )
+      );
+    };
+    
+    // Listen for typing indicators
+    const handleUserTyping = (data: any) => {
+      if (data.conversationId === currentConversation._id) {
+        setTypingStatus(`${data.user.fullName || data.user.username} is typing...`);
+      }
+    };
+    
+    const handleUserStopTyping = (data: any) => {
+      if (data.conversationId === currentConversation._id) {
+        setTypingStatus("");
+      }
+    };
+    
+    // Listen for read receipts
+    const handleMessagesRead = (data: any) => {
+      if (data.conversationId === currentConversation._id) {
+        // Update read status of messages
+        setMessages(prev => 
+          prev.map(msg => ({
+            ...msg,
+            read: true
+          }))
+        );
+      }
+    };
+    
+    socket.on('receive_message', handleReceiveMessage);
+    socket.on('user_typing', handleUserTyping);
+    socket.on('user_stop_typing', handleUserStopTyping);
+    socket.on('messages_read', handleMessagesRead);
+    
+    return () => {
+      // Leave the conversation room when component unmounts or conversation changes
+      socket.emit('leave_conversation', currentConversation._id);
+      socket.off('receive_message', handleReceiveMessage);
+      socket.off('user_typing', handleUserTyping);
+      socket.off('user_stop_typing', handleUserStopTyping);
+      socket.off('messages_read', handleMessagesRead);
+    };
+  }, [socket, currentConversation]);
+  
+  // Scroll chat to bottom when messages change
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+  
+  // Fetch messages when a conversation is selected
+  useEffect(() => {
+    if (!currentConversation) return;
+    
+    const fetchMessages = async () => {
+      setIsLoadingChat(true);
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`http://localhost:8080/api/chat/conversations/${currentConversation._id}/messages`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch messages");
+        const data = await res.json();
+        setMessages(data.data || []);
+      } catch (e) {
+        console.error("Error fetching messages:", e);
+        toast({
+          title: "Error",
+          description: "Failed to load messages. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingChat(false);
+      }
+    };
+    
+    fetchMessages();
+    
+    // Mark messages as read via Socket.IO
+    if (socket && currentConversation.unreadCount > 0 && user && user._id) {
+      socket.emit('mark_read', {
+        conversationId: currentConversation._id,
+        userId: user._id
+      });
+    }
+  }, [currentConversation, socket, user]);
+  
+  // Handle selecting a pet owner for chat
+  const handleSelectPetOwner = async (owner: any) => {
+    setSelectedPetOwner(owner);
+    
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:8080/api/chat/conversations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ ownerId: owner._id })
+      });
+      
+      if (!res.ok) throw new Error("Failed to start conversation");
+      
+      const data = await res.json();
+      setCurrentConversation(data.data);
+      
+      // Add conversation to list if it's not already there
+      const conversationExists = conversations.some(conv => conv._id === data.data._id);
+      if (!conversationExists) {
+        setConversations([data.data, ...conversations]);
+      }
+    } catch (e) {
+      console.error("Error starting conversation:", e);
+      toast({
+        title: "Error",
+        description: "Failed to start conversation.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Send message function
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !currentConversation || !user || !user._id) return;
+    
+    const messageText = messageInput.trim();
+    setMessageInput("");
+    
+    // Optimistically add message to UI
+    const optimisticMessage = {
+      _id: Date.now().toString(),
+      sender: {
+        _id: user._id,
+        fullName: user.fullName || user.clinicName,
+        email: user.email
+      },
+      text: messageText,
+      createdAt: new Date().toISOString(),
+      read: false
+    };
+    
+    setMessages(prev => [...prev, optimisticMessage]);
+    
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:8080/api/chat/conversations/${currentConversation._id}/messages`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ text: messageText })
+      });
+      
+      if (!res.ok) throw new Error("Failed to send message");
+      
+      const data = await res.json();
+      
+      // Replace optimistic message with real one
+      setMessages(prev => 
+        prev.map(msg => 
+          msg._id === optimisticMessage._id ? data.data : msg
+        )
+      );
+      
+      // Update conversation in list
+      setConversations(prev => 
+        prev.map(conv => 
+          conv._id === currentConversation._id 
+            ? { 
+                ...conv, 
+                lastMessageText: messageText,
+                lastMessageDate: new Date().toISOString()
+              } 
+            : conv
+        )
+      );
+      
+      // Emit message to socket
+      if (socket) {
+        socket.emit('send_message', {
+          conversationId: currentConversation._id,
+          message: data.data
+        });
+      }
+    } catch (e) {
+      console.error("Error sending message:", e);
+      toast({
+        title: "Error",
+        description: "Failed to send message.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Handle typing indicators
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessageInput(e.target.value);
+    
+    if (socket && currentConversation && user && user._id) {
+      socket.emit('typing', {
+        conversationId: currentConversation._id,
+        user: {
+          _id: user._id,
+          fullName: user.fullName || user.clinicName,
+        }
+      });
+      
+      // Stop typing after 2 seconds of inactivity
+      setTimeout(() => {
+        socket.emit('stop_typing', {
+          conversationId: currentConversation._id,
+          user: {
+            _id: user._id,
+            fullName: user.fullName || user.clinicName,
+          }
+        });
+      }, 2000);
+    }
+  };
+  
+  // Handle switching to a conversation from the list
+  const handleSelectConversation = (conversation: any) => {
+    setCurrentConversation(conversation);
+    // Find the pet owner that matches this conversation's participant
+    const owner = conversation.participant;
+    setSelectedPetOwner(owner);
+  };
+
+  // Fetch pet owners and conversations when inbox tab is selected
+  useEffect(() => {
+    if (activeTabValue === 'inbox' && user) {
+      const fetchPetOwners = async () => {
+        try {
+          const token = localStorage.getItem("token");
+          const res = await fetch("http://localhost:8080/api/chat/clinics", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) throw new Error("Failed to fetch pet owners");
+          const data = await res.json();
+          setPetOwners(data.data.clinics || []);
+          setFilteredPetOwners(data.data.clinics || []);
+        } catch (e) {
+          console.error("Error fetching pet owners:", e);
+          toast({
+            title: "Error",
+            description: "Failed to load pet owners. Please try again.",
+            variant: "destructive",
+          });
+        }
+      };
+      
+      const fetchConversations = async () => {
+        try {
+          const token = localStorage.getItem("token");
+          const res = await fetch("http://localhost:8080/api/chat/conversations", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) throw new Error("Failed to fetch conversations");
+          const data = await res.json();
+          setConversations(data.data || []);
+        } catch (e) {
+          console.error("Error fetching conversations:", e);
+        }
+      };
+      
+      fetchPetOwners();
+      fetchConversations();
+      setInboxTab(true);
+    }
+  }, [activeTabValue, user]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -984,6 +1376,19 @@ function VetClinicDashboard() {
                 ) : (
                   <Moon className="h-5 w-5" />
                 )}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  console.log("Chat button clicked - direct approach");
+                  setActiveTabValue('inbox');
+                  setInboxTab(true);
+                }}
+                className="flex items-center gap-2"
+              >
+                <MessageSquare className="h-4 w-4" />
+                <span>Chat</span>
               </Button>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -1087,8 +1492,8 @@ function VetClinicDashboard() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6" onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-8">
+        <Tabs value={activeTabValue} defaultValue="overview" className="space-y-6" onValueChange={handleTabChange}>
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="overview" className="dark:text-white">Overview</TabsTrigger>
             <TabsTrigger value="pets" id="pets-tab" className="dark:text-white">Pets</TabsTrigger>
             <TabsTrigger value="medical-records" id="medical-records-tab" className="dark:text-white">Medical Records</TabsTrigger>
@@ -1097,6 +1502,7 @@ function VetClinicDashboard() {
             <TabsTrigger value="pets-under-treatment" id="pets-under-treatment-tab" className="dark:text-white">Pets Under Treatment</TabsTrigger>
             <TabsTrigger value="prescriptions" className="dark:text-white">Prescriptions</TabsTrigger>
             <TabsTrigger value="inventory" className="dark:text-white">Inventory</TabsTrigger>
+            <TabsTrigger value="inbox" id="inbox-tab" className="dark:text-white">Inbox</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -1711,6 +2117,177 @@ function VetClinicDashboard() {
                     </TableBody>
                   </Table>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Inbox Tab Content */}
+          <TabsContent value="inbox">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-gray-900 dark:text-white">Inbox</CardTitle>
+                    <CardDescription>Chat with pet owners</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Sidebar with conversations and search */}
+                  <div className="border rounded-lg p-4 h-[600px] flex flex-col">
+                    <div className="flex gap-2 mb-4">
+                      <Tabs defaultValue="conversations" className="w-full">
+                        <TabsList className="w-full">
+                          <TabsTrigger value="conversations" className="flex-1">Conversations</TabsTrigger>
+                          <TabsTrigger value="search" className="flex-1">Search</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="conversations" className="h-[520px] overflow-y-auto">
+                          <h3 className="text-sm font-medium mb-2">Recent Conversations</h3>
+                          <ul className="space-y-2">
+                            {conversations.length === 0 && <li className="text-muted-foreground">No conversations yet.</li>}
+                            {conversations.map(conversation => (
+                              <li 
+                                key={conversation._id} 
+                                className={`p-2 rounded flex justify-between ${
+                                  currentConversation && currentConversation._id === conversation._id 
+                                  ? 'bg-primary text-primary-foreground' 
+                                  : 'hover:bg-accent cursor-pointer'
+                                }`}
+                                onClick={() => handleSelectConversation(conversation)}
+                              >
+                                <div>
+                                  <div className="font-medium">{conversation.participant?.fullName || conversation.participant?.username}</div>
+                                  <div className="text-xs truncate max-w-[180px]">{conversation.lastMessageText || "No messages yet"}</div>
+                                </div>
+                                {conversation.unreadCount > 0 && (
+                                  <div className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                                    {conversation.unreadCount}
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </TabsContent>
+                        <TabsContent value="search" className="h-[520px]">
+                          <div className="mb-4">
+                            <Input 
+                              placeholder="Search pet owners..." 
+                              value={chatSearchQuery}
+                              onChange={(e) => setChatSearchQuery(e.target.value)}
+                              className="w-full"
+                            />
+                          </div>
+                          <div className="h-[480px] overflow-y-auto">
+                            <h3 className="text-sm font-medium mb-2">Pet Owners</h3>
+                            <ul>
+                              {filteredPetOwners.length === 0 && <li className="text-muted-foreground">No pet owners found.</li>}
+                              {filteredPetOwners.map((owner) => (
+                                <li
+                                  key={owner._id}
+                                  className={`p-2 rounded cursor-pointer mb-2 ${selectedPetOwner && selectedPetOwner._id === owner._id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+                                  onClick={() => handleSelectPetOwner(owner)}
+                                >
+                                  <div className="font-medium">{owner.fullName || owner.username}</div>
+                                  <div className="text-xs text-muted-foreground">{owner.email}</div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  </div>
+
+                  {/* Chat window */}
+                  <div className="border rounded-lg md:col-span-2 h-[600px] flex flex-col">
+                    {selectedPetOwner ? (
+                      <>
+                        <div className="border-b p-4 bg-background flex items-center">
+                          <div className="font-bold text-lg">{selectedPetOwner.fullName || selectedPetOwner.username}</div>
+                          <div className="ml-2 text-xs text-muted-foreground">{selectedPetOwner.email}</div>
+                        </div>
+                        <div className="flex-1 p-4 overflow-y-auto bg-background">
+                          {isLoadingChat ? (
+                            <div className="flex justify-center items-center h-full">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            </div>
+                          ) : (
+                            <>
+                              {messages.length === 0 ? (
+                                <div className="text-center text-muted-foreground h-full flex flex-col justify-center">
+                                  <p>No messages yet</p>
+                                  <p className="text-sm">Send a message to start the conversation</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  {messages.map((message) => {
+                                    // Add null checks to prevent TypeError
+                                    const isOwnMessage = message?.sender && user && message.sender._id === user._id;
+                                    return (
+                                      <div 
+                                        key={message._id} 
+                                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                                      >
+                                        <div 
+                                          className={`max-w-[70%] p-3 rounded-lg ${
+                                            isOwnMessage 
+                                            ? 'bg-primary text-primary-foreground rounded-br-none' 
+                                            : 'bg-accent text-accent-foreground rounded-bl-none'
+                                          }`}
+                                        >
+                                          <div className="text-sm">{message.text}</div>
+                                          <div className="text-xs opacity-70 text-right mt-1">
+                                            {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {isOwnMessage && (
+                                              <span className="ml-1">{message.read ? '✓✓' : '✓'}</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                  {typingStatus && (
+                                    <div className="text-xs text-muted-foreground italic">
+                                      {typingStatus}
+                                    </div>
+                                  )}
+                                  <div ref={chatEndRef} />
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        <div className="border-t p-3 bg-background">
+                          <form 
+                            className="flex gap-2"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              handleSendMessage();
+                            }}
+                          >
+                            <Input 
+                              placeholder="Type a message..." 
+                              value={messageInput}
+                              onChange={handleInputChange}
+                              className="flex-1"
+                            />
+                            <Button type="submit" disabled={!messageInput.trim()}>
+                              Send
+                            </Button>
+                          </form>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-center items-center h-full text-center text-muted-foreground">
+                        <div>
+                          <p>Select a pet owner to start chatting</p>
+                          <p className="text-sm mt-2">You can search for pet owners or check your recent conversations</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

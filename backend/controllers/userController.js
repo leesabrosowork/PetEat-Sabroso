@@ -213,3 +213,47 @@ exports.deleteAccount = async (req, res) => {
         });
     }
 };
+
+// Search users by name or email
+exports.searchUsers = async (req, res) => {
+    try {
+        const { query, role } = req.query;
+        
+        if (!query) {
+            return res.status(400).json({
+                success: false,
+                message: 'Search query is required'
+            });
+        }
+        
+        // Build search criteria
+        let searchCriteria = {
+            $or: [
+                { name: { $regex: query, $options: 'i' } },
+                { email: { $regex: query, $options: 'i' } },
+                { fullName: { $regex: query, $options: 'i' } },
+                { username: { $regex: query, $options: 'i' } }
+            ]
+        };
+        
+        // Add role filter if provided
+        if (role) {
+            searchCriteria.role = role;
+        }
+        
+        const users = await User.find(searchCriteria)
+            .select('-password')
+            .limit(10); // Limit results to prevent large response
+        
+        res.json({
+            success: true,
+            data: users
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error searching users',
+            error: error.message
+        });
+    }
+};

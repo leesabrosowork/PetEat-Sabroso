@@ -13,6 +13,9 @@ router.post('/', userController.createUser);
 // Get all users
 router.get('/', userController.getAllUsers);
 
+// Search users by name or email
+router.get('/search', protect, userController.searchUsers);
+
 // Get user profile
 router.get('/profile', protect, userController.getUserProfile);
 

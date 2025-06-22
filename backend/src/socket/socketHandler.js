@@ -143,6 +143,59 @@ const initializeSocket = (io) => {
       });
       console.log('===========================\n');
     });
+
+    // ===== CHAT SYSTEM EVENTS =====
+
+    // Join a conversation room
+    socket.on('join_conversation', (conversationId) => {
+      console.log(`User ${socket.id} joining conversation: ${conversationId}`);
+      socket.join(`conversation:${conversationId}`);
+    });
+
+    // Leave a conversation room
+    socket.on('leave_conversation', (conversationId) => {
+      console.log(`User ${socket.id} leaving conversation: ${conversationId}`);
+      socket.leave(`conversation:${conversationId}`);
+    });
+
+    // New message in conversation
+    socket.on('send_message', (data) => {
+      const { conversationId, message } = data;
+      console.log(`New message in conversation ${conversationId}: ${message.text.substring(0, 20)}...`);
+      
+      // Broadcast to everyone in the conversation except sender
+      socket.to(`conversation:${conversationId}`).emit('receive_message', {
+        conversationId,
+        message
+      });
+    });
+
+    // User is typing indicator
+    socket.on('typing', (data) => {
+      const { conversationId, user } = data;
+      socket.to(`conversation:${conversationId}`).emit('user_typing', {
+        conversationId,
+        user
+      });
+    });
+
+    // User stopped typing
+    socket.on('stop_typing', (data) => {
+      const { conversationId, user } = data;
+      socket.to(`conversation:${conversationId}`).emit('user_stop_typing', {
+        conversationId,
+        user
+      });
+    });
+
+    // Mark messages as read
+    socket.on('mark_read', (data) => {
+      const { conversationId, userId } = data;
+      socket.to(`conversation:${conversationId}`).emit('messages_read', {
+        conversationId,
+        userId
+      });
+    });
   });
 };
 
