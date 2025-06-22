@@ -125,6 +125,14 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       console.log(`👋 ${data.email} (${data.role}) left the room`);
     });
 
+    socketInstance.on('receive_message', (data) => {
+      console.log('Socket: received message', {
+        conversationId: data.conversationId,
+        messageSenderId: data.message?.sender?._id,
+        messageText: data.message?.text?.substring(0, 20) + '...'
+      });
+    });
+
     setSocket(socketInstance);
 
     // Cleanup function

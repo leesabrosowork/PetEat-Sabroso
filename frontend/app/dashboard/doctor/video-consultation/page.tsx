@@ -371,7 +371,7 @@ export default function DoctorVideoConsultation() {
                     <p className="text-gray-400 text-sm">No messages yet...</p>
                   ) : (
                     messages.map((message, index) => (
-                      <div key={index} className="text-sm text-white bg-gray-700 p-2 rounded">
+                      <div key={index} className="text-sm text-black bg-[#d8f3dc] p-2 rounded">
                         {message}
                       </div>
                     ))

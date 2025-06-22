@@ -1174,18 +1174,29 @@ function VetClinicDashboard() {
     const messageText = messageInput.trim();
     setMessageInput("");
     
+    const optimisticId = Date.now().toString();
+    
     // Optimistically add message to UI
     const optimisticMessage = {
-      _id: Date.now().toString(),
+      _id: optimisticId,
       sender: {
         _id: user._id,
         fullName: user.fullName || user.clinicName,
-        email: user.email
+        email: user.email,
+        role: "vet clinic"
       },
       text: messageText,
       createdAt: new Date().toISOString(),
       read: false
     };
+    
+    // Log for debugging
+    console.log("Sending message:", {
+      conversationId: currentConversation._id,
+      userId: user._id,
+      userRole: "vet clinic",
+      messageText: messageText.substring(0, 20) + "..."
+    });
     
     setMessages(prev => [...prev, optimisticMessage]);
     
@@ -1204,10 +1215,13 @@ function VetClinicDashboard() {
       
       const data = await res.json();
       
+      // Log the response data
+      console.log("Message response:", data.data);
+      
       // Replace optimistic message with real one
       setMessages(prev => 
         prev.map(msg => 
-          msg._id === optimisticMessage._id ? data.data : msg
+          msg._id === optimisticId ? data.data : msg
         )
       );
       
@@ -1238,6 +1252,9 @@ function VetClinicDashboard() {
         description: "Failed to send message.",
         variant: "destructive",
       });
+      
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => msg._id !== optimisticId));
     }
   };
   
@@ -2161,7 +2178,7 @@ function VetClinicDashboard() {
                                   <div className="text-xs truncate max-w-[180px]">{conversation.lastMessageText || "No messages yet"}</div>
                                 </div>
                                 {conversation.unreadCount > 0 && (
-                                  <div className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                                  <div className="bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
                                     {conversation.unreadCount}
                                   </div>
                                 )}
@@ -2222,16 +2239,32 @@ function VetClinicDashboard() {
                               ) : (
                                 <div className="space-y-4">
                                   {messages.map((message) => {
-                                    // Add null checks to prevent TypeError
+                                    // Fix the isOwnMessage determination logic to correctly identify messages
+                                    // sent by the vet clinic (current user)
                                     const isOwnMessage = message?.sender && user && message.sender._id === user._id;
+                                    
+                                    // Log for debugging
+                                    console.log("Message:", {
+                                      messageId: message._id,
+                                      messageSenderId: message?.sender?._id,
+                                      senderRole: message?.sender?.role,
+                                      messageText: message?.text?.substring(0, 20) + "...",
+                                      userId: user?._id,
+                                      userRole: "vet clinic", 
+                                      isOwnMessage
+                                    });
+                                    
+                                    // Force correct alignment for optimistic messages without proper sender info
+                                    const isForcedOwn = !message.sender && message._id.toString().length > 10;
+                                    
                                     return (
                                       <div 
                                         key={message._id} 
-                                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                                        className={`flex ${isOwnMessage || isForcedOwn ? 'justify-end' : 'justify-start'}`}
                                       >
                                         <div 
                                           className={`max-w-[70%] p-3 rounded-lg ${
-                                            isOwnMessage 
+                                            isOwnMessage || isForcedOwn
                                             ? 'bg-primary text-primary-foreground rounded-br-none' 
                                             : 'bg-accent text-accent-foreground rounded-bl-none'
                                           }`}
@@ -2239,7 +2272,7 @@ function VetClinicDashboard() {
                                           <div className="text-sm">{message.text}</div>
                                           <div className="text-xs opacity-70 text-right mt-1">
                                             {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            {isOwnMessage && (
+                                            {(isOwnMessage || isForcedOwn) && (
                                               <span className="ml-1">{message.read ? '✓✓' : '✓'}</span>
                                             )}
                                           </div>
