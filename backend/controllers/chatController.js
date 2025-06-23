@@ -55,7 +55,8 @@ exports.startConversation = async (req, res) => {
     const { clinicId, ownerId } = req.body;
     
     // Check if request is from pet owner or clinic
-    const isPetOwner = req.user.role === 'pet owner' || req.user.role === 'user';
+    const isPetOwner = req.user.role === 'pet owner' || req.user.role === 'pet_owner' || 
+                       req.user.userType === 'pet_owner' || req.user.role === 'user';
     const isClinic = req.user.role === 'clinic' || req.user.role === 'vet clinic';
     
     // Validate required parameters
@@ -92,7 +93,7 @@ exports.startConversation = async (req, res) => {
       conversation = await Conversation.findById(conversation._id)
         .populate({
           path: 'participants',
-          select: 'fullName clinicName email role profilePicture username'
+          select: 'fullName clinicName email role userType profilePicture username'
         });
     }
     
@@ -248,7 +249,8 @@ exports.sendMessage = async (req, res) => {
 // Get all clinics for the inbox or pet owners if user is a clinic
 exports.getAllClinics = async (req, res) => {
   try {
-    const isPetOwner = req.user.role === 'pet owner' || req.user.role === 'user';
+    const isPetOwner = req.user.role === 'pet owner' || req.user.role === 'pet_owner' || 
+                       req.user.userType === 'pet_owner' || req.user.role === 'user';
     const isClinic = req.user.role === 'clinic' || req.user.role === 'vet clinic';
     
     if (isPetOwner) {
@@ -276,9 +278,13 @@ exports.getAllClinics = async (req, res) => {
         data: { clinics: allClinics } 
       });
     } else if (isClinic) {
-      // Get all pet owners for clinics to message
-      const petOwners = await User.find({ role: { $in: ['pet owner', 'user'] } })
-        .select('_id fullName username email profilePicture');
+      // Get all pet owners for clinics to message using both schema formats
+      const petOwners = await User.find({
+        $or: [
+          { role: { $in: ['pet owner', 'pet_owner', 'user'] } },
+          { userType: 'pet_owner' }
+        ]
+      }).select('_id fullName username email profilePicture');
       
       res.json({ 
         success: true, 

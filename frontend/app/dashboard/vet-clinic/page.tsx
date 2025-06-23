@@ -1815,7 +1815,7 @@ function VetClinicDashboard() {
                           <TableCell className="font-medium text-gray-900 dark:text-white">{pet.name}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{pet.breed}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{pet.age} years</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{pet.owner?.name || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{pet.owner?.name || 'No owner'}</TableCell>
                           <TableCell>
                             <Badge className={getHealthStatusColor(pet.healthStatus)}>
                               {getHealthStatusIcon(pet.healthStatus)}
@@ -1877,7 +1877,7 @@ function VetClinicDashboard() {
                         <TableRow key={record._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                           <TableCell className="font-medium text-gray-900 dark:text-white">{record.name}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{record.species}</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{record.owner?.name || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{record.owner?.name || 'No owner info'}</TableCell>
                           <TableCell>
                             {record.visitHistory.length > 0 
                               ? new Date(record.visitHistory[record.visitHistory.length - 1].date).toLocaleDateString()
@@ -1931,8 +1931,8 @@ function VetClinicDashboard() {
                             {new Date(appointment.startTime).toLocaleDateString()} <br />
                             {new Date(appointment.startTime).toLocaleTimeString()}
                           </TableCell>
-                          <TableCell className="font-medium text-gray-900 dark:text-white">{appointment.pet?.name || 'N/A'}</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{appointment.user?.name || 'N/A'}</TableCell>
+                          <TableCell className="font-medium text-gray-900 dark:text-white">{appointment.pet?.name || 'Unknown Pet'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{appointment.user?.name || 'Unknown Owner'}</TableCell>
                           <TableCell><span className="text-gray-900 dark:text-white">{appointment.notes || 'No reason provided'}</span></TableCell>
                           <TableCell>
                             <Badge className={
@@ -2004,7 +2004,6 @@ function VetClinicDashboard() {
                         <TableHead>Date & Time</TableHead>
                         <TableHead>Pet</TableHead>
                         <TableHead>Owner</TableHead>
-                        <TableHead>Doctor</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -2016,9 +2015,8 @@ function VetClinicDashboard() {
                             {new Date(consultation.startTime).toLocaleDateString()} <br />
                             {new Date(consultation.startTime).toLocaleTimeString()}
                           </TableCell>
-                          <TableCell className="font-medium text-gray-900 dark:text-white">{consultation.pet?.name || 'N/A'}</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{consultation.user?.name || 'N/A'}</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{consultation.doctor?.name || 'N/A'}</TableCell>
+                          <TableCell className="font-medium text-gray-900 dark:text-white">{consultation.pet?.name || 'Unknown Pet'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{consultation.user?.name || 'Unknown Owner'}</TableCell>
                           <TableCell>
                             <Badge className={
                               consultation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -2115,7 +2113,7 @@ function VetClinicDashboard() {
                               <p className="font-medium text-gray-900 dark:text-white">{treatment.pet.name}</p>
                               <p className="text-sm text-gray-500">{treatment.pet.breed} • {treatment.pet.age} years</p>
                               <p className="text-sm text-gray-500">
-                                Owner: {treatment.pet.owner ? treatment.pet.owner.name : 'N/A'}
+                                Owner: {treatment.pet.owner ? treatment.pet.owner.name : 'No owner info'}
                               </p>
                             </div>
                           </TableCell>
@@ -2228,9 +2226,9 @@ function VetClinicDashboard() {
                           <TableCell>
                             {new Date(prescription.createdAt).toLocaleDateString()}
                           </TableCell>
-                          <TableCell className="font-medium text-gray-900 dark:text-white">{prescription.pet?.name || 'N/A'}</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{prescription.user?.name || 'N/A'}</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{prescription.medicine?.item || 'N/A'}</TableCell>
+                          <TableCell className="font-medium text-gray-900 dark:text-white">{prescription.pet?.name || 'Unknown Pet'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{prescription.user?.name || 'Unknown Owner'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{prescription.medicine?.item || 'Not specified'}</TableCell>
                           <TableCell className="max-w-xs truncate text-gray-900 dark:text-white">
                             {prescription.description}
                           </TableCell>
@@ -2419,8 +2417,11 @@ function VetClinicDashboard() {
                                   className={`p-2 rounded cursor-pointer mb-2 ${selectedPetOwner && selectedPetOwner._id === owner._id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
                                   onClick={() => handleSelectPetOwner(owner)}
                                 >
-                                  <div className="font-medium">{owner.fullName || owner.username}</div>
-                                  <div className="text-xs text-muted-foreground">{owner.email}</div>
+                                  <div className="font-medium">{owner.fullName || owner.username || "Pet Owner"}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {owner.email} 
+                                    {owner.contactNumber && ` • ${owner.contactNumber}`}
+                                  </div>
                                 </li>
                               ))}
                             </ul>
@@ -2435,8 +2436,11 @@ function VetClinicDashboard() {
                     {selectedPetOwner ? (
                       <>
                         <div className="border-b p-4 bg-background flex items-center">
-                          <div className="font-bold text-lg">{selectedPetOwner.fullName || selectedPetOwner.username}</div>
-                          <div className="ml-2 text-xs text-muted-foreground">{selectedPetOwner.email}</div>
+                          <div className="font-bold text-lg">{selectedPetOwner.fullName || selectedPetOwner.username || "Pet Owner"}</div>
+                          <div className="ml-2 text-xs text-muted-foreground">
+                            {selectedPetOwner.email}
+                            {selectedPetOwner.contactNumber && ` • ${selectedPetOwner.contactNumber}`}
+                          </div>
                         </div>
                         <div className="flex-1 p-4 overflow-y-auto bg-background">
                           {isLoadingChat ? (
@@ -2618,8 +2622,8 @@ function VetClinicDashboard() {
                 <div className="space-y-2">
                   <div><strong>Date:</strong> {new Date(selectedAppointment.startTime).toLocaleDateString()}</div>
                   <div><strong>Time:</strong> {new Date(selectedAppointment.startTime).toLocaleTimeString()}</div>
-                  <div><strong>Pet:</strong> {selectedAppointment.pet?.name || 'N/A'}</div>
-                  <div><strong>Owner:</strong> {selectedAppointment.user?.name || 'N/A'}</div>
+                  <div><strong>Pet:</strong> {selectedAppointment.pet?.name || 'Unknown Pet'}</div>
+                  <div><strong>Owner:</strong> {selectedAppointment.user?.name || 'Unknown Owner'}</div>
                   <div><strong>Reason:</strong> {selectedAppointment.notes || 'No reason provided'}</div>
                   <div><strong>Status:</strong> {selectedAppointment.status}</div>
                 </div>

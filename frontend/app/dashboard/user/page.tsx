@@ -888,7 +888,11 @@ export default function UserDashboard() {
               <Button variant="outline" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
                 {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </Button>
-              <Button variant="outline" size="icon" onClick={() => setInboxTab(true)}>
+              <Button 
+                variant={inboxTab ? "default" : "outline"} 
+                size="icon" 
+                onClick={() => setInboxTab(!inboxTab)}
+              >
                 <MessageSquare className="h-5 w-5" />
               </Button>
               <Button variant="outline" size="icon" onClick={() => setSettingsOpen(true)}>
@@ -900,559 +904,567 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          {inboxTab ? (
-            <div className="flex h-[600px] border rounded-lg overflow-hidden">
-              {/* Clinics list */}
-              <div className="w-1/3 border-r bg-muted p-4 overflow-y-auto">
-                <h3 className="font-bold mb-4">Conversations</h3>
-                {conversations.length > 0 && (
-                  <div className="mb-6">
-                    <ul>
-                      {conversations.map((conv) => (
-                        <li
-                          key={conv._id}
-                          className={`p-2 rounded cursor-pointer mb-2 ${currentConversation && currentConversation._id === conv._id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
-                          onClick={() => {
-                            setCurrentConversation(conv);
-                            setSelectedClinic(conv.participant);
-                          }}
-                        >
-                          <div className="flex justify-between">
-                            <div className="font-medium">{conv.participant?.clinicName || conv.participant?.fullName}</div>
-                            {conv.unreadCount > 0 && (
-                              <Badge variant="destructive" className="ml-2">{conv.unreadCount}</Badge>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate">{conv.lastMessageText || "No messages yet"}</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {conv.lastMessageDate ? new Date(conv.lastMessageDate).toLocaleString() : ""}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                <h3 className="font-bold mb-4">All Clinics</h3>
-                <ul>
-                  {clinics.length === 0 && <li className="text-muted-foreground">No clinics found.</li>}
-                  {clinics.map((clinic) => (
-                    <li
-                      key={clinic._id}
-                      className={`p-2 rounded cursor-pointer mb-2 ${selectedClinic && selectedClinic._id === clinic._id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
-                      onClick={() => handleSelectClinic(clinic)}
-                    >
-                      <div className="font-medium">{clinic.clinicName || clinic.fullName}</div>
-                      <div className="text-xs text-muted-foreground">{clinic.email}</div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {/* Chat window */}
-              <div className="flex-1 flex flex-col">
-                {selectedClinic ? (
+          <Tabs defaultValue="overview" className="w-full">
+            <div className="mb-4 w-full overflow-x-auto">
+              <TabsList className="flex flex-wrap gap-1 w-full">
+                {!inboxTab ? (
                   <>
-                    <div className="border-b p-4 bg-background flex items-center">
-                      <div className="font-bold text-lg">{selectedClinic.clinicName || selectedClinic.fullName}</div>
-                      <div className="ml-2 text-xs text-muted-foreground">{selectedClinic.email}</div>
-                    </div>
-                    <div className="flex-1 p-4 overflow-y-auto bg-background">
-                      {isLoading ? (
-                        <div className="flex justify-center items-center h-full">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                        </div>
-                      ) : (
-                        <>
-                          {messages.length === 0 && (
-                            <div className="text-center text-muted-foreground mt-10">No messages yet. Start the conversation!</div>
-                          )}
-                          {messages.map((msg) => (
-                            <div key={msg._id} className={`mb-2 flex ${msg.sender && user && msg.sender._id === user._id ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`rounded-lg px-3 py-2 max-w-xs ${msg.sender && user && msg.sender._id === user._id ? 'bg-primary text-primary-foreground' : 'bg-accent'}`}>
-                                <div className="text-sm">{msg.text}</div>
-                                <div className="text-xs text-muted-foreground text-right mt-1">
-                                  {new Date(msg.createdAt).toLocaleTimeString()}
-                                  {msg.sender && user && msg.sender._id === user._id && (
-                                    <span className="ml-1">{msg.read ? '✓✓' : '✓'}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          {typingStatus && (
-                            <div className="text-xs text-muted-foreground italic mt-2">{typingStatus}</div>
-                          )}
-                          <div ref={chatEndRef} />
-                        </>
-                      )}
-                    </div>
-                    <div className="p-4 border-t bg-background flex gap-2">
-                      <input
-                        className="flex-1 border rounded px-3 py-2"
-                        type="text"
-                        placeholder="Type a message..."
-                        value={messageInput}
-                        onChange={handleInputChange}
-                        onKeyDown={e => { if (e.key === 'Enter') handleSendMessage(); }}
-                      />
-                      <Button onClick={handleSendMessage} disabled={!messageInput.trim() || isLoading}>Send</Button>
-                    </div>
+                    <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
+                    <TabsTrigger value="pets" className="flex-shrink-0">My Pets</TabsTrigger>
+                    <TabsTrigger value="appointments" className="flex-shrink-0">Appointments</TabsTrigger>
+                    <TabsTrigger value="hospitalizations" className="flex-shrink-0">Hospitalizations</TabsTrigger>
+                    <TabsTrigger value="prescriptions" className="flex-shrink-0">Prescriptions</TabsTrigger>
+                    <TabsTrigger value="medical-records" className="flex-shrink-0">Medical Records</TabsTrigger>
                   </>
                 ) : (
-                  <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                    Select a clinic to start a conversation.
-                  </div>
+                  <TabsTrigger value="inbox" className="flex-shrink-0">Inbox</TabsTrigger>
                 )}
-              </div>
-            </div>
-          ) : (
-            <Tabs defaultValue="overview" className="w-full">
-              <div className="mb-4 w-full overflow-x-auto">
-                <TabsList className="flex flex-wrap gap-1 w-full">
-                  <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
-                  <TabsTrigger value="pets" className="flex-shrink-0">My Pets</TabsTrigger>
-                  <TabsTrigger value="appointments" className="flex-shrink-0">Appointments</TabsTrigger>
-                  <TabsTrigger value="hospitalizations" className="flex-shrink-0">Hospitalizations</TabsTrigger>
-                  <TabsTrigger value="prescriptions" className="flex-shrink-0">Prescriptions</TabsTrigger>
-                  <TabsTrigger value="medical-records" className="flex-shrink-0">Medical Records</TabsTrigger>
-                </TabsList>
-              </div>
-
-              <TabsContent value="overview" className="space-y-6">
-                <div className="grid md:grid-cols-3 gap-6">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">My Pets</CardTitle>
-                      <Image src="/peteat-logo.png" alt="PetEat Logo" width={16} height={16} />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.pets.length}</div>
-                      <p className="text-xs text-gray-600 dark:text-gray-300">Registered pets</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Upcoming Appointments</CardTitle>
-                      <Calendar className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white">{upcomingAppointments.length}</div>
-                      <p className="text-xs text-gray-600 dark:text-gray-300">
-                        {inPersonAppointments.filter(apt => apt.status === 'scheduled').length} in-person • {videoAppointments.filter(apt => apt.status === 'scheduled').length} video
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Active Prescriptions</CardTitle>
-                      <FileText className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.prescriptions.length}</div>
-                      <p className="text-xs text-gray-600 dark:text-gray-300">Current medications</p>
-                    </CardContent>
-                  </Card>
+                <div className="ml-auto">
+                  {inboxTab && (
+                    <Button variant="outline" size="sm" onClick={() => setInboxTab(false)}>
+                      Return to Dashboard
+                    </Button>
+                  )}
                 </div>
+              </TabsList>
+            </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-gray-900 dark:text-white">Recent Appointments & Consultations</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {dashboardData.appointments.slice(0, 3).map((appointment) => (
-                          <div key={appointment._id} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div>
-                              <p className="font-medium">
-                                {appointment.type === 'consultation' ? 'Video Consultation' : 'Appointment'}
-                                {appointment.doctor ? ` with ${appointment.doctor.name}` : ''}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {new Date(appointment.startTime).toLocaleDateString()} at{" "}
-                                {new Date(appointment.startTime).toLocaleTimeString()}
-                              </p>
+            {inboxTab && (
+              <TabsContent value="inbox" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[70vh]">
+                  {/* Sidebar with clinics */}
+                  <div className="border rounded-lg p-4 h-full flex flex-col">
+                    <h3 className="text-lg font-medium mb-4">Vet Clinics</h3>
+                    <div className="flex-1 overflow-y-auto">
+                      {clinics.length === 0 ? (
+                        <p className="text-muted-foreground">No clinics available.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {clinics.map(clinic => (
+                            <li 
+                              key={clinic._id} 
+                              className={`p-2 rounded cursor-pointer ${
+                                selectedClinic && selectedClinic._id === clinic._id 
+                                ? 'bg-primary text-primary-foreground' 
+                                : 'hover:bg-accent'
+                              }`}
+                              onClick={() => handleSelectClinic(clinic)}
+                            >
+                              <div className="font-medium">{clinic.clinicName || clinic.name}</div>
+                              <div className="text-xs text-muted-foreground">{clinic.address || clinic.email}</div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Chat window */}
+                  <div className="border rounded-lg md:col-span-2 h-full flex flex-col">
+                    {selectedClinic ? (
+                      <>
+                        <div className="border-b p-4 bg-background">
+                          <div className="font-bold text-lg">{selectedClinic.clinicName || selectedClinic.name}</div>
+                          <div className="text-xs text-muted-foreground">{selectedClinic.address || selectedClinic.email}</div>
+                        </div>
+                        <div className="flex-1 p-4 overflow-y-auto" ref={chatEndRef}>
+                          {messages.length === 0 ? (
+                            <div className="text-center text-muted-foreground h-full flex flex-col justify-center">
+                              <p>No messages yet</p>
+                              <p className="text-sm">Send a message to start the conversation</p>
                             </div>
-                            <div className="flex flex-col items-end gap-2">
-                              <Badge className={
-                                appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                                appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                              }>
-                                {getStatusLabel(appointment.status)}
-                              </Badge>
-                              {appointment.type === 'consultation' && (
-                                <Badge variant="outline" className="border-blue-200 text-blue-800">
-                                  Video
-                                </Badge>
+                          ) : (
+                            <div className="space-y-4">
+                              {messages.map((message) => {
+                                const isOwnMessage = message.sender && message.sender._id === user._id;
+                                
+                                return (
+                                  <div 
+                                    key={message._id} 
+                                    className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                                  >
+                                    <div 
+                                      className={`max-w-[70%] p-3 rounded-lg ${
+                                        isOwnMessage
+                                        ? 'bg-primary text-primary-foreground rounded-br-none' 
+                                        : 'bg-accent text-accent-foreground rounded-bl-none'
+                                      }`}
+                                    >
+                                      <div className="text-sm">{message.text}</div>
+                                      <div className="text-xs opacity-70 text-right mt-1">
+                                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {isOwnMessage && (
+                                          <span className="ml-1">{message.read ? '✓✓' : '✓'}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {typingStatus && (
+                                <div className="text-xs text-muted-foreground italic">
+                                  {typingStatus}
+                                </div>
                               )}
                             </div>
+                          )}
+                        </div>
+                        <div className="border-t p-3 flex">
+                          <input
+                            className="flex-1 border rounded px-3 py-2"
+                            type="text"
+                            placeholder="Type a message..."
+                            value={messageInput}
+                            onChange={handleInputChange}
+                            onKeyDown={e => { if (e.key === 'Enter') handleSendMessage(); }}
+                          />
+                          <Button onClick={handleSendMessage} disabled={!messageInput.trim() || isLoading}>Send</Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                        Select a clinic to start a conversation.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+            )}
+            
+            <TabsContent value="overview" className="space-y-6">
+              <div className="grid md:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">My Pets</CardTitle>
+                    <Image src="/peteat-logo.png" alt="PetEat Logo" width={16} height={16} />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.pets.length}</div>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">Registered pets</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Upcoming Appointments</CardTitle>
+                    <Calendar className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{upcomingAppointments.length}</div>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">
+                      {inPersonAppointments.filter(apt => apt.status === 'scheduled').length} in-person • {videoAppointments.filter(apt => apt.status === 'scheduled').length} video
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Active Prescriptions</CardTitle>
+                    <FileText className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.prescriptions.length}</div>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">Current medications</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-gray-900 dark:text-white">Recent Appointments & Consultations</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {dashboardData.appointments.slice(0, 3).map((appointment) => (
+                        <div key={appointment._id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium">
+                              {appointment.type === 'consultation' ? 'Video Consultation' : 'Appointment'}
+                              {appointment.doctor ? ` with ${appointment.doctor.name}` : ''}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {new Date(appointment.startTime).toLocaleDateString()} at{" "}
+                              {new Date(appointment.startTime).toLocaleTimeString()}
+                            </p>
                           </div>
-                        ))}
-                        {dashboardData.appointments.length === 0 && (
-                          <p className="text-gray-500 text-center py-4">No appointments scheduled</p>
-                        )}
+                          <div className="flex flex-col items-end gap-2">
+                            <Badge className={
+                              appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                              appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }>
+                              {getStatusLabel(appointment.status)}
+                            </Badge>
+                            {appointment.type === 'consultation' && (
+                              <Badge variant="outline" className="border-blue-200 text-blue-800">
+                                Video
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {dashboardData.appointments.length === 0 && (
+                        <p className="text-gray-500 text-center py-4">No appointments scheduled</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Quick Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Link href="/dashboard/user/schedule-appointment">
+                      <Button className="w-full justify-start">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Schedule Appointment
+                      </Button>
+                    </Link>
+                    <Link href="/dashboard/user/add-pet">
+                      <Button variant="outline" className="w-full justify-start">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Pet
+                      </Button>
+                    </Link>
+                    {videoAppointments.length > 0 && (
+                      <Link href={`/dashboard/user/video-consultation?appointment=${videoAppointments[0]._id}`}>
+                        <Button variant="outline" className="w-full justify-start">
+                          <Video className="h-4 w-4 mr-2" />
+                          Start Video Consultation
+                        </Button>
+                      </Link>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="pets" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">My Pets</h2>
+                <Link href="/dashboard/user/add-pet">
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" /> Add Pet
+                  </Button>
+                </Link>
+              </div>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {dashboardData.pets.map((pet) => (
+                  <Card key={pet._id}>
+                    <CardContent className="p-6">
+                      <div className="flex flex-col items-center text-center space-y-4">
+                        <div className="relative w-24 h-24 rounded-full overflow-hidden">
+                          {pet.profilePicture ? (
+                            <Image
+                              src={pet.profilePicture}
+                              alt={pet.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <Image
+                              src="/placeholder.jpg"
+                              alt={pet.name}
+                              fill
+                              className="object-cover"
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-semibold">{pet.name}</h3>
+                          <p className="text-gray-500">{pet.breed}</p>
+                          <p className="text-sm text-gray-500">Age: {pet.age} years</p>
+                          <p className="text-sm text-gray-500">Weight: {pet.weight} kg</p>
+                        </div>
+                        <div className="flex gap-2 w-full">
+                          <Button 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={() => handleViewEMR(pet._id)}
+                          >
+                            <FileText className="mr-2 h-4 w-4" /> Medical Records
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            size="icon" 
+                            onClick={() => {
+                              setDeletePetId(pet._id);
+                              setShowDeleteConfirmation(true);
+                            }}
+                            disabled={deleting}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
+                ))}
+                {dashboardData.pets.length === 0 && (
+                  <div className="col-span-3 text-center py-8">
+                    <p className="text-gray-500">You don't have any pets yet.</p>
+                    <p className="text-gray-500">Click "Add Pet" to register your first pet.</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Quick Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <Link href="/dashboard/user/schedule-appointment">
-                        <Button className="w-full justify-start">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Schedule Appointment
-                        </Button>
-                      </Link>
-                      <Link href="/dashboard/user/add-pet">
-                        <Button variant="outline" className="w-full justify-start">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add New Pet
-                        </Button>
-                      </Link>
-                      {videoAppointments.length > 0 && (
-                        <Link href={`/dashboard/user/video-consultation?appointment=${videoAppointments[0]._id}`}>
-                          <Button variant="outline" className="w-full justify-start">
-                            <Video className="h-4 w-4 mr-2" />
-                            Start Video Consultation
-                          </Button>
-                        </Link>
-                      )}
+            <TabsContent value="appointments" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Appointments</h2>
+                <Link href="/dashboard/user/schedule-appointment">
+                  <Button>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Schedule New
+                  </Button>
+                </Link>
+              </div>
+              <div className="space-y-4">
+                {inPersonAppointments.map((appointment) => (
+                  <Card key={appointment._id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">Appointment{appointment.doctor ? ` with ${appointment.doctor.name}` : ''}</h3>
+                            <Badge className={
+                              appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                              appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }>
+                              {getStatusLabel(appointment.status)}
+                            </Badge>
+                          </div>
+                          <p className="text-gray-600">{appointment.doctor ? appointment.doctor.email : null}</p>
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {new Date(appointment.startTime).toLocaleDateString()}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {new Date(appointment.startTime).toLocaleTimeString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
-                </div>
-              </TabsContent>
+                ))}
+                {inPersonAppointments.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">No in-person appointments scheduled</p>
+                    <Link href="/dashboard/user/schedule-appointment">
+                      <Button>
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Schedule Your First Appointment
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
 
-              <TabsContent value="pets" className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">My Pets</h2>
-                  <Link href="/dashboard/user/add-pet">
-                    <Button>
-                      <Plus className="mr-2 h-4 w-4" /> Add Pet
-                    </Button>
-                  </Link>
-                </div>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {dashboardData.pets.map((pet) => (
-                    <Card key={pet._id}>
-                      <CardContent className="p-6">
-                        <div className="flex flex-col items-center text-center space-y-4">
-                          <div className="relative w-24 h-24 rounded-full overflow-hidden">
-                            {pet.profilePicture ? (
-                              <Image
-                                src={pet.profilePicture}
-                                alt={pet.name}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <Image
-                                src="/placeholder.jpg"
-                                alt={pet.name}
-                                fill
-                                className="object-cover"
-                              />
-                            )}
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-semibold">{pet.name}</h3>
-                            <p className="text-gray-500">{pet.breed}</p>
-                            <p className="text-sm text-gray-500">Age: {pet.age} years</p>
-                            <p className="text-sm text-gray-500">Weight: {pet.weight} kg</p>
-                          </div>
-                          <div className="flex gap-2 w-full">
-                            <Button 
-                              variant="outline" 
-                              className="flex-1"
-                              onClick={() => handleViewEMR(pet._id)}
-                            >
-                              <FileText className="mr-2 h-4 w-4" /> Medical Records
-                            </Button>
-                            <Button 
-                              variant="destructive" 
-                              size="icon" 
-                              onClick={() => {
-                                setDeletePetId(pet._id);
-                                setShowDeleteConfirmation(true);
-                              }}
-                              disabled={deleting}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {dashboardData.pets.length === 0 && (
-                    <div className="col-span-3 text-center py-8">
-                      <p className="text-gray-500">You don't have any pets yet.</p>
-                      <p className="text-gray-500">Click "Add Pet" to register your first pet.</p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="appointments" className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">Appointments</h2>
-                  <Link href="/dashboard/user/schedule-appointment">
-                    <Button>
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Schedule New
-                    </Button>
-                  </Link>
-                </div>
-                <div className="space-y-4">
-                  {inPersonAppointments.map((appointment) => (
-                    <Card key={appointment._id}>
-                      <CardContent className="p-6">
+            <TabsContent value="hospitalizations" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Hospitalizations</h2>
+              </div>
+              <div className="space-y-4">
+                {dashboardData.petsUnderTreatment.map((treatment) => (
+                  <Card key={treatment._id}>
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <div className="space-y-2">
+                          <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">Appointment{appointment.doctor ? ` with ${appointment.doctor.name}` : ''}</h3>
+                              <h3 className="font-semibold">{treatment.pet.name}</h3>
                               <Badge className={
-                                appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                                appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                treatment.status === 'Critical' ? 'bg-red-100 text-red-800' :
+                                treatment.status === 'Stable' ? 'bg-blue-100 text-blue-800' :
+                                treatment.status === 'Improving' ? 'bg-green-100 text-green-800' :
+                                treatment.status === 'Recovered' ? 'bg-emerald-100 text-emerald-800' :
                                 'bg-gray-100 text-gray-800'
                               }>
-                                {getStatusLabel(appointment.status)}
+                                {treatment.status}
                               </Badge>
                             </div>
-                            <p className="text-gray-600">{appointment.doctor ? appointment.doctor.email : null}</p>
-                            <div className="flex items-center gap-4 text-sm text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-4 w-4" />
-                                {new Date(appointment.startTime).toLocaleDateString()}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-4 w-4" />
-                                {new Date(appointment.startTime).toLocaleTimeString()}
-                              </span>
-                            </div>
+                            <p className="text-sm text-gray-600">{treatment.pet.breed} • {treatment.pet.age} years</p>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {inPersonAppointments.length === 0 && (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500 mb-4">No in-person appointments scheduled</p>
-                      <Link href="/dashboard/user/schedule-appointment">
-                        <Button>
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Schedule Your First Appointment
-                        </Button>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="hospitalizations" className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">Hospitalizations</h2>
-                </div>
-                <div className="space-y-4">
-                  {dashboardData.petsUnderTreatment.map((treatment) => (
-                    <Card key={treatment._id}>
-                      <CardContent className="p-6">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold">{treatment.pet.name}</h3>
-                                <Badge className={
-                                  treatment.status === 'Critical' ? 'bg-red-100 text-red-800' :
-                                  treatment.status === 'Stable' ? 'bg-blue-100 text-blue-800' :
-                                  treatment.status === 'Improving' ? 'bg-green-100 text-green-800' :
-                                  treatment.status === 'Recovered' ? 'bg-emerald-100 text-emerald-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }>
-                                  {treatment.status}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-gray-600">{treatment.pet.breed} • {treatment.pet.age} years</p>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <p className="text-sm text-gray-500">Clinic</p>
-                                <p className="font-medium">{treatment.clinic.name}</p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-500">Room</p>
-                                <p className="font-medium">{treatment.room}</p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-500">Admitted</p>
-                                <p className="font-medium">{new Date(treatment.admissionDate).toLocaleDateString()}</p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-500">Last Updated</p>
-                                <p className="font-medium">{new Date(treatment.lastUpdated).toLocaleDateString()} {new Date(treatment.lastUpdated).toLocaleTimeString()}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="pt-2">
-                              <p className="text-sm text-gray-500">Diagnosis</p>
-                              <p className="text-sm">{treatment.diagnosis || 'No diagnosis recorded'}</p>
-                            </div>
-                            
-                            <div className="pt-2">
-                              <p className="text-sm text-gray-500">Clinic Notes</p>
-                              <p className="text-sm">{treatment.clinicalNotes || 'No notes recorded'}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex justify-end space-x-2">
-                            <Button variant="outline" size="sm">
-                              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                              Message Clinic
-                            </Button>
-                            <Button size="sm" onClick={() => { setSelectedTreatment(treatment); setIsTreatmentDialogOpen(true); }}>
-                               <FileText className="h-3.5 w-3.5 mr-1.5" />
-                               View Details
-                             </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {dashboardData.petsUnderTreatment.length === 0 && (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500 mb-4">None of your pets are currently under treatment</p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="prescriptions" className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">Prescriptions</h2>
-                </div>
-                <div className="space-y-4">
-                  {dashboardData.prescriptions.map((prescription) => (
-                    <Card key={prescription._id}>
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-2">
-                            <h3 className="font-semibold">Pet: {prescription.pet?.name || 'N/A'}</h3>
-                            <p className="text-gray-600">Medicine: {prescription.medicine.item}</p>
-                            <p className="text-sm text-gray-500">Date: {new Date(prescription.createdAt).toLocaleDateString()}</p>
-                          </div>
-                          
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {dashboardData.prescriptions.length === 0 && (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No prescriptions found</p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="medical-records" className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">Medical Records</h2>
-                </div>
-                <div className="space-y-4">
-                  {emrsLoading ? (
-                    <p>Loading medical records...</p>
-                  ) : emrsError ? (
-                    <p className="text-red-500">{emrsError}</p>
-                  ) : emrs.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No medical records found</p>
-                    </div>
-                  ) : (
-                    emrs.map((emr) => (
-                      <Card key={emr._id}>
-                        <CardHeader>
-                          <div className="flex justify-between items-center">
-                            <CardTitle className="text-lg">
-                              {emr.petId?.name || emr.name || "Unknown Pet"} - {emr.currentVisit?.date ? new Date(emr.currentVisit.date).toLocaleDateString() : new Date(emr.createdAt).toLocaleDateString()}
-                            </CardTitle>
-                            <div className="flex items-center gap-2">
-                              {emr.recordType === 'petMedicalRecord' && (
-                                <Badge variant="outline">Vet Clinic Record</Badge>
-                              )}
-                              <Badge
-                                variant={
-                                  emr.currentVisit?.status === "active"
-                                    ? "default"
-                                    : emr.currentVisit?.status === "ongoing"
-                                    ? "secondary"
-                                    : "destructive"
-                                }
-                              >
-                                {emr.currentVisit?.status || "N/A"}
-                              </Badge>
-                            </div>
-                          </div>
-                          <CardDescription>
-                            {emr.breed || "N/A"} • {emr.species || "N/A"} • {emr.age || "N/A"} years old
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-2 gap-4 mb-4">
+                        
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <p className="text-sm text-gray-600 mb-2">
-                                <strong>Created:</strong> {new Date(emr.createdAt).toLocaleString()}
-                              </p>
-                              <p className="text-sm text-gray-600 mb-2">
-                                <strong>Doctor/Vet:</strong> {emr.doctor?.name || "N/A"}
-                              </p>
+                              <p className="text-sm text-gray-500">Clinic</p>
+                              <p className="font-medium">{treatment.clinic.name}</p>
                             </div>
                             <div>
-                              {emr.currentVisit?.diagnosis && (
-                                <p className="text-sm text-gray-600 mb-2">
-                                  <strong>Diagnosis:</strong> {emr.currentVisit.diagnosis}
-                                </p>
-                              )}
-                              {emr.currentVisit?.treatment && (
-                                <p className="text-sm text-gray-600 mb-2">
-                                  <strong>Treatment:</strong> {emr.currentVisit.treatment}
-                                </p>
-                              )}
-                              {emr.currentVisit?.notes && (
-                                <p className="text-sm text-gray-600 mb-2">
-                                  <strong>Notes:</strong> {emr.currentVisit.notes}
-                                </p>
-                              )}
+                              <p className="text-sm text-gray-500">Room</p>
+                              <p className="font-medium">{treatment.room}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Admitted</p>
+                              <p className="font-medium">{new Date(treatment.admissionDate).toLocaleDateString()}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Last Updated</p>
+                              <p className="font-medium">{new Date(treatment.lastUpdated).toLocaleDateString()} {new Date(treatment.lastUpdated).toLocaleTimeString()}</p>
                             </div>
                           </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedEMR(emr);
-                                setIsEMRViewerOpen(true);
-                              }}
+                          
+                          <div className="pt-2">
+                            <p className="text-sm text-gray-500">Diagnosis</p>
+                            <p className="text-sm">{treatment.diagnosis || 'No diagnosis recorded'}</p>
+                          </div>
+                          
+                          <div className="pt-2">
+                            <p className="text-sm text-gray-500">Clinic Notes</p>
+                            <p className="text-sm">{treatment.clinicalNotes || 'No notes recorded'}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-end space-x-2">
+                          <Button variant="outline" size="sm">
+                            <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                            Message Clinic
+                          </Button>
+                          <Button size="sm" onClick={() => { setSelectedTreatment(treatment); setIsTreatmentDialogOpen(true); }}>
+                             <FileText className="h-3.5 w-3.5 mr-1.5" />
+                             View Details
+                           </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {dashboardData.petsUnderTreatment.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">None of your pets are currently under treatment</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="prescriptions" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Prescriptions</h2>
+              </div>
+              <div className="space-y-4">
+                {dashboardData.prescriptions.map((prescription) => (
+                  <Card key={prescription._id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                          <h3 className="font-semibold">Pet: {prescription.pet?.name || 'Unknown Pet'}</h3>
+                          <p className="text-gray-600">Medicine: {prescription.medicine.item}</p>
+                          <p className="text-sm text-gray-500">Date: {new Date(prescription.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {dashboardData.prescriptions.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No prescriptions found</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="medical-records" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Medical Records</h2>
+              </div>
+              <div className="space-y-4">
+                {emrsLoading ? (
+                  <p>Loading medical records...</p>
+                ) : emrsError ? (
+                  <p className="text-red-500">{emrsError}</p>
+                ) : emrs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No medical records found</p>
+                  </div>
+                ) : (
+                  emrs.map((emr) => (
+                    <Card key={emr._id}>
+                      <CardHeader>
+                        <div className="flex justify-between items-center">
+                          <CardTitle className="text-lg">
+                            {emr.petId?.name || emr.name || "Unknown Pet"} - {emr.currentVisit?.date ? new Date(emr.currentVisit.date).toLocaleDateString() : new Date(emr.createdAt).toLocaleDateString()}
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            {emr.recordType === 'petMedicalRecord' && (
+                              <Badge variant="outline">Vet Clinic Record</Badge>
+                            )}
+                            <Badge
+                              variant={
+                                emr.currentVisit?.status === "active"
+                                  ? "default"
+                                  : emr.currentVisit?.status === "ongoing"
+                                  ? "secondary"
+                                  : "destructive"
+                              }
                             >
-                              View Full Details
-                            </Button>
+                              {emr.currentVisit?.status || "Not Specified"}
+                            </Badge>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-          )}
+                        </div>
+                        <CardDescription>
+                          {emr.breed || "Unknown"} • {emr.species || "Unknown"} • {emr.age || "0"} years old
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">
+                              <strong>Created:</strong> {new Date(emr.createdAt).toLocaleString()}
+                            </p>
+                            <p className="text-sm text-gray-600 mb-2">
+                              <strong>Doctor/Vet:</strong> {emr.doctor?.name || "Not Assigned"}
+                            </p>
+                          </div>
+                          <div>
+                            {emr.currentVisit?.diagnosis && (
+                              <p className="text-sm text-gray-600 mb-2">
+                                <strong>Diagnosis:</strong> {emr.currentVisit.diagnosis}
+                              </p>
+                            )}
+                            {emr.currentVisit?.treatment && (
+                              <p className="text-sm text-gray-600 mb-2">
+                                <strong>Treatment:</strong> {emr.currentVisit.treatment}
+                              </p>
+                            )}
+                            {emr.currentVisit?.notes && (
+                              <p className="text-sm text-gray-600 mb-2">
+                                <strong>Notes:</strong> {emr.currentVisit.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedEMR(emr);
+                              setIsEMRViewerOpen(true);
+                            }}
+                          >
+                            View Full Details
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </main>
       </div>
 
