@@ -718,103 +718,116 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Image src="/peteat-logo.png" alt="PetEat Logo" width={24} height={24} />
-            <span className="text-xl font-bold dark:text-white">PetEat</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 dark:text-gray-300" />
-              <span className="text-sm font-medium dark:text-gray-300">{user?.username}</span>
+      <header className="bg-white dark:bg-gray-800 shadow">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Image 
+                src="/peteat-logo.png" 
+                alt="Logo" 
+                width={50} 
+                height={50}
+                className="rounded" 
+              />
+              <span className="text-xl font-semibold text-gray-900 dark:text-white">PetEat</span>
             </div>
-
-            {/* Settings Dialog */}
-            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="icon" title="Settings" className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Settings</DialogTitle>
-                  <DialogDescription>
-                    Customize your account preferences.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-6 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="theme">Theme</Label>
-                    <RadioGroup
-                      defaultValue={theme}
-                      onValueChange={setTheme}
-                      className="grid grid-cols-3 gap-2"
-                    >
-                      <div className="flex items-center justify-center space-y-2 border rounded-md p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
-                        <div className="space-y-1 text-center">
-                          <Sun className="h-5 w-5 mx-auto" />
-                          <RadioGroupItem value="light" id="light" className="sr-only" />
-                          <Label htmlFor="light" className="block text-sm">Light</Label>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-center space-y-2 border rounded-md p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
-                        <div className="space-y-1 text-center">
-                          <Moon className="h-5 w-5 mx-auto" />
-                          <RadioGroupItem value="dark" id="dark" className="sr-only" />
-                          <Label htmlFor="dark" className="block text-sm">Dark</Label>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-center space-y-2 border rounded-md p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
-                        <div className="space-y-1 text-center">
-                          <Laptop className="h-5 w-5 mx-auto" />
-                          <RadioGroupItem value="system" id="system" className="sr-only" />
-                          <Label htmlFor="system" className="block text-sm">System</Label>
-                        </div>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="notifications">Notifications</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Receive notifications about appointments and updates.
-                      </p>
-                    </div>
-                    <Switch
-                      id="notifications"
-                      checked={notificationsEnabled}
-                      onCheckedChange={handleNotificationsChange}
-                    />
-                  </div>
-                  <div className="border-t pt-4">
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-medium text-destructive">Danger Zone</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Permanently delete your account and all associated data.
-                      </p>
-                      <Button
-                        variant="destructive"
-                        onClick={() => {
-                          setSettingsOpen(false);
-                          setTimeout(() => setShowDeleteConfirmation(true), 100);
-                        }}
-                        className="w-full"
+            
+            <div className="flex items-center space-x-2">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="mr-2"
+              >
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              
+              <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>User Settings</DialogTitle>
+                    <DialogDescription>
+                      Customize your experience and manage account preferences.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="mb-4 text-sm font-medium">Appearance</h3>
+                      <RadioGroup
+                        defaultValue={theme}
+                        onValueChange={setTheme}
+                        className="grid grid-cols-3 gap-2"
                       >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Account
-                      </Button>
+                        <div className="flex items-center justify-center space-y-2 border rounded-md p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
+                          <div className="space-y-1 text-center">
+                            <Sun className="h-5 w-5 mx-auto" />
+                            <RadioGroupItem value="light" id="light" className="sr-only" />
+                            <Label htmlFor="light" className="block text-sm">Light</Label>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-center space-y-2 border rounded-md p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
+                          <div className="space-y-1 text-center">
+                            <Moon className="h-5 w-5 mx-auto" />
+                            <RadioGroupItem value="dark" id="dark" className="sr-only" />
+                            <Label htmlFor="dark" className="block text-sm">Dark</Label>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-center space-y-2 border rounded-md p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
+                          <div className="space-y-1 text-center">
+                            <Laptop className="h-5 w-5 mx-auto" />
+                            <RadioGroupItem value="system" id="system" className="sr-only" />
+                            <Label htmlFor="system" className="block text-sm">System</Label>
+                          </div>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="notifications">Notifications</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Receive notifications about appointments and updates.
+                        </p>
+                      </div>
+                      <Switch
+                        id="notifications"
+                        checked={notificationsEnabled}
+                        onCheckedChange={handleNotificationsChange}
+                      />
+                    </div>
+                    <div className="border-t pt-4">
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-medium text-destructive">Danger Zone</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Permanently delete your account and all associated data.
+                        </p>
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            setSettingsOpen(false);
+                            setTimeout(() => setShowDeleteConfirmation(true), 100);
+                          }}
+                          className="w-full"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Account
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
 
-            <Button variant="outline" size="sm" onClick={handleLogout} className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+              <Button variant="outline" size="sm" onClick={handleLogout} className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -883,23 +896,13 @@ export default function UserDashboard() {
 
         <main className="flex-1 p-4 md:p-6 overflow-auto">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold">Welcome, {user?.name || "User"}</h1>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              </Button>
               <Button 
                 variant={inboxTab ? "default" : "outline"} 
                 size="icon" 
                 onClick={() => setInboxTab(!inboxTab)}
               >
                 <MessageSquare className="h-5 w-5" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => setSettingsOpen(true)}>
-                <Settings className="h-5 w-5" />
-              </Button>
-              <Button variant="outline" onClick={handleLogout}>
-                <LogOut className="h-5 w-5 mr-2" /> Logout
               </Button>
             </div>
           </div>

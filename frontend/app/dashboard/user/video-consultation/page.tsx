@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Video, VideoOff, Mic, MicOff, Phone, PhoneOff, Settings, MessageSquare, ArrowLeft, Camera } from "lucide-react"
+import { Video, VideoOff, Mic, MicOff, PhoneOff, ArrowLeft, Camera } from "lucide-react"
 import Link from "next/link"
 
 interface Appointment {
@@ -17,6 +17,9 @@ interface Appointment {
     _id: string;
     name: string;
     email: string;
+    vetClinic?: {
+      name: string;
+    };
   };
   pet: {
     _id: string;
@@ -29,11 +32,10 @@ export default function VideoConsultation() {
   const [isAudioOn, setIsAudioOn] = useState(true)
   const [isCallActive, setIsCallActive] = useState(false)
   const [callDuration, setCallDuration] = useState(0)
-  const [messages, setMessages] = useState<string[]>([])
-  const [newMessage, setNewMessage] = useState("")
   const [appointment, setAppointment] = useState<Appointment | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string>("")
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const searchParams = useSearchParams()
@@ -41,41 +43,30 @@ export default function VideoConsultation() {
   const router = useRouter()
 
   useEffect(() => {
-    const fetchAppointmentData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        const token = localStorage.getItem("token")
-        if (!token || !appointmentId) {
-          setError('Missing authentication token or appointment ID')
-          router.push("/dashboard/user")
-          return
-        }
-
-        const response = await fetch(`http://localhost:8080/api/appointments/${appointmentId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+    // Mock data for testing instead of API calls
+    setTimeout(() => {
+      setUserName("John Smith")
+      setAppointment({
+        _id: appointmentId || "mock123",
+        startTime: new Date().toISOString(),
+        endTime: new Date(Date.now() + 3600000).toISOString(),
+        status: "scheduled",
+        doctor: {
+          _id: "doctor123",
+          name: "Dr. Williams",
+          email: "dr.williams@petcare.com",
+          vetClinic: {
+            name: "Happy Paws Veterinary Clinic"
           }
-        })
-        const result = await response.json()
-        
-        if (result.success) {
-          setAppointment(result.data)
-        } else {
-          setError(result.message || 'Failed to fetch appointment data')
+        },
+        pet: {
+          _id: "pet123",
+          name: "Max"
         }
-      } catch (error) {
-        setError('Failed to fetch appointment data. Please try again.')
-        console.error('Error fetching appointment data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchAppointmentData()
-  }, [appointmentId, router])
+      });
+      setLoading(false)
+    }, 1500); // Small delay to show loading state
+  }, [appointmentId]);
 
   useEffect(() => {
     // Start user's camera
@@ -145,17 +136,6 @@ export default function VideoConsultation() {
     }
   }
 
-  const sendMessage = () => {
-    if (newMessage.trim()) {
-      setMessages([...messages, `You: ${newMessage}`])
-      setNewMessage("")
-      // Simulate doctor response
-      setTimeout(() => {
-        setMessages((prev) => [...prev, `Dr. Smith: Thank you for that information.`])
-      }, 1000)
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -183,161 +163,141 @@ export default function VideoConsultation() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto px-4 py-4">
         <div className="mb-4">
-          <Link href="/dashboard/user" className="flex items-center gap-2 text-white hover:text-gray-300">
+          <Link href="/dashboard/user" className="flex items-center gap-2 text-gray-800 dark:text-white hover:text-gray-600 dark:hover:text-gray-300">
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Link>
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-6 h-[calc(100vh-120px)]">
-          {/* Main Video Area */}
-          <div className="lg:col-span-3 space-y-4">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-white">Video Consultation - {appointment.pet.name}</CardTitle>
-                    <p className="text-gray-400">with {appointment.doctor.name}</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {isCallActive && (
-                      <Badge variant="secondary" className="bg-green-600">
-                        {formatDuration(callDuration)}
-                      </Badge>
-                    )}
-                    <Badge variant={isCallActive ? "default" : "secondary"}>
-                      {isCallActive ? "Connected" : "Waiting"}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Video Grid */}
-                <div className="grid md:grid-cols-2 gap-4 h-96">
-                  {/* User Video */}
-                  <div className="relative bg-gray-700 rounded-lg overflow-hidden">
-                    {isVideoOn ? (
-                      <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Camera className="h-16 w-16 text-gray-500" />
-                      </div>
-                    )}
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                      You
-                    </div>
-                  </div>
+        <Card className="border border-gray-200 dark:border-gray-700 shadow-md">
+          <CardHeader className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg text-gray-900 dark:text-white">Video Consultation for {appointment.pet.name}</CardTitle>
+                <p className="text-sm text-gray-500 dark:text-gray-400">with {appointment.doctor.name}</p>
+              </div>
+              <div className="flex items-center gap-4">
+                {isCallActive && (
+                  <Badge variant="secondary" className="bg-green-600 text-white">
+                    {formatDuration(callDuration)}
+                  </Badge>
+                )}
+                <Badge variant={isCallActive ? "default" : "secondary"}>
+                  {isCallActive ? "Connected" : "Waiting"}
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 bg-gray-50 dark:bg-gray-900">
+            {/* Participant Information */}
+            <div className="mb-6 flex flex-wrap gap-4 justify-center">
+              <Badge variant="outline" className="px-4 py-2 text-base bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
+                Pet Owner: {userName || "You"}
+              </Badge>
+              <Badge variant="outline" className="px-4 py-2 text-base bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300">
+                Veterinarian: Dr. {appointment.doctor.name}
+              </Badge>
+              {appointment.doctor.vetClinic && (
+                <Badge variant="outline" className="px-4 py-2 text-base bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300">
+                  Clinic: {appointment.doctor.vetClinic.name}
+                </Badge>
+              )}
+            </div>
 
-                  {/* Doctor Video (Simulated) */}
-                  <div className="relative bg-gray-700 rounded-lg overflow-hidden">
-                    {isCallActive ? (
-                      <div className="w-full h-full flex items-center justify-center bg-blue-900">
-                        <div className="text-center text-white">
-                          <div className="w-20 h-20 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                            <span className="text-2xl font-bold">DS</span>
-                          </div>
-                          <p className="text-lg font-semibold">Dr. Smith</p>
-                          <p className="text-sm text-blue-200">Connected</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="text-center text-gray-400">
-                          <Video className="h-16 w-16 mx-auto mb-4" />
-                          <p>Waiting for doctor to join...</p>
-                        </div>
-                      </div>
-                    )}
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                      {appointment.doctor.name}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Controls */}
-                <div className="flex items-center justify-center gap-4">
-                  <Button
-                    variant={isAudioOn ? "default" : "destructive"}
-                    size="lg"
-                    onClick={toggleAudio}
-                    className="rounded-full w-12 h-12"
-                  >
-                    {isAudioOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-                  </Button>
-
-                  <Button
-                    variant={isVideoOn ? "default" : "destructive"}
-                    size="lg"
-                    onClick={toggleVideo}
-                    className="rounded-full w-12 h-12"
-                  >
-                    {isVideoOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
-                  </Button>
-
-                  {!isCallActive ? (
-                    <Button
-                      variant="default"
-                      size="lg"
-                      onClick={startCall}
-                      className="rounded-full w-12 h-12 bg-green-600 hover:bg-green-700"
-                    >
-                      <Phone className="h-5 w-5" />
-                    </Button>
-                  ) : (
-                    <Button variant="destructive" size="lg" onClick={endCall} className="rounded-full w-12 h-12">
-                      <PhoneOff className="h-5 w-5" />
-                    </Button>
-                  )}
-
-                  <Button variant="outline" size="lg" className="rounded-full w-12 h-12">
-                    <Settings className="h-5 w-5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Chat Sidebar */}
-          <div className="space-y-4">
-            <Card className="bg-gray-800 border-gray-700 h-full">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Chat
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col h-[calc(100%-80px)]">
-                <div className="flex-1 space-y-2 mb-4 overflow-y-auto">
-                  {messages.length === 0 ? (
-                    <p className="text-gray-400 text-sm">No messages yet...</p>
-                  ) : (
-                    messages.map((message, index) => (
-                      <div key={index} className="text-sm text-black bg-[#d8f3dc] p-2 rounded">
-                        {message}
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-                    placeholder="Type a message..."
-                    className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+            {/* Video Grid */}
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
+              {/* User Video */}
+              <div className="relative bg-black rounded-lg overflow-hidden aspect-video shadow-lg">
+                {isVideoOn ? (
+                  <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    muted 
+                    className="w-full h-full object-cover" 
                   />
-                  <Button onClick={sendMessage} size="sm">
-                    Send
-                  </Button>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                    <div className="text-center">
+                      <div className="w-20 h-20 bg-blue-600 rounded-full mx-auto mb-2 flex items-center justify-center">
+                        <span className="text-2xl font-bold text-white">{userName ? userName[0] : "Y"}</span>
+                      </div>
+                      <p className="text-white">Camera Off</p>
+                    </div>
+                  </div>
+                )}
+                <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
+                  Pet Owner: {userName || "You"}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              </div>
+
+              {/* Doctor Video (Simulated) */}
+              <div className="relative bg-black rounded-lg overflow-hidden aspect-video shadow-lg">
+                {isCallActive ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                    <div className="text-center text-white">
+                      <div className="w-20 h-20 bg-purple-600 rounded-full mx-auto mb-2 flex items-center justify-center">
+                        <span className="text-2xl font-bold">{appointment.doctor.name[0]}</span>
+                      </div>
+                      <p className="text-lg">{appointment.doctor.name}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                    <div className="text-center text-gray-400">
+                      <Camera className="h-16 w-16 mx-auto mb-2" />
+                      <p>Waiting for doctor to join...</p>
+                    </div>
+                  </div>
+                )}
+                <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
+                  Veterinarian: Dr. {appointment.doctor.name}
+                </div>
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button
+                variant={isAudioOn ? "default" : "destructive"}
+                size="lg"
+                className="rounded-full h-16 w-16 flex items-center justify-center"
+                onClick={toggleAudio}
+              >
+                {isAudioOn ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+              </Button>
+              <Button
+                variant={isVideoOn ? "default" : "destructive"}
+                size="lg"
+                className="rounded-full h-16 w-16 flex items-center justify-center"
+                onClick={toggleVideo}
+              >
+                {isVideoOn ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+              </Button>
+              {!isCallActive ? (
+                <Button
+                  variant="default"
+                  size="lg"
+                  className="bg-green-600 hover:bg-green-700 text-white rounded-full h-16 w-16 flex items-center justify-center"
+                  onClick={startCall}
+                >
+                  <Video className="h-6 w-6" />
+                </Button>
+              ) : (
+                <Button
+                  variant="destructive"
+                  size="lg"
+                  className="rounded-full h-16 w-16 flex items-center justify-center"
+                  onClick={endCall}
+                >
+                  <PhoneOff className="h-6 w-6" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
