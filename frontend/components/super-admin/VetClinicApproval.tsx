@@ -153,7 +153,7 @@ export default function VetClinicApproval() {
               <TableCell>{clinic.licenseNumber}</TableCell>
               <TableCell>
                 <a
-                  href={`http://localhost:8080/${clinic.businessPermit}`}
+                  href={clinic.businessPermit}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline"

@@ -41,7 +41,8 @@ export function InventoryDialog({ item, open, onOpenChange, onUpdate }: Inventor
     'Medication',
     'Supplies',
     'Equipment',
-    'Food'
+    'Food',
+    'Vaccine'
   ];
 
   useEffect(() => {

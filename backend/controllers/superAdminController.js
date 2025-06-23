@@ -645,11 +645,7 @@ exports.rejectVetClinic = async (req, res) => {
             });
         }
 
-        clinic.status = 'rejected';
-        clinic.rejectionReason = reason;
-        await clinic.save();
-
-        // Send rejection email
+        // Send rejection email before deleting
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -665,10 +661,12 @@ exports.rejectVetClinic = async (req, res) => {
             text: `We regret to inform you that your veterinary clinic account application has been rejected.\n\nReason: ${reason}\n\nIf you believe this is an error or would like to provide additional information, please contact our support team.\n\nBest regards,\nPetEat Team`
         });
 
+        // Delete the clinic user from the database
+        await User.findByIdAndDelete(id);
+
         res.json({
             success: true,
-            message: 'Vet clinic rejected successfully',
-            data: clinic
+            message: 'Vet clinic rejected and account deleted successfully',
         });
     } catch (error) {
         res.status(500).json({

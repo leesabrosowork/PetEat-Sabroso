@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 interface EMRData {
   petId: string;
@@ -12,6 +13,7 @@ interface EMRData {
     name: string;
     phone: string;
     email: string;
+    address?: string;
   };
   vaccinations: any[];
   medicalHistory: any[];
@@ -52,6 +54,36 @@ export default function VetEMRForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [vaccinesList, setVaccinesList] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Fetch inventory items for vaccines
+    const fetchInventory = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch("http://localhost:8080/api/vet-clinic/inventory", {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (!res.ok) throw new Error("Failed to fetch inventory");
+        const data = await res.json();
+        if (data.success) {
+          const inventoryItems = data.data || [];
+          setVaccinesList(
+            inventoryItems.filter((item: any) =>
+              item.category && item.category.toLowerCase().includes("vaccine")
+            ).map((item: any) => item.item)
+          );
+        }
+      } catch (err) {
+        setVaccinesList([]);
+      }
+    };
+    fetchInventory();
+  }, []);
 
   useEffect(() => {
   if (isAddEMR) {
@@ -95,6 +127,10 @@ export default function VetEMRForm({
       // Map vaccinations to backend schema
       const formToSend = {
         ...form,
+        owner: {
+          ...form.owner,
+          address: form.owner.address || ""
+        },
         vaccinations: (form.vaccinations || []).map(v => ({
           name: v.name,
           dateAdministered: v.dateAdministered,
@@ -182,17 +218,24 @@ if (!form) return null;
         <label className="block font-semibold mb-1">Vaccinations</label>
         {(form.vaccinations || []).map((v, idx) => (
           <div key={idx} className="flex gap-2 mb-1 items-center">
-            <input
-              className="border rounded p-1 flex-1"
-              placeholder="Vaccine Name"
+            <Select
               value={v.name || ''}
-              onChange={e => setForm(f => {
+              onValueChange={value => setForm(f => {
                 if (!f) return f;
                 const arr = [...f.vaccinations];
-                arr[idx] = { ...arr[idx], name: e.target.value };
+                arr[idx] = { ...arr[idx], name: value };
                 return { ...f, vaccinations: arr };
               })}
-            />
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Select vaccine" />
+              </SelectTrigger>
+              <SelectContent>
+                {vaccinesList.map(name => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <input
               className="border rounded p-1 flex-1"
               placeholder="Date Administered"

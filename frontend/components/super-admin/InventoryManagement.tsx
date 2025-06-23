@@ -402,6 +402,7 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
                 <option value="Supplies">Supplies</option>
                 <option value="Equipment">Equipment</option>
                 <option value="Food">Food</option>
+                <option value="Vaccine">Vaccine</option>
               </select>
             </div>
           </div>
@@ -471,6 +472,7 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
                   <option value="Supplies">Supplies</option>
                   <option value="Equipment">Equipment</option>
                   <option value="Food">Food</option>
+                  <option value="Vaccine">Vaccine</option>
                 </select>
               </div>
             </div>

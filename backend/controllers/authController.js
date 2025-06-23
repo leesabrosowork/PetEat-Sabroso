@@ -7,24 +7,30 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
 const path = require('path');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
 
-// Configure multer for file upload
-const storage = multer.diskStorage({
+// Configure multer for temporary storage (like petController)
+const tempStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/business-permits')
+    const uploadPath = path.join(__dirname, '../temp');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
-    cb(null, `${Date.now()}-${file.originalname}`)
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'temp-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-const upload = multer({
-  storage: storage,
+const tempUpload = multer({
+  storage: tempStorage,
   fileFilter: function (req, file, cb) {
     const filetypes = /jpeg|jpg|png|pdf/;
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = filetypes.test(file.mimetype);
-
     if (mimetype && extname) {
       return cb(null, true);
     } else {
@@ -35,6 +41,22 @@ const upload = multer({
   { name: 'businessPermit', maxCount: 1 },
   { name: 'identificationCard', maxCount: 1 }
 ]);
+
+// Helper to upload to Cloudinary and clean up temp file
+async function uploadFileToCloudinary(file, folder) {
+  try {
+    const result = await cloudinary.uploader.upload(file.path, {
+      folder,
+      use_filename: true,
+      resource_type: 'auto', // allow pdf and images
+    });
+    fs.unlinkSync(file.path);
+    return result.secure_url;
+  } catch (error) {
+    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    throw error;
+  }
+}
 
 exports.signup = async (req, res) => {
     try {
@@ -232,7 +254,7 @@ exports.login = async (req, res) => {
 };
 
 exports.vetClinicSignup = async (req, res) => {
-  upload(req, res, async function(err) {
+  tempUpload(req, res, async function(err) {
     if (err instanceof multer.MulterError) {
       return res.status(400).json({
         success: false,
@@ -314,6 +336,32 @@ exports.vetClinicSignup = async (req, res) => {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+      // Upload businessPermit and identificationCard to Cloudinary if present
+      let businessPermitUrl = null;
+      let identificationCardUrl = null;
+      if (req.files?.businessPermit && req.files.businessPermit[0]) {
+        try {
+          businessPermitUrl = await uploadFileToCloudinary(req.files.businessPermit[0], 'business-permits');
+        } catch (uploadError) {
+          return res.status(400).json({
+            success: false,
+            message: 'Error uploading business permit to cloud storage',
+            error: uploadError.message
+          });
+        }
+      }
+      if (req.files?.identificationCard && req.files.identificationCard[0]) {
+        try {
+          identificationCardUrl = await uploadFileToCloudinary(req.files.identificationCard[0], 'business-permits');
+        } catch (uploadError) {
+          return res.status(400).json({
+            success: false,
+            message: 'Error uploading identification card to cloud storage',
+            error: uploadError.message
+          });
+        }
+      }
+
       // Create new clinic user as not verified
       const newClinicUser = await User.create({
         clinicName,
@@ -328,8 +376,8 @@ exports.vetClinicSignup = async (req, res) => {
         description,
         website,
         socialMedia: JSON.parse(socialMedia),
-        businessPermit: req.files?.businessPermit ? `/uploads/business-permits/${req.files.businessPermit[0].filename}` : null,
-        identificationCard: req.files?.identificationCard ? `/uploads/business-permits/${req.files.identificationCard[0].filename}` : null,
+        businessPermit: businessPermitUrl,
+        identificationCard: identificationCardUrl,
         operatingHours: JSON.parse(operatingHours),
         petsManaged: JSON.parse(petsManaged),
         status: 'pending',

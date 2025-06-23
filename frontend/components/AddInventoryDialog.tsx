@@ -30,6 +30,7 @@ export function AddInventoryDialog({ open, onOpenChange, onAdded }: AddInventory
     'Supplies', 
     'Equipment',
     'Food',
+    'Vaccine',
     'Other'
   ];
 

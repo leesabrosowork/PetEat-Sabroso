@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import AdminManagement from "@/components/super-admin/AdminManagement"
-import DoctorManagement from "@/components/super-admin/DoctorManagement"
 import UserManagement from "@/components/super-admin/UserManagement"
 import PetManagement from "@/components/super-admin/PetManagement"
 import InventoryManagement from "@/components/super-admin/InventoryManagement"
@@ -17,7 +16,6 @@ import VetClinicApproval from '@/components/super-admin/VetClinicApproval'
 export default function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState('admins')
   const [admins, setAdmins] = useState([])
-  const [doctors, setDoctors] = useState([])
   const [users, setUsers] = useState([])
   const [pets, setPets] = useState([])
   const [inventory, setInventory] = useState([])
@@ -74,23 +72,6 @@ export default function SuperAdminDashboard() {
     }
   }
 
-  const fetchDoctors = async () => {
-    try {
-      const token = localStorage.getItem("token")
-      const response = await fetch("http://localhost:8080/api/super-admin/doctors", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      const data = await response.json()
-      if (response.ok) {
-        setDoctors(data.data)
-      }
-    } catch (error) {
-      console.error("Failed to fetch doctors:", error)
-    }
-  }
-
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem("token")
@@ -144,7 +125,6 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     fetchAdmins()
-    fetchDoctors()
     fetchUsers()
     fetchPets()
     fetchInventory()
@@ -195,16 +175,6 @@ export default function SuperAdminDashboard() {
                   Admin Management
                 </button>
                 <button
-                  onClick={() => setActiveTab('doctors')}
-                  className={`${
-                    activeTab === 'doctors'
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm`}
-                >
-                  Doctor Management
-                </button>
-                <button
                   onClick={() => setActiveTab('users')}
                   className={`${
                     activeTab === 'users'
@@ -249,7 +219,6 @@ export default function SuperAdminDashboard() {
 
             <div className="p-6">
               {activeTab === 'admins' && <AdminManagement admins={admins} onAdminUpdated={fetchAdmins} />}
-              {activeTab === 'doctors' && <DoctorManagement doctors={doctors} onDoctorUpdated={fetchDoctors} />}
               {activeTab === 'users' && <UserManagement users={users} onUserUpdated={fetchUsers} />}
               {activeTab === 'pets' && <PetManagement pets={pets} onPetUpdated={fetchPets} />}
               {activeTab === 'inventory' && <InventoryManagement inventory={inventory} onInventoryUpdated={fetchInventory} />}

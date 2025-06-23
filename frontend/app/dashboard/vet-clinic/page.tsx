@@ -780,14 +780,12 @@ function VetClinicDashboard() {
 
   // Handle creating a medical record
   const handleCreateMedicalRecord = async (formData: any) => {
-    // Transform the form data into the format expected by the API
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
 
       // Find the selected pet from the original pets array
       const selectedPet = pets.find(p => p._id === formData.petId);
-      
       if (!selectedPet) {
         toast({
           title: "Error",
@@ -797,11 +795,11 @@ function VetClinicDashboard() {
         return;
       }
 
-      // Create the medical record data
+      // Prepare the medical record data
       const medicalRecordData = {
         petId: selectedPet._id,
         name: selectedPet.name,
-        species: selectedPet.species || 'Not specified',
+        species: selectedPet.species || selectedPet.breed || 'Not specified',
         breed: selectedPet.breed || 'Not specified',
         age: selectedPet.age || 0,
         sex: selectedPet.gender || 'Not specified',
@@ -811,15 +809,42 @@ function VetClinicDashboard() {
           email: selectedPet.owner?.email || 'Not provided',
           address: selectedPet.owner?.address || 'Not provided',
         },
-        // ... rest of the code remains the same ...
+        vaccinations: formData.vaccinations || [],
+        medicalHistory: formData.medicalHistory || [],
+        visitHistory: formData.visitHistory || [],
+        currentVisit: formData.currentVisit || {},
       };
 
-      // ... rest of the code remains the same ...
+      const response = await fetch("http://localhost:8080/api/medical-records", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(medicalRecordData),
+      });
+
+      const data = await response.json();
+      if (response.ok && data) {
+        toast({
+          title: "Success",
+          description: "Medical record created successfully",
+        });
+        setAddMedicalRecordDialogOpen(false);
+        fetchMedicalRecords();
+        fetchDashboardData();
+      } else {
+        toast({
+          title: "Error",
+          description: data.message || "Failed to create medical record",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error creating medical record:", error);
       toast({
         title: "Error",
-        description: "Failed to create medical record",
+        description: error instanceof Error ? error.message : "Failed to create medical record",
         variant: "destructive",
       });
     }
