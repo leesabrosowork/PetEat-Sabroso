@@ -756,7 +756,7 @@ exports.approveVetClinic = async (req, res) => {
             from: process.env.EMAIL_USER,
             to: clinic.email,
             subject: 'Your PetEat Veterinary Clinic Account Has Been Approved',
-            text: `Dear ${clinic.ownerName},\n\nYour veterinary clinic account has been approved. You can now log in to your account and start using PetEat's services.\n\nBest regards,\nPetEat Team`
+            text: `Your veterinary clinic account has been approved. You can now log in to your account and start using PetEat's services.\n\nBest regards,\nPetEat Team`
         });
 
         res.json({
@@ -811,7 +811,7 @@ exports.rejectVetClinic = async (req, res) => {
             from: process.env.EMAIL_USER,
             to: clinic.email,
             subject: 'Your PetEat Veterinary Clinic Account Application Status',
-            text: `Dear ${clinic.ownerName},\n\nWe regret to inform you that your veterinary clinic account application has been rejected.\n\nReason: ${reason}\n\nIf you believe this is an error or would like to provide additional information, please contact our support team.\n\nBest regards,\nPetEat Team`
+            text: `We regret to inform you that your veterinary clinic account application has been rejected.\n\nReason: ${reason}\n\nIf you believe this is an error or would like to provide additional information, please contact our support team.\n\nBest regards,\nPetEat Team`
         });
 
         res.json({

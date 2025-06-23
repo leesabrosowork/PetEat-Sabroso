@@ -329,7 +329,11 @@ function VetClinicDashboard() {
     }
 
     try {
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      if (!parsedUser.name) {
+        parsedUser.name = parsedUser.fullName || parsedUser.clinicName || "";
+      }
+      setUser(parsedUser);
     } catch (error) {
       console.error("Error parsing user data:", error);
       router.push("/login");

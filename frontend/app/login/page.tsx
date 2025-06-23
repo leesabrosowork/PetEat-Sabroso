@@ -54,10 +54,15 @@ export default function LoginPage() {
       console.log('Login response:', data) // Debug log
 
       if (response.ok) {
+        // Ensure user.name is set for all user types
+        const user = data.data.user;
+        if (!user.name) {
+          user.name = user.fullName || user.clinicName || "";
+        }
         // Store user data and token in localStorage
-        localStorage.setItem("user", JSON.stringify(data.data.user))
-        localStorage.setItem("role", data.data.role)
-        localStorage.setItem("token", data.data.token)
+        localStorage.setItem("user", JSON.stringify(user));
+        localStorage.setItem("role", data.data.role);
+        localStorage.setItem("token", data.data.token);
         
         // Debug the role
         console.log('Role from server:', data.data.role)
@@ -214,15 +219,6 @@ export default function LoginPage() {
               </p>
               <p>
                 <strong>Admin:</strong> admin@peteat.com / admin123
-              </p>
-              <p>
-                <strong>User:</strong> user@peteat.com / user123
-              </p>
-              <p>
-                <strong>Staff:</strong> staff@peteat.com / staff123
-              </p>
-              <p>
-                <strong>Vet Clinic:</strong> vetclinic@peteat.com / vetclinic123
               </p>
             </div>
           </div>

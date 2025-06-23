@@ -164,8 +164,11 @@ export default function UserDashboard() {
     
     if (userData) {
       try {
-        const parsedUser = JSON.parse(userData)
-        setUser(parsedUser)
+        const parsedUser = JSON.parse(userData);
+        if (!parsedUser.name) {
+          parsedUser.name = parsedUser.fullName || parsedUser.clinicName || "";
+        }
+        setUser(parsedUser);
         fetchDashboardData(parsedUser._id)
         fetchEMRs()
       } catch (e) {
@@ -866,7 +869,7 @@ export default function UserDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-gray-500">Clinic</p>
-                    <p className="font-medium">{selectedTreatment.clinic.name}</p>
+                    <p className="font-medium">{selectedTreatment.clinic?.name || 'Clinic'}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Room</p>
@@ -1292,7 +1295,7 @@ export default function UserDashboard() {
                         <div className="flex items-center justify-between">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">{treatment.pet.name}</h3>
+                              <h3 className="font-semibold">{treatment.pet?.name || 'Pet'}</h3>
                               <Badge className={
                                 treatment.status === 'Critical' ? 'bg-red-100 text-red-800' :
                                 treatment.status === 'Stable' ? 'bg-blue-100 text-blue-800' :
@@ -1303,7 +1306,7 @@ export default function UserDashboard() {
                                 {treatment.status}
                               </Badge>
                             </div>
-                            <p className="text-sm text-gray-600">{treatment.pet.breed} • {treatment.pet.age} years</p>
+                            <p className="text-sm text-gray-600">{treatment.pet?.breed || 'Unknown'} • {treatment.pet?.age != null ? treatment.pet.age : 'N/A'} years</p>
                           </div>
                         </div>
                         
@@ -1311,7 +1314,7 @@ export default function UserDashboard() {
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <p className="text-sm text-gray-500">Clinic</p>
-                              <p className="font-medium">{treatment.clinic.name}</p>
+                              <p className="font-medium">{treatment.clinic?.name || 'Clinic'}</p>
                             </div>
                             <div>
                               <p className="text-sm text-gray-500">Room</p>
@@ -1339,11 +1342,11 @@ export default function UserDashboard() {
                         </div>
                         
                         <div className="flex justify-end space-x-2">
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" disabled={!treatment.pet}>
                             <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
                             Message Clinic
                           </Button>
-                          <Button size="sm" onClick={() => { setSelectedTreatment(treatment); setIsTreatmentDialogOpen(true); }}>
+                          <Button size="sm" onClick={() => { setSelectedTreatment(treatment); setIsTreatmentDialogOpen(true); }} disabled={!treatment.pet}>
                              <FileText className="h-3.5 w-3.5 mr-1.5" />
                              View Details
                            </Button>
