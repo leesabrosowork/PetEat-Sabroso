@@ -1713,16 +1713,16 @@ function VetClinicDashboard() {
 
         {/* Tabs */}
         <Tabs value={activeTabValue} defaultValue="overview" className="space-y-6" onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-9">
-            <TabsTrigger value="overview" className="dark:text-white">Overview</TabsTrigger>
-            <TabsTrigger value="pets" id="pets-tab" className="dark:text-white">Pets</TabsTrigger>
-            <TabsTrigger value="medical-records" id="medical-records-tab" className="dark:text-white">Medical Records</TabsTrigger>
-            <TabsTrigger value="appointments" id="appointments-tab" className="dark:text-white">Appointments</TabsTrigger>
-            <TabsTrigger value="video-consultations" id="video-consultations-tab" className="dark:text-white">Video Consultations</TabsTrigger>
-            <TabsTrigger value="pets-under-treatment" id="pets-under-treatment-tab" className="dark:text-white">Pets Under Treatment</TabsTrigger>
-            <TabsTrigger value="prescriptions" className="dark:text-white">Prescriptions</TabsTrigger>
-            <TabsTrigger value="inventory" className="dark:text-white">Inventory</TabsTrigger>
-            <TabsTrigger value="inbox" id="inbox-tab" className="dark:text-white">Inbox</TabsTrigger>
+          <TabsList className="flex flex-wrap gap-1 w-full">
+            <TabsTrigger value="overview" className="dark:text-white flex-shrink-0">Overview</TabsTrigger>
+            <TabsTrigger value="pets" id="pets-tab" className="dark:text-white flex-shrink-0">Pets</TabsTrigger>
+            <TabsTrigger value="medical-records" id="medical-records-tab" className="dark:text-white flex-shrink-0">Medical Records</TabsTrigger>
+            <TabsTrigger value="appointments" id="appointments-tab" className="dark:text-white flex-shrink-0">Appointments</TabsTrigger>
+            <TabsTrigger value="video-consultations" id="video-consultations-tab" className="dark:text-white flex-shrink-0">Video Consultations</TabsTrigger>
+            <TabsTrigger value="pets-under-treatment" id="pets-under-treatment-tab" className="dark:text-white flex-shrink-0">Pets Under Treatment</TabsTrigger>
+            <TabsTrigger value="prescriptions" className="dark:text-white flex-shrink-0">Prescriptions</TabsTrigger>
+            <TabsTrigger value="inventory" className="dark:text-white flex-shrink-0">Inventory</TabsTrigger>
+            <TabsTrigger value="inbox" id="inbox-tab" className="dark:text-white flex-shrink-0">Inbox</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -2369,7 +2369,7 @@ function VetClinicDashboard() {
                   <div className="border rounded-lg p-4 h-[600px] flex flex-col">
                     <div className="flex gap-2 mb-4">
                       <Tabs defaultValue="conversations" className="w-full">
-                        <TabsList className="w-full">
+                        <TabsList className="flex w-full">
                           <TabsTrigger value="conversations" className="flex-1">Conversations</TabsTrigger>
                           <TabsTrigger value="search" className="flex-1">Search</TabsTrigger>
                         </TabsList>
