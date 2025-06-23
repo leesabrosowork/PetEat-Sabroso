@@ -835,7 +835,7 @@ export default function UserDashboard() {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome back, {user?.name || user?.username || 'User'}!
+            Welcome back, {user?.fullName || 'User'}!
           </h1>
           <p className="text-gray-600 dark:text-gray-300">Manage your pets and appointments</p>
         </div>
@@ -1082,7 +1082,7 @@ export default function UserDashboard() {
                           <div>
                             <p className="font-medium">
                               {appointment.type === 'consultation' ? 'Video Consultation' : 'Appointment'}
-                              {appointment.doctor ? ` with ${appointment.doctor.name}` : ''}
+                              {appointment.doctor ? ` with ${appointment.doctor.name}` : ' at clinic'}
                             </p>
                             <p className="text-sm text-gray-500">
                               {new Date(appointment.startTime).toLocaleDateString()} at{" "}
@@ -1231,7 +1231,7 @@ export default function UserDashboard() {
                       <div className="flex items-center justify-between">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">Appointment{appointment.doctor ? ` with ${appointment.doctor.name}` : ''}</h3>
+                            <h3 className="font-semibold">Appointment{appointment.doctor ? ` with ${appointment.doctor.name}` : ' at clinic'}</h3>
                             <Badge className={
                               appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                               appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
@@ -1362,7 +1362,7 @@ export default function UserDashboard() {
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="space-y-2">
-                          <h3 className="font-semibold">Pet: {prescription.pet?.name || 'Unknown Pet'}</h3>
+                          <h3 className="font-semibold">Pet: {prescription.pet?.name || 'Pet'}</h3>
                           <p className="text-gray-600">Medicine: {prescription.medicine.item}</p>
                           <p className="text-sm text-gray-500">Date: {new Date(prescription.createdAt).toLocaleDateString()}</p>
                         </div>
@@ -1398,7 +1398,7 @@ export default function UserDashboard() {
                       <CardHeader>
                         <div className="flex justify-between items-center">
                           <CardTitle className="text-lg">
-                            {emr.petId?.name || emr.name || "Unknown Pet"} - {emr.currentVisit?.date ? new Date(emr.currentVisit.date).toLocaleDateString() : new Date(emr.createdAt).toLocaleDateString()}
+                            {emr.petId?.name || emr.name || "Pet"} - {emr.currentVisit?.date ? new Date(emr.currentVisit.date).toLocaleDateString() : new Date(emr.createdAt).toLocaleDateString()}
                           </CardTitle>
                           <div className="flex items-center gap-2">
                             {emr.recordType === 'petMedicalRecord' && (
@@ -1418,7 +1418,7 @@ export default function UserDashboard() {
                           </div>
                         </div>
                         <CardDescription>
-                          {emr.breed || "Unknown"} • {emr.species || "Unknown"} • {emr.age || "0"} years old
+                          {emr.breed || "Not provided"} • {emr.species || "Not provided"} • {emr.age || "0"} years old
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -1477,7 +1477,7 @@ export default function UserDashboard() {
             <h2 className="text-xl font-bold mb-4">Prescription Details</h2>
             <p><strong>Pet:</strong> {selectedPrescription.pet.name}</p>
             <p><strong>Medicine:</strong> {selectedPrescription.medicine.item}</p>
-            <p><strong>Doctor:</strong> {selectedPrescription.doctor.name}</p>
+            <p><strong>Doctor:</strong> {selectedPrescription.doctor?.name || 'Clinic Staff'}</p>
             <p><strong>Description:</strong> {selectedPrescription.description}</p>
             <p><strong>Date:</strong> {new Date(selectedPrescription.createdAt).toLocaleDateString()}</p>
             <Button className="mt-4" onClick={() => setSelectedPrescription(null)}>Close</Button>
