@@ -52,6 +52,8 @@ const userSchema = new mongoose.Schema({
     },
     licenseNumber: {
         type: String,
+        unique: true,
+        sparse: true,
         validate: {
             validator: function(value) {
                 if (this.role === 'clinic') {
@@ -71,28 +73,36 @@ const userSchema = new mongoose.Schema({
         coordinates: {
             type: [Number],
             default: [0, 0]
-        }
+        },
+        address: { type: String },
+        city: { type: String },
+        province: { type: String },
+        zipCode: { type: String }
     },
-    operatingHours: {
-        type: String
-    },
-    landline: {
-        type: String
-    },
-    website: {
-        type: String
-    },
+    landline: { type: String },
+    website: { type: String },
     socialMedia: {
-        type: Map,
-        of: String
+        facebook: { type: String },
+        instagram: { type: String },
+        twitter: { type: String }
     },
-    documents: {
-        businessPermit: String,
-        identificationCard: String
+    businessPermit: { type: String },
+    identificationCard: { type: String },
+    operatingHours: {
+        mondayToFriday: { type: String },
+        saturday: { type: String },
+        sunday: { type: String }
     },
     petsManaged: [{
-        type: String
+        type: String,
+        enum: ['Dogs', 'Cats', 'Birds', 'Small Mammals', 'Reptiles', 'Fish', 'Exotic Animals', 'Farm Animals', 'Wildlife']
     }],
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+    },
+    rejectionReason: { type: String },
     // Relationships
     pets: [{
         type: mongoose.Schema.Types.ObjectId,

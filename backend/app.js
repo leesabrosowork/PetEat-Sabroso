@@ -34,7 +34,7 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 const emrRoutes = require('./routes/emrRoutes');
 const staffRoutes = require('./routes/staffRoutes');
 const superAdminRoutes = require('./routes/superAdminRoutes');
-const vetClinicRoutes = require('./routes/vetClinicRoutes');
+const vetClinicApiRouter = require('./routes/vetClinicApiRouter');
 const petsUnderTreatmentRoutes = require('./routes/petsUnderTreatmentRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 
@@ -50,7 +50,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/emr', emrRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/super-admin', superAdminRoutes);
-app.use('/api/vet-clinic', vetClinicRoutes);
+app.use('/api/vet-clinic', vetClinicApiRouter);
 app.use('/api/pets-under-treatment', petsUnderTreatmentRoutes);
 app.use('/api/chat', chatRoutes);
 

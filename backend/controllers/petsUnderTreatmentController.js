@@ -1,7 +1,6 @@
 const PetsUnderTreatment = require('../models/petsUnderTreatmentModel');
 const Pet = require('../models/petModel');
 const User = require('../models/userModel');
-const VetClinic = require('../models/vetClinicModel');
 const { io } = require('../server');
 
 // Get all pets under treatment (for superadmin)
@@ -24,6 +23,7 @@ exports.getAllPetsUnderTreatment = async (req, res) => {
             data: petsUnderTreatment
         });
     } catch (error) {
+        console.error('Error in getAllPetsUnderTreatment:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -56,6 +56,7 @@ exports.getClinicPetsUnderTreatment = async (req, res) => {
             data: petsUnderTreatment
         });
     } catch (error) {
+        console.error('Error in getClinicPetsUnderTreatment:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -85,6 +86,7 @@ exports.getUserPetsUnderTreatment = async (req, res) => {
             data: petsUnderTreatment
         });
     } catch (error) {
+        console.error('Error in getUserPetsUnderTreatment:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -161,6 +163,7 @@ exports.addPetUnderTreatment = async (req, res) => {
             data: newPetUnderTreatment
         });
     } catch (error) {
+        console.error('Error in addPetUnderTreatment:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -231,6 +234,7 @@ exports.updateTreatmentStatus = async (req, res) => {
             data: petUnderTreatment
         });
     } catch (error) {
+        console.error('Error in updateTreatmentStatus:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -285,6 +289,7 @@ exports.dischargePet = async (req, res) => {
             data: petUnderTreatment
         });
     } catch (error) {
+        console.error('Error in dischargePet:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -330,7 +335,7 @@ exports.getTreatmentDetails = async (req, res) => {
         }
         
         // If request is from a clinic, verify they own this record
-        if (req.user.role === 'vet-clinic' && 
+        if ((req.user.role === 'clinic' || req.user.userType === 'clinic') && 
             petUnderTreatment.clinic._id.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
@@ -343,6 +348,7 @@ exports.getTreatmentDetails = async (req, res) => {
             data: petUnderTreatment
         });
     } catch (error) {
+        console.error('Error in getTreatmentDetails:', error);
         res.status(500).json({
             success: false,
             message: error.message

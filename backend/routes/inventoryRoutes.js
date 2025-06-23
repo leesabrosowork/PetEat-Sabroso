@@ -4,7 +4,7 @@ const { protect, authorize } = require('../middleware/auth');
 const Inventory = require('../models/inventoryModel');
 
 // Get all medicines (inventory) for vet clinics
-router.get('/', protect, authorize('vet clinic'), async (req, res) => {
+router.get('/', protect, authorize('clinic'), async (req, res) => {
   try {
     // Return all inventory items for now to debug
     const inventory = await Inventory.find();

@@ -143,8 +143,8 @@ export default function UserDashboard() {
     if (role && role !== "pet owner" && role !== "user") {
       console.log(`Redirecting ${role} from user dashboard to correct dashboard`)
       switch (role) {
-        case "vet clinic":
-          router.push("/dashboard/vet-clinic")
+        case "clinic":
+          router.push("/dashboard/clinic")
           return
         case "doctor":
           router.push("/dashboard/doctor")
@@ -940,7 +940,7 @@ export default function UserDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[70vh]">
                   {/* Sidebar with clinics */}
                   <div className="border rounded-lg p-4 h-full flex flex-col">
-                    <h3 className="text-lg font-medium mb-4">Vet Clinics</h3>
+                    <h3 className="text-lg font-medium mb-4">Clinics</h3>
                     <div className="flex-1 overflow-y-auto">
                       {clinics.length === 0 ? (
                         <p className="text-muted-foreground">No clinics available.</p>
@@ -956,7 +956,19 @@ export default function UserDashboard() {
                               }`}
                               onClick={() => handleSelectClinic(clinic)}
                             >
-                              <div className="font-medium">{clinic.clinicName || clinic.name}</div>
+                              <div className="font-medium flex items-center gap-2">
+                                {clinic.clinicName || clinic.fullName || clinic.name}
+                                {clinic.status && (
+                                  <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                                    clinic.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                    clinic.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                    clinic.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {clinic.status}
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-xs text-muted-foreground">{clinic.address || clinic.email}</div>
                             </li>
                           ))}
@@ -1111,9 +1123,11 @@ export default function UserDashboard() {
                               {getStatusLabel(appointment.status)}
                             </Badge>
                             {appointment.type === 'consultation' && (
-                              <Badge variant="outline" className="border-blue-200 text-blue-800">
-                                Video
-                              </Badge>
+                              <Link href={`/dashboard/user/video-consultation?appointment=${appointment._id}`}>
+                                <Button variant="outline" size="sm">
+                                  {appointment.status === 'scheduled' ? 'Join Call' : 'View Details'}
+                                </Button>
+                              </Link>
                             )}
                           </div>
                         </div>
@@ -1265,6 +1279,13 @@ export default function UserDashboard() {
                             </span>
                           </div>
                         </div>
+                        {appointment.type === 'consultation' && (
+                          <Link href={`/dashboard/user/video-consultation?appointment=${appointment._id}`}>
+                            <Button variant="outline" size="sm">
+                              {appointment.status === 'scheduled' ? 'Join Call' : 'View Details'}
+                            </Button>
+                          </Link>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -1375,6 +1396,7 @@ export default function UserDashboard() {
                         <div className="space-y-2">
                           <h3 className="font-semibold">Pet: {prescription.pet?.name || 'Pet'}</h3>
                           <p className="text-gray-600">Medicine: {prescription.medicine.item}</p>
+                          <p className="text-gray-600">Description: {prescription.description || 'No description provided'}</p>
                           <p className="text-sm text-gray-500">Date: {new Date(prescription.createdAt).toLocaleDateString()}</p>
                         </div>
                         
@@ -1413,7 +1435,7 @@ export default function UserDashboard() {
                           </CardTitle>
                           <div className="flex items-center gap-2">
                             {emr.recordType === 'petMedicalRecord' && (
-                              <Badge variant="outline">Vet Clinic Record</Badge>
+                              <Badge variant="outline">Clinic Record</Badge>
                             )}
                             <Badge
                               variant={

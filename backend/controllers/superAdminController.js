@@ -3,7 +3,6 @@ const User = require('../models/userModel');
 const Pet = require('../models/petModel');
 const Inventory = require('../models/inventoryModel');
 const bcrypt = require('bcryptjs');
-const VetClinic = require('../models/vetClinicModel');
 const nodemailer = require('nodemailer');
 
 // Admin Management
@@ -138,154 +137,6 @@ exports.deleteAdmin = async (req, res) => {
         res.json({
             success: true,
             message: 'Admin deleted successfully'
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
-
-// VetClinic Management
-exports.getAllVetClinics = async (req, res) => {
-    try {
-        const vetClinics = await VetClinic.find().select('-password');
-        res.json({
-            success: true,
-            data: vetClinics
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
-
-exports.getVetClinicById = async (req, res) => {
-    try {
-        const vetClinic = await VetClinic.findById(req.params.id).select('-password');
-        if (!vetClinic) {
-            return res.status(404).json({
-                success: false,
-                message: 'Vet Clinic not found'
-            });
-        }
-        res.json({
-            success: true,
-            data: vetClinic
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
-
-exports.createVetClinic = async (req, res) => {
-    try {
-        const { name, email, password, contact, address, status } = req.body;
-        
-        // Check if vet clinic already exists
-        const existingVetClinic = await VetClinic.findOne({ email });
-        if (existingVetClinic) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vet Clinic already exists'
-            });
-        }
-
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // Create new vet clinic
-        const vetClinic = new VetClinic({
-            name,
-            email,
-            password: hashedPassword,
-            contact,
-            address,
-            status: status || 'pending',
-            role: 'vet clinic'
-        });
-
-        await vetClinic.save();
-
-        // Remove password from response
-        const vetClinicResponse = vetClinic.toObject();
-        delete vetClinicResponse.password;
-
-        res.status(201).json({
-            success: true,
-            data: vetClinicResponse
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
-
-exports.updateVetClinic = async (req, res) => {
-    try {
-        const { name, email, password, contact, address, status } = req.body;
-        const vetClinicId = req.params.id;
-
-        const vetClinic = await VetClinic.findById(vetClinicId);
-        if (!vetClinic) {
-            return res.status(404).json({
-                success: false,
-                message: 'Vet Clinic not found'
-            });
-        }
-
-        // Update fields
-        if (name) vetClinic.name = name;
-        if (email) vetClinic.email = email;
-        if (contact) vetClinic.contact = contact;
-        if (address) vetClinic.address = address;
-        if (status) vetClinic.status = status;
-        
-        // Update password if provided
-        if (password) {
-            const salt = await bcrypt.genSalt(10);
-            vetClinic.password = await bcrypt.hash(password, salt);
-        }
-
-        await vetClinic.save();
-
-        // Remove password from response
-        const vetClinicResponse = vetClinic.toObject();
-        delete vetClinicResponse.password;
-
-        res.json({
-            success: true,
-            data: vetClinicResponse
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
-
-exports.deleteVetClinic = async (req, res) => {
-    try {
-        const vetClinic = await VetClinic.findByIdAndDelete(req.params.id);
-        if (!vetClinic) {
-            return res.status(404).json({
-                success: false,
-                message: 'Vet Clinic not found'
-            });
-        }
-        res.json({
-            success: true,
-            message: 'Vet Clinic deleted successfully'
         });
     } catch (error) {
         res.status(500).json({
@@ -714,7 +565,7 @@ exports.updateInventoryStock = async (req, res) => {
 // Get all pending vet clinics
 exports.getPendingVetClinics = async (req, res) => {
     try {
-        const pendingClinics = await VetClinic.find({ status: 'pending' });
+        const pendingClinics = await User.find({ role: 'clinic', status: 'pending' });
         res.json({
             success: true,
             data: pendingClinics
@@ -731,7 +582,7 @@ exports.getPendingVetClinics = async (req, res) => {
 exports.approveVetClinic = async (req, res) => {
     try {
         const { id } = req.params;
-        const clinic = await VetClinic.findById(id);
+        const clinic = await User.findById(id);
 
         if (!clinic) {
             return res.status(404).json({
@@ -785,7 +636,7 @@ exports.rejectVetClinic = async (req, res) => {
             });
         }
 
-        const clinic = await VetClinic.findById(id);
+        const clinic = await User.findById(id);
 
         if (!clinic) {
             return res.status(404).json({

@@ -1,6 +1,5 @@
 const Activity = require('../models/activityModel');
 const User = require('../models/userModel');
-const VetClinic = require('../models/vetClinicModel');
 const Pet = require('../models/petModel');
 
 // Get latest activities (limit 20)

@@ -323,7 +323,7 @@ function VetClinicDashboard() {
     const userData = localStorage.getItem("user");
     const role = localStorage.getItem("role");
 
-    if (!token || !userData || role !== "vet clinic") {
+    if (!token || !userData || role !== "clinic") {
       router.push("/login");
       return;
     }
@@ -1325,7 +1325,7 @@ function VetClinicDashboard() {
         _id: user._id,
         fullName: user.fullName || user.clinicName,
         email: user.email,
-        role: "vet clinic"
+        role: "clinic"
       },
       text: messageText,
       createdAt: new Date().toISOString(),

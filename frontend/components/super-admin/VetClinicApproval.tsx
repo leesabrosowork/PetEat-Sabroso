@@ -20,12 +20,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 
-interface VetClinic {
+interface Clinic {
   _id: string;
   clinicName: string;
-  ownerName: string;
+  fullName: string;
   email: string;
-  phoneNumber: string;
+  contactNumber: string;
   licenseNumber: string;
   businessPermit: string;
   status: string;
@@ -33,9 +33,9 @@ interface VetClinic {
 }
 
 export default function VetClinicApproval() {
-  const [clinics, setClinics] = useState<VetClinic[]>([]);
+  const [clinics, setClinics] = useState<Clinic[]>([]);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [selectedClinic, setSelectedClinic] = useState<VetClinic | null>(null);
+  const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const { toast } = useToast();
 
@@ -76,7 +76,7 @@ export default function VetClinicApproval() {
       if (data.success) {
         toast({
           title: "Success",
-          description: "Vet clinic approved successfully",
+          description: "Clinic approved successfully",
         });
         fetchPendingClinics();
       }
@@ -84,7 +84,7 @@ export default function VetClinicApproval() {
       console.error('Error approving clinic:', error);
       toast({
         title: "Error",
-        description: "Failed to approve vet clinic",
+        description: "Failed to approve clinic",
         variant: "destructive",
       });
     }
@@ -106,7 +106,7 @@ export default function VetClinicApproval() {
       if (data.success) {
         toast({
           title: "Success",
-          description: "Vet clinic rejected successfully",
+          description: "Clinic rejected successfully",
         });
         setIsRejectDialogOpen(false);
         setRejectionReason('');
@@ -117,20 +117,20 @@ export default function VetClinicApproval() {
       console.error('Error rejecting clinic:', error);
       toast({
         title: "Error",
-        description: "Failed to reject vet clinic",
+        description: "Failed to reject clinic",
         variant: "destructive",
       });
     }
   };
 
-  const openRejectDialog = (clinic: VetClinic) => {
+  const openRejectDialog = (clinic: Clinic) => {
     setSelectedClinic(clinic);
     setIsRejectDialogOpen(true);
   };
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Pending Vet Clinic Approvals</h2>
+      <h2 className="text-2xl font-bold">Pending Clinic Approvals</h2>
       <Table>
         <TableHeader>
           <TableRow>
@@ -147,9 +147,9 @@ export default function VetClinicApproval() {
           {clinics.filter(clinic => clinic).map((clinic) => (
             <TableRow key={clinic._id}>
               <TableCell>{clinic.clinicName}</TableCell>
-              <TableCell>{clinic.ownerName}</TableCell>
+              <TableCell>{clinic.fullName}</TableCell>
               <TableCell>{clinic.email}</TableCell>
-              <TableCell>{clinic.phoneNumber}</TableCell>
+              <TableCell>{clinic.contactNumber}</TableCell>
               <TableCell>{clinic.licenseNumber}</TableCell>
               <TableCell>
                 <a
@@ -185,7 +185,7 @@ export default function VetClinicApproval() {
       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Vet Clinic Application</DialogTitle>
+            <DialogTitle>Reject Clinic Application</DialogTitle>
             <DialogDescription>
               Please provide a reason for rejecting this application.
             </DialogDescription>

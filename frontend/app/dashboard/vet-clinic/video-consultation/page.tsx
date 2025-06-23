@@ -1,22 +1,12 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Video,
-  VideoOff,
-  Mic,
-  MicOff,
-  PhoneOff,
-  ArrowLeft,
-  Camera,
-  Save,
-} from "lucide-react"
-import Link from "next/link"
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Video, VideoOff, Mic, MicOff, PhoneOff, ArrowLeft, Camera } from "lucide-react";
+import Link from "next/link";
 
 interface Appointment {
   _id: string;
@@ -34,47 +24,33 @@ interface Appointment {
   };
 }
 
-export default function DoctorVideoConsultation() {
-  const [isVideoOn, setIsVideoOn] = useState(true)
-  const [isAudioOn, setIsAudioOn] = useState(true)
-  const [isCallActive, setIsCallActive] = useState(false)
-  const [callDuration, setCallDuration] = useState(0)
-  const [notes, setNotes] = useState("")
-  const [appointment, setAppointment] = useState<Appointment | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [doctorName, setDoctorName] = useState<string>("")
-  const [vetClinicName, setVetClinicName] = useState<string>("")
-  const [userRole, setUserRole] = useState<string>("doctor")
-  const [dashboardPath, setDashboardPath] = useState<string>("/dashboard/doctor")
+export default function VetClinicVideoConsultation() {
+  const [isVideoOn, setIsVideoOn] = useState(true);
+  const [isAudioOn, setIsAudioOn] = useState(true);
+  const [isCallActive, setIsCallActive] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [clinicName, setClinicName] = useState<string>("");
+  const [dashboardPath] = useState<string>("/dashboard/vet-clinic");
 
-  const localVideoRef = useRef<HTMLVideoElement>(null)
-  const remoteVideoRef = useRef<HTMLVideoElement>(null)
-  const localStreamRef = useRef<MediaStream | null>(null)
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
-  const searchParams = useSearchParams()
-  const appointmentId = searchParams.get("appointment")
-  const router = useRouter()
+  const searchParams = useSearchParams();
+  const appointmentId = searchParams.get("appointment");
+  const router = useRouter();
 
   useEffect(() => {
-    // Check user role for proper dashboard redirection
-    const role = localStorage.getItem("role")
-    if (role) {
-      setUserRole(role)
-      
-      // Set correct dashboard path based on role
-      if (role === "clinic") {
-        setDashboardPath("/dashboard/vet-clinic")
-      } else if (role === "doctor") {
-        setDashboardPath("/dashboard/doctor")
-      }
+    // Set clinic name from localStorage or mock
+    const role = localStorage.getItem("role");
+    if (role === "clinic") {
+      setClinicName(localStorage.getItem("clinicName") || "Your Clinic");
     }
-
     // Mock data for testing instead of API calls
     setTimeout(() => {
-      setDoctorName("Dr. Williams")
-      setVetClinicName("Happy Paws Veterinary Clinic")
-      
       setAppointment({
         _id: appointmentId || "mock123",
         startTime: new Date().toISOString(),
@@ -90,8 +66,8 @@ export default function DoctorVideoConsultation() {
           name: "Max"
         }
       });
-      setLoading(false)
-    }, 1500); // Small delay to show loading state
+      setLoading(false);
+    }, 1000);
   }, [appointmentId]);
 
   useEffect(() => {
@@ -101,69 +77,63 @@ export default function DoctorVideoConsultation() {
         .getUserMedia({ video: true, audio: true })
         .then((stream) => {
           if (localVideoRef.current) {
-            localVideoRef.current.srcObject = stream
-            localStreamRef.current = stream
+            localVideoRef.current.srcObject = stream;
+            localStreamRef.current = stream;
           }
         })
-        .catch((err) => console.log("Error accessing camera:", err))
+        .catch((err) => console.log("Error accessing camera:", err));
     }
-  }, [isVideoOn])
+  }, [isVideoOn]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    let interval: NodeJS.Timeout;
     if (isCallActive) {
       interval = setInterval(() => {
-        setCallDuration((prev) => prev + 1)
-      }, 1000)
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
     }
-    return () => clearInterval(interval)
-  }, [isCallActive])
+    return () => clearInterval(interval);
+  }, [isCallActive]);
 
   const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-  }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const startCall = async () => {
-    setIsCallActive(true)
-    setCallDuration(0)
-  }
+    setIsCallActive(true);
+    setCallDuration(0);
+  };
 
   const endCall = () => {
-    setIsCallActive(false)
-    setCallDuration(0)
+    setIsCallActive(false);
+    setCallDuration(0);
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop())
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
     }
-    router.push(dashboardPath)
-  }
+    router.push(dashboardPath);
+  };
 
   const toggleVideo = () => {
-    setIsVideoOn(!isVideoOn)
+    setIsVideoOn(!isVideoOn);
     if (localStreamRef.current) {
-      const videoTrack = localStreamRef.current.getVideoTracks()[0]
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
-        videoTrack.enabled = !isVideoOn
+        videoTrack.enabled = !isVideoOn;
       }
     }
-  }
+  };
 
   const toggleAudio = () => {
-    setIsAudioOn(!isAudioOn)
+    setIsAudioOn(!isAudioOn);
     if (localStreamRef.current) {
-      const audioTrack = localStreamRef.current.getAudioTracks()[0]
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
-        audioTrack.enabled = !isAudioOn
+        audioTrack.enabled = !isAudioOn;
       }
     }
-  }
-
-  const saveNotes = () => {
-    if (notes.trim()) {
-      alert("Consultation notes saved successfully!")
-    }
-  }
+  };
 
   if (loading) {
     return (
@@ -173,7 +143,7 @@ export default function DoctorVideoConsultation() {
           <p className="text-gray-600">Loading consultation details...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error || !appointment) {
@@ -188,7 +158,7 @@ export default function DoctorVideoConsultation() {
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -200,8 +170,7 @@ export default function DoctorVideoConsultation() {
             Back to Dashboard
           </Link>
         </div>
-
-        <Card className="border border-gray-200 dark:border-gray-700 shadow-md mb-6">
+        <Card>
           <CardHeader className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
@@ -220,25 +189,19 @@ export default function DoctorVideoConsultation() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-6 bg-gray-50 dark:bg-gray-900">
+          <CardContent>
             {/* Participant Information */}
             <div className="mb-6 flex flex-wrap gap-4 justify-center">
               <Badge variant="outline" className="px-4 py-2 text-base bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
                 Pet Owner: {appointment.user.name}
               </Badge>
-              <Badge variant="outline" className="px-4 py-2 text-base bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300">
-                Veterinarian: Dr. {doctorName || "You"}
+              <Badge variant="outline" className="px-4 py-2 text-base bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300">
+                Clinic: {clinicName || "Your Clinic"}
               </Badge>
-              {vetClinicName && (
-                <Badge variant="outline" className="px-4 py-2 text-base bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300">
-                  Clinic: {vetClinicName}
-                </Badge>
-              )}
             </div>
-
             {/* Video Grid */}
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              {/* Doctor Video */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Clinic Video */}
               <div className="relative bg-black rounded-lg overflow-hidden aspect-video shadow-lg">
                 {isVideoOn ? (
                   <video 
@@ -250,18 +213,17 @@ export default function DoctorVideoConsultation() {
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gray-800">
                     <div className="text-center">
-                      <div className="w-20 h-20 bg-purple-600 rounded-full mx-auto mb-2 flex items-center justify-center">
-                        <span className="text-2xl font-bold text-white">{doctorName ? doctorName[0] : "D"}</span>
+                      <div className="w-20 h-20 bg-green-600 rounded-full mx-auto mb-2 flex items-center justify-center">
+                        <span className="text-2xl font-bold text-white">{clinicName ? clinicName[0] : "C"}</span>
                       </div>
                       <p className="text-white">Camera Off</p>
                     </div>
                   </div>
                 )}
                 <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
-                  Veterinarian: Dr. {doctorName || "You"}
+                  Clinic: {clinicName || "Your Clinic"}
                 </div>
               </div>
-
               {/* Pet Owner Video (Simulated) */}
               <div className="relative bg-black rounded-lg overflow-hidden aspect-video shadow-lg">
                 {isCallActive ? (
@@ -286,9 +248,8 @@ export default function DoctorVideoConsultation() {
                 </div>
               </div>
             </div>
-
             {/* Controls */}
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex gap-6 justify-center mb-6">
               <Button
                 variant={isAudioOn ? "default" : "destructive"}
                 size="lg"
@@ -327,31 +288,7 @@ export default function DoctorVideoConsultation() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Doctor's Notes Section */}
-        <Card className="border border-gray-200 dark:border-gray-700 shadow-md">
-          <CardHeader className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <CardTitle className="text-lg text-gray-900 dark:text-white">Consultation Notes</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6 bg-gray-50 dark:bg-gray-900">
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Type your consultation notes here..."
-              className="w-full h-32 mb-4 border border-gray-300 dark:border-gray-700 rounded-md"
-            />
-            <div className="flex justify-end">
-              <Button 
-                onClick={saveNotes} 
-                className="flex items-center gap-2"
-              >
-                <Save className="h-4 w-4" />
-                Save Notes
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
-  )
-}
+  );
+} 

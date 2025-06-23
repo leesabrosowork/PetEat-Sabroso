@@ -8,7 +8,7 @@ const petsUnderTreatmentSchema = new mongoose.Schema({
     },
     clinic: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'VetClinic',
+        ref: 'User', // Must have role: 'clinic'
         required: true
     },
     status: {

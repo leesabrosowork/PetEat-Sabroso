@@ -6,7 +6,6 @@ const Activity = require('../models/activityModel');
 const Admin = require('../models/adminModel');
 const Settings = require('../models/settingsModel');
 const PetMedicalRecord = require('../models/petMedicalRecord');
-const VetClinic = require('../models/vetClinicModel');
 const bcrypt = require('bcrypt');
 
 // Get dashboard overview data

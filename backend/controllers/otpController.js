@@ -1,5 +1,4 @@
 const User = require('../models/userModel');
-const VetClinic = require('../models/vetClinicModel');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
@@ -17,7 +16,6 @@ exports.requestOtp = async (req, res) => {
         if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
         const normalizedEmail = email.trim().toLowerCase();
         let user = await User.findOne({ email: normalizedEmail });
-        if (!user) user = await VetClinic.findOne({ email: normalizedEmail });
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         // Generate a 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -45,13 +43,6 @@ exports.verifyOtp = async (req, res) => {
         if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and OTP are required' });
         const normalizedEmail = email.trim().toLowerCase();
         let user = await User.findOne({ email: normalizedEmail });
-        let isVetClinic = false;
-        
-        if (!user) {
-            user = await VetClinic.findOne({ email: normalizedEmail });
-            isVetClinic = true;
-        }
-        
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         if (!user.otp || !user.otpExpires) return res.status(400).json({ success: false, message: 'No OTP requested' });
         if (user.otp !== otp) return res.status(400).json({ success: false, message: 'Invalid OTP' });
@@ -61,27 +52,13 @@ exports.verifyOtp = async (req, res) => {
         user.otp = null;
         user.otpExpires = null;
         
-        // For pet owners (users), automatically approve them
-        // For vet clinics, keep them pending approval
-        if (!isVetClinic) {
-            // This is a pet owner - they are automatically approved
-            await user.save();
-            res.json({ 
-                success: true, 
-                message: 'OTP verified successfully! You can now login to your account.',
-                userType: 'pet_owner',
-                requiresApproval: false
-            });
-        } else {
-            // This is a vet clinic - they need approval
-            await user.save();
-            res.json({ 
-                success: true, 
-                message: 'OTP verified successfully! Please wait for PetEat team approval.',
-                userType: 'vet_clinic',
-                requiresApproval: true
-            });
-        }
+        await user.save();
+        res.json({ 
+            success: true, 
+            message: 'OTP verified successfully! You can now login to your account.',
+            userType: 'pet_owner',
+            requiresApproval: false
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Error verifying OTP' });
@@ -96,7 +73,6 @@ exports.resetPassword = async (req, res) => {
         if (!email || !otp || !newPassword) return res.status(400).json({ success: false, message: 'Email, OTP, and new password are required' });
         const normalizedEmail = email.trim().toLowerCase();
         let user = await User.findOne({ email: normalizedEmail });
-        if (!user) user = await VetClinic.findOne({ email: normalizedEmail });
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         if (!user.otp || !user.otpExpires) return res.status(400).json({ success: false, message: 'No OTP requested' });
         if (user.otp !== otp) return res.status(400).json({ success: false, message: 'Invalid OTP' });

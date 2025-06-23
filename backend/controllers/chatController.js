@@ -1,7 +1,6 @@
 const Conversation = require('../models/conversationModel');
 const Message = require('../models/messageModel');
 const User = require('../models/userModel');
-const VetClinic = require('../models/vetClinicModel');
 
 // Get all conversations for the logged-in user
 exports.getConversations = async (req, res) => {
@@ -57,7 +56,7 @@ exports.startConversation = async (req, res) => {
     // Check if request is from pet owner or clinic
     const isPetOwner = req.user.role === 'pet owner' || req.user.role === 'pet_owner' || 
                        req.user.userType === 'pet_owner' || req.user.role === 'user';
-    const isClinic = req.user.role === 'clinic' || req.user.role === 'vet clinic';
+    const isClinic = req.user.role === 'clinic' || req.user.userType === 'clinic';
     
     // Validate required parameters
     if (isPetOwner && !clinicId) {
@@ -249,36 +248,20 @@ exports.sendMessage = async (req, res) => {
 // Get all clinics for the inbox or pet owners if user is a clinic
 exports.getAllClinics = async (req, res) => {
   try {
-    const isPetOwner = req.user.role === 'pet owner' || req.user.role === 'pet_owner' || 
-                       req.user.userType === 'pet_owner' || req.user.role === 'user';
-    const isClinic = req.user.role === 'clinic' || req.user.role === 'vet clinic';
-    
+    const isPetOwner = req.user.role === 'pet owner' || req.user.role === 'pet_owner' || req.user.userType === 'pet_owner' || req.user.role === 'user';
+    const isClinic = req.user.role === 'clinic' || req.user.userType === 'clinic';
+
     if (isPetOwner) {
-      // Get clinics from both User model (role: clinic) and VetClinic model
-      const userClinics = await User.find({ role: 'clinic' })
-        .select('_id fullName clinicName email profilePicture');
-      
-      const vetClinics = await VetClinic.find({ status: 'approved' })
-        .select('_id fullName clinicName email');
-      
-      // Format vet clinics to match user schema
-      const formattedVetClinics = vetClinics.map(clinic => ({
-        _id: clinic._id,
-        fullName: clinic.fullName,
-        clinicName: clinic.clinicName,
-        email: clinic.email,
-        role: 'vet clinic'
-      }));
-      
-      // Combine both sets of clinics
-      const allClinics = [...userClinics, ...formattedVetClinics];
-      
-      res.json({ 
-        success: true, 
-        data: { clinics: allClinics } 
-      });
+      // Get clinics from User model (role: 'clinic' or userType: 'clinic')
+      const clinics = await User.find({
+        $or: [
+          { role: 'clinic' },
+          { userType: 'clinic' }
+        ]
+      }).select('_id fullName clinicName email profilePicture');
+      res.json({ success: true, data: { clinics } });
     } else if (isClinic) {
-      // Get all pet owners for clinics to message using both schema formats
+      // Get all pet owners for clinics to message
       const petOwners = await User.find({
         $or: [
           { role: { $in: ['pet owner', 'pet_owner', 'user'] } },

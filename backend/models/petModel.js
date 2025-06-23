@@ -51,7 +51,7 @@ const petSchema = new mongoose.Schema({
         treatment: String,
         clinic: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'VetClinic'
+            ref: 'User' // Must have role: 'clinic'
         },
         doctor: {
             type: mongoose.Schema.Types.ObjectId,

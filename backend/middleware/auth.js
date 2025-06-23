@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 const SuperAdmin = require('../models/superAdminModel');
-const VetClinic = require('../models/vetClinicModel');
 
 const protect = async (req, res, next) => {
     try {
@@ -36,12 +35,6 @@ const protect = async (req, res, next) => {
         if (!foundUser) {
             foundUser = await User.findById(decoded.id).select('-password');
         }
-        if (!foundUser) {
-            foundUser = await VetClinic.findById(decoded.id).select('-password');
-            if (foundUser) {
-                foundUser.role = 'vet clinic'; // Ensure role is set
-            }
-        }
         console.log('[AUTH] User found:', foundUser);
         
         if (!foundUser) {
@@ -75,7 +68,15 @@ const authorize = (role) => {
             });
         }
 
-        if (req.user.role !== role) {
+        // Accept both role and userType for 'clinic'
+        if (role === 'clinic') {
+            if (req.user.role !== 'clinic' && req.user.userType !== 'clinic') {
+                return res.status(403).json({
+                    success: false,
+                    message: `User role ${req.user.role} and userType ${req.user.userType} are not authorized to access this route`
+                });
+            }
+        } else if (req.user.role !== role) {
             return res.status(403).json({
                 success: false,
                 message: `User role ${req.user.role} is not authorized to access this route`

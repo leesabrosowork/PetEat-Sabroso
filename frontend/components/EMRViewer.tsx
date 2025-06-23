@@ -98,7 +98,7 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                     <DialogTitle className="flex items-center gap-2">
                         Medical Record
                         {isPetMedicalRecord && (
-                            <Badge variant="outline" className="ml-2">Vet Clinic Record</Badge>
+                            <Badge variant="outline" className="ml-2">Clinic Record</Badge>
                         )}
                     </DialogTitle>
                     <DialogDescription>

@@ -8,7 +8,7 @@ const messageSchema = new mongoose.Schema({
   },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Can also reference VetClinic
+    ref: 'User', // Can be a user with role: 'clinic'
     required: true,
   },
   text: {

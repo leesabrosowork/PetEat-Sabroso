@@ -1,6 +1,6 @@
 const Appointment = require('../models/appointmentModel');
 const Pet = require('../models/petModel');
-const VetClinic = require('../models/vetClinicModel');
+const User = require('../models/userModel');
 
 // Get all appointments for a specific date and clinic
 const getAvailableTimeSlots = async (clinicId, date) => {
@@ -50,7 +50,7 @@ exports.getAvailableTimeSlots = async (req, res) => {
         }
 
         // Get available slots based on clinic operating hours
-        const clinic = await VetClinic.findById(clinicId);
+        const clinic = await User.findById(clinicId);
         if (!clinic) {
             return res.status(404).json({ success: false, message: 'Clinic not found' });
         }
@@ -120,6 +120,7 @@ exports.getAvailableTimeSlots = async (req, res) => {
         console.log('Available slots:', availableSlots);
         return res.json({ success: true, data: availableSlots });
     } catch (error) {
+        console.error('Error in getAvailableTimeSlots:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching available time slots',
@@ -215,7 +216,7 @@ exports.createAppointment = async (req, res) => {
             data: appointment
         });
     } catch (error) {
-        console.error('Appointment creation error:', error);
+        console.error('Error in createAppointment:', error);
         console.error('Error stack:', error.stack);
         
         // Handle double booking error specifically
@@ -247,6 +248,7 @@ exports.getUserAppointments = async (req, res) => {
             data: appointments
         });
     } catch (error) {
+        console.error('Error in getUserAppointments:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching appointments',
@@ -264,6 +266,7 @@ exports.getClinicAppointments = async (req, res) => {
             .populate('user', 'name email');
         res.json({ success: true, data: appointments });
     } catch (error) {
+        console.error('Error in getClinicAppointments:', error);
         res.status(500).json({ success: false, message: 'Error fetching clinic appointments', error: error.message });
     }
 };
@@ -299,6 +302,7 @@ exports.getAppointmentById = async (req, res) => {
             data: appointment
         });
     } catch (error) {
+        console.error('Error in getAppointmentById:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching appointment',

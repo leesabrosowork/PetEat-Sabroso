@@ -101,7 +101,7 @@ export default function LoginPage() {
           case "super admin":
             router.push("/dashboard/super-admin")
             break
-          case "vet clinic":
+          case "clinic":
             console.log('Redirecting vet clinic user to /dashboard/vet-clinic')
             router.push("/dashboard/vet-clinic")
             break

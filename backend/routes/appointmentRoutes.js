@@ -13,7 +13,7 @@ router.post('/', protect, appointmentController.createAppointment);
 router.get('/user', protect, appointmentController.getUserAppointments);
 
 // Get all appointments for the authenticated vet clinic
-router.get('/vet-clinic', protect, authorize('vet clinic'), appointmentController.getClinicAppointments);
+router.get('/vet-clinic', protect, authorize('clinic'), appointmentController.getClinicAppointments);
 
 // Get a single appointment by ID
 router.get('/:id', protect, appointmentController.getAppointmentById);

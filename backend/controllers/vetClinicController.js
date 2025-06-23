@@ -1,4 +1,3 @@
-const VetClinic = require('../models/vetClinicModel');
 const Pet = require('../models/petModel');
 const PetMedicalRecord = require('../models/petMedicalRecord');
 const EMR = require('../models/emrModel');
@@ -292,11 +291,17 @@ exports.createPrescription = async (req, res) => {
             { path: 'medicine', select: 'item' }
         ]);
 
+        // Emit socket event for real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('prescriptions_updated');
+        }
+
         res.status(201).json({
             success: true,
             data: newPrescription
         });
     } catch (error) {
+        console.error('Error in createPrescription:', error);
         res.status(400).json({
             success: false,
             message: error.message
@@ -317,6 +322,7 @@ exports.getInventory = async (req, res) => {
             data: inventory
         });
     } catch (error) {
+        console.error('Get inventory error:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -350,11 +356,17 @@ exports.updatePetHealthStatus = async (req, res) => {
             });
         }
 
+        // Emit socket event for real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('pets_updated');
+        }
+
         res.json({
             success: true,
             data: pet
         });
     } catch (error) {
+        console.error('Update pet health status error:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -370,12 +382,17 @@ exports.createMedicalRecord = async (req, res) => {
         await medicalRecord.save();
         console.log('Successfully created medical record:', medicalRecord._id);
 
+        // Emit socket event for real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('emrs_updated');
+        }
+
         res.status(201).json({
             success: true,
             data: medicalRecord
         });
     } catch (error) {
-        console.error('Error creating medical record:', error);
+        console.error('Error in createMedicalRecord:', error);
         res.status(400).json({
             success: false,
             message: error.message
@@ -401,11 +418,17 @@ exports.updateMedicalRecord = async (req, res) => {
             });
         }
 
+        // Emit socket event for real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('emrs_updated');
+        }
+
         res.json({
             success: true,
             data: medicalRecord
         });
     } catch (error) {
+        console.error('Update medical record error:', error);
         res.status(400).json({
             success: false,
             message: error.message
@@ -437,11 +460,17 @@ exports.updateInventoryItem = async (req, res) => {
 
         await inventoryItem.save(); // This will trigger the middleware
 
+        // Emit socket event for real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('inventory_updated');
+        }
+
         res.json({
             success: true,
             data: inventoryItem
         });
     } catch (error) {
+        console.error('Update inventory item error:', error);
         res.status(400).json({
             success: false,
             message: error.message
@@ -456,13 +485,14 @@ exports.addInventoryItem = async (req, res) => {
         await inventoryItem.save();
         // Emit socket event for real-time update
         if (req.app.get('io')) {
-            req.app.get('io').emit('inventory:added', inventoryItem);
+            req.app.get('io').emit('inventory_updated');
         }
         res.status(201).json({
             success: true,
             data: inventoryItem
         });
     } catch (error) {
+        console.error('Add inventory item error:', error);
         res.status(400).json({
             success: false,
             message: error.message
@@ -484,11 +514,17 @@ exports.deleteInventoryItem = async (req, res) => {
             });
         }
 
+        // Emit socket event for real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('inventory_updated');
+        }
+
         res.json({
             success: true,
             message: 'Inventory item deleted successfully'
         });
     } catch (error) {
+        console.error('Delete inventory item error:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -506,10 +542,11 @@ exports.addPet = async (req, res) => {
         await newPet.populate('owner', 'username fullName name email');
         // Emit socket event for real-time update
         if (req.app.get('io')) {
-            req.app.get('io').emit('pet:added', newPet);
+            req.app.get('io').emit('pets_updated');
         }
         res.status(201).json({ success: true, data: newPet });
     } catch (error) {
+        console.error('Add pet error:', error);
         res.status(400).json({ success: false, message: error.message });
     }
 };
@@ -523,8 +560,12 @@ exports.deletePrescription = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Prescription not found' });
         }
         // Optionally emit socket event here
+        if (req.app.get('io')) {
+            req.app.get('io').emit('prescriptions_updated');
+        }
         res.json({ success: true, message: 'Prescription deleted' });
     } catch (error) {
+        console.error('Delete prescription error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -550,11 +591,16 @@ exports.updateInventoryStock = async (req, res) => {
         item.stock += amount;
         if (item.stock < 0) item.stock = 0;
         await item.save();
+        // Emit socket event for real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('inventory_updated');
+        }
         res.json({
             success: true,
             data: item
         });
     } catch (error) {
+        console.error('Update inventory stock error:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -565,12 +611,13 @@ exports.updateInventoryStock = async (req, res) => {
 // PUBLIC: Get all approved clinics
 exports.getAllApprovedClinics = async (req, res) => {
     try {
-        const clinics = await VetClinic.find({ status: 'approved' }).select('-password -otp -otpExpires');
+        const clinics = await User.find({ role: 'clinic', status: 'approved' }).select('-password -otp -otpExpires');
         res.json({
             success: true,
             data: clinics
         });
     } catch (error) {
+        console.error('Get all approved clinics error:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -588,8 +635,13 @@ exports.approveAppointment = async (req, res) => {
         }
         appointment.status = 'scheduled';
         await appointment.save();
+        // Emit socket event for real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('appointments_updated');
+        }
         res.json({ success: true, message: 'Appointment approved', data: appointment });
     } catch (error) {
+        console.error('Approve appointment error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -604,8 +656,13 @@ exports.rejectAppointment = async (req, res) => {
         }
         appointment.status = 'rejected';
         await appointment.save();
+        // Emit socket event for real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('appointments_updated');
+        }
         res.json({ success: true, message: 'Appointment rejected', data: appointment });
     } catch (error) {
+        console.error('Reject appointment error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -641,6 +698,10 @@ exports.deleteMedicalRecord = async (req, res) => {
         }
         
         console.log('Medical record deleted successfully');
+        // Emit socket event for real-time update
+        if (req.app.get('io')) {
+            req.app.get('io').emit('emrs_updated');
+        }
         res.json({
             success: true,
             message: 'Medical record deleted successfully'
@@ -651,5 +712,22 @@ exports.deleteMedicalRecord = async (req, res) => {
             success: false,
             message: error.message
         });
+    }
+};
+
+// Activity Feed for the clinic
+exports.getActivityFeed = async (req, res) => {
+    try {
+        // If you have an Activity model, fetch recent activities for this clinic
+        // const activities = await Activity.find({ clinic: req.user._id }).sort({ createdAt: -1 }).limit(50);
+        // For now, return a static array as a placeholder
+        const activities = [
+            { _id: '1', type: 'appointment', description: 'New appointment booked', createdAt: new Date() },
+            { _id: '2', type: 'pet', description: 'New pet admitted', createdAt: new Date() },
+        ];
+        res.json({ success: true, data: activities });
+    } catch (error) {
+        console.error('Get activity feed error:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 }; 

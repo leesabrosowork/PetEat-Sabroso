@@ -2,7 +2,6 @@ const jwt = require('jsonwebtoken');
 const Staff = require('../models/staffModel');
 const Admin = require('../models/adminModel');
 const User = require('../models/userModel');
-const VetClinic = require('../models/vetClinicModel');
 
 exports.protect = async (req, res, next) => {
     let token;
@@ -18,8 +17,7 @@ exports.protect = async (req, res, next) => {
             req.user =
                 (await Staff.findById(decoded.id).select('-password')) ||
                 (await Admin.findById(decoded.id).select('-password')) ||
-                (await User.findById(decoded.id).select('-password')) ||
-                (await VetClinic.findById(decoded.id).select('-password'));
+                (await User.findById(decoded.id).select('-password'));
 
             if (!req.user) {
                 return res.status(401).json({ message: 'Not authorized, user not found' });

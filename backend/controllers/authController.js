@@ -2,7 +2,6 @@ const User = require('../models/userModel');
 const Admin = require('../models/adminModel');
 const Staff = require('../models/staffModel');
 const SuperAdmin = require('../models/superAdminModel');
-const VetClinic = require('../models/vetClinicModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
@@ -44,15 +43,14 @@ exports.signup = async (req, res) => {
         console.log("User Signup - Contact Number:", contactNumber);
 
         // Check if email already exists in ANY user model
-        const [existingUser, existingAdmin, existingStaff, existingSuperAdmin, existingVetClinic] = await Promise.all([
+        const [existingUser, existingAdmin, existingStaff, existingSuperAdmin] = await Promise.all([
             User.findOne({ email }),
             Admin.findOne({ email }),
             Staff.findOne({ email }),
-            SuperAdmin.findOne({ email }),
-            VetClinic.findOne({ email })
+            SuperAdmin.findOne({ email })
         ]);
 
-        if (existingUser || existingAdmin || existingStaff || existingSuperAdmin || existingVetClinic) {
+        if (existingUser || existingAdmin || existingStaff || existingSuperAdmin) {
             return res.status(400).json({
                 success: false,
                 message: 'Email already exists. Please use a different email address.'
@@ -62,19 +60,17 @@ exports.signup = async (req, res) => {
         // Check if contact number exists in any model
         if (contactNumber) {
             console.log("Checking for duplicate contact number:", contactNumber);
-            const [userWithSameContact, adminWithSameContact, staffWithSameContact, vetClinicWithSameContact] = await Promise.all([
+            const [userWithSameContact, adminWithSameContact, staffWithSameContact] = await Promise.all([
                 User.findOne({ contactNumber }),
                 Admin.findOne({ contactNumber }),
-                Staff.findOne({ contactNumber }),
-                VetClinic.findOne({ contactNumber })
+                Staff.findOne({ contactNumber })
             ]);
 
             if (userWithSameContact) console.log("Found duplicate contact in User model");
             if (adminWithSameContact) console.log("Found duplicate contact in Admin model");
             if (staffWithSameContact) console.log("Found duplicate contact in Staff model");
-            if (vetClinicWithSameContact) console.log("Found duplicate contact in VetClinic model");
 
-            if (userWithSameContact || adminWithSameContact || staffWithSameContact || vetClinicWithSameContact) {
+            if (userWithSameContact || adminWithSameContact || staffWithSameContact) {
                 return res.status(400).json({
                     success: false,
                     message: 'Contact number already in use. Please use a different contact number.'
@@ -132,7 +128,7 @@ exports.signup = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Signup error:', error);
+        console.error('Error in signup:', error);
         res.status(500).json({
             success: false,
             message: error.message || 'An error occurred during signup.'
@@ -150,13 +146,11 @@ exports.login = async (req, res) => {
         const user = await User.findOne({ email }).select('+password');
         const admin = await Admin.findOne({ email }).select('+password');
         const staff = await Staff.findOne({ email }).select('+password');
-        const vetClinic = await VetClinic.findOne({ email }).select('+password');
 
         console.log('Found super admin:', superAdmin ? 'Yes' : 'No');
         console.log('Found user:', user ? 'Yes' : 'No');
         console.log('Found admin:', admin ? 'Yes' : 'No');
         console.log('Found staff:', staff ? 'Yes' : 'No');
-        console.log('Found vet clinic:', vetClinic ? 'Yes' : 'No');
 
         let authenticatedUser = null;
         let role = '';
@@ -182,7 +176,8 @@ exports.login = async (req, res) => {
                     });
                 }
                 authenticatedUser = user;
-                role = 'pet owner';
+                // Use the actual role from the user document
+                role = user.role;
             }
         } else if (admin) {
             console.log('Checking admin password...');
@@ -199,23 +194,6 @@ exports.login = async (req, res) => {
             if (isPasswordValid) {
                 authenticatedUser = staff;
                 role = 'staff';
-            }
-        } else if (vetClinic) {
-            console.log('Checking vet clinic password...');
-            const isPasswordValid = await bcrypt.compare(password, vetClinic.password);
-            console.log('Vet clinic password valid:', isPasswordValid);
-            if (isPasswordValid) {
-                // Check if the clinic is approved
-                if (vetClinic.status !== 'approved') {
-                    return res.status(403).json({
-                        success: false,
-                        message: vetClinic.status === 'pending' 
-                            ? 'Your account is pending approval. Please wait for the super admin to review your application.'
-                            : `Your account has been rejected. Reason: ${vetClinic.rejectionReason || 'No reason provided'}`
-                    });
-                }
-                authenticatedUser = vetClinic;
-                role = 'vet clinic';
             }
         }
 
@@ -245,7 +223,7 @@ exports.login = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('Error in login:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -285,18 +263,15 @@ exports.vetClinicSignup = async (req, res) => {
         petsManaged
       } = req.body;
 
-      console.log("Vet Clinic Signup - Contact Number:", contactNumber);
-
       // Check if email already exists in ANY user model
-      const [existingUser, existingAdmin, existingStaff, existingSuperAdmin, existingVetClinic] = await Promise.all([
+      const [existingUser, existingAdmin, existingStaff, existingSuperAdmin] = await Promise.all([
         User.findOne({ email }),
         Admin.findOne({ email }),
         Staff.findOne({ email }),
-        SuperAdmin.findOne({ email }),
-        VetClinic.findOne({ email })
+        SuperAdmin.findOne({ email })
       ]);
 
-      if (existingUser || existingAdmin || existingStaff || existingSuperAdmin || existingVetClinic) {
+      if (existingUser || existingAdmin || existingStaff || existingSuperAdmin) {
         return res.status(400).json({
           success: false,
           message: 'Email already exists. Please use a different email address.'
@@ -305,20 +280,12 @@ exports.vetClinicSignup = async (req, res) => {
 
       // Check if contact number exists in any model
       if (contactNumber) {
-        console.log("Checking for duplicate contact number:", contactNumber);
-        const [userWithSameContact, adminWithSameContact, staffWithSameContact, vetClinicWithSameContact] = await Promise.all([
+        const [userWithSameContact, adminWithSameContact, staffWithSameContact] = await Promise.all([
           User.findOne({ contactNumber }),
           Admin.findOne({ contactNumber }),
-          Staff.findOne({ contactNumber }),
-          VetClinic.findOne({ contactNumber })
+          Staff.findOne({ contactNumber })
         ]);
-
-        if (userWithSameContact) console.log("Found duplicate contact in User model");
-        if (adminWithSameContact) console.log("Found duplicate contact in Admin model");
-        if (staffWithSameContact) console.log("Found duplicate contact in Staff model");
-        if (vetClinicWithSameContact) console.log("Found duplicate contact in VetClinic model");
-
-        if (userWithSameContact || adminWithSameContact || staffWithSameContact || vetClinicWithSameContact) {
+        if (userWithSameContact || adminWithSameContact || staffWithSameContact) {
           return res.status(400).json({
             success: false,
             message: 'Contact number already in use. Please use a different contact number.'
@@ -327,13 +294,13 @@ exports.vetClinicSignup = async (req, res) => {
       }
 
       // Check if username or license number already exists
-      const existingClinicData = await VetClinic.findOne({
+      const existingClinicData = await User.findOne({
         $or: [
           { username },
           { licenseNumber }
-        ]
+        ],
+        role: 'clinic'
       });
-
       if (existingClinicData) {
         return res.status(400).json({
           success: false,
@@ -347,8 +314,8 @@ exports.vetClinicSignup = async (req, res) => {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      // Create new clinic as not verified
-      const newClinic = await VetClinic.create({
+      // Create new clinic user as not verified
+      const newClinicUser = await User.create({
         clinicName,
         fullName,
         username,
@@ -369,7 +336,8 @@ exports.vetClinicSignup = async (req, res) => {
         isVerified: false,
         otp,
         otpExpires,
-        needsOnboarding: true
+        needsOnboarding: true,
+        role: 'clinic'
       });
 
       // Send OTP email
@@ -380,10 +348,9 @@ exports.vetClinicSignup = async (req, res) => {
           pass: process.env.EMAIL_PASS,
         },
       });
-
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
-        to: newClinic.email,
+        to: newClinicUser.email,
         subject: 'Your PetEat Veterinary Clinic OTP Code',
         text: `Your OTP code is: ${otp}. It will expire in 10 minutes.`
       });
@@ -394,7 +361,7 @@ exports.vetClinicSignup = async (req, res) => {
       });
 
     } catch (error) {
-      console.error('Vet clinic signup error:', error);
+      console.error('Error in vetClinicSignup:', error);
       res.status(500).json({
         success: false,
         message: error.message || 'An error occurred during signup.'
