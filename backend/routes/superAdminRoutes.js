@@ -10,13 +10,6 @@ router.get('/admins/:id', protect, authorize('super admin'), superAdminControlle
 router.put('/admins/:id', protect, authorize('super admin'), superAdminController.updateAdmin);
 router.delete('/admins/:id', protect, authorize('super admin'), superAdminController.deleteAdmin);
 
-// Doctor management routes
-router.get('/doctors', protect, authorize('super admin'), superAdminController.getAllDoctors);
-router.post('/doctors', protect, authorize('super admin'), superAdminController.createDoctor);
-router.get('/doctors/:id', protect, authorize('super admin'), superAdminController.getDoctorById);
-router.put('/doctors/:id', protect, authorize('super admin'), superAdminController.updateDoctor);
-router.delete('/doctors/:id', protect, authorize('super admin'), superAdminController.deleteDoctor);
-
 // User management routes
 router.get('/users', protect, authorize('super admin'), superAdminController.getAllUsers);
 router.post('/users', protect, authorize('super admin'), superAdminController.createUser);

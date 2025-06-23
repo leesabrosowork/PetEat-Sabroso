@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
-const Doctor = require('../models/doctorModel');
 const SuperAdmin = require('../models/superAdminModel');
 const VetClinic = require('../models/vetClinicModel');
 
@@ -36,12 +35,6 @@ const protect = async (req, res, next) => {
         let foundUser = await SuperAdmin.findById(decoded.id).select('-password');
         if (!foundUser) {
             foundUser = await User.findById(decoded.id).select('-password');
-        }
-        if (!foundUser) {
-            foundUser = await Doctor.findById(decoded.id).select('-password');
-            if (foundUser) {
-                foundUser.role = 'doctor'; // Ensure role is set
-            }
         }
         if (!foundUser) {
             foundUser = await VetClinic.findById(decoded.id).select('-password');

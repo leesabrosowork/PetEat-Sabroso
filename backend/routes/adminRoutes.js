@@ -9,8 +9,6 @@ router.post('/', adminController.createAdmin);
 // Protected dashboard routes
 router.get('/dashboard/overview', adminAuth, adminController.getDashboardOverview);
 router.get('/users', adminAuth, adminController.getAllUsers);
-router.get('/doctors', adminAuth, adminController.getAllDoctors);
-router.get('/doctor-specialties', adminAuth, adminController.getDoctorSpecialties);
 router.get('/pets', adminAuth, adminController.getAllPets);
 router.get('/inventory', adminAuth, adminController.getInventory);
 router.get('/recent-activities', adminAuth, adminController.getRecentActivities);
@@ -18,8 +16,6 @@ router.post('/inventory', adminAuth, adminController.createInventoryItem);
 router.put('/settings', adminAuth, adminController.updateSettings);
 router.put('/users/:id', adminAuth, adminController.updateUser);
 router.delete('/users/:id', adminAuth, adminController.deleteUser);
-router.put('/doctors/:id', adminAuth, adminController.updateDoctor);
-router.delete('/doctors/:id', adminAuth, adminController.deleteDoctor);
 router.put('/pets/:id', adminAuth, adminController.updatePet);
 router.delete('/pets/:id', adminAuth, adminController.deletePet);
 router.get('/settings', adminController.getSettings);

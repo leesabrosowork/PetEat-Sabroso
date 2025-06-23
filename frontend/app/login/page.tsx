@@ -90,9 +90,6 @@ export default function LoginPage() {
           case "admin":
             router.push("/dashboard/admin")
             break
-          case "doctor":
-            router.push("/dashboard/doctor")
-            break
           case "staff":
             router.push("/dashboard/staff")
             break
@@ -217,9 +214,6 @@ export default function LoginPage() {
               </p>
               <p>
                 <strong>Admin:</strong> admin@peteat.com / admin123
-              </p>
-              <p>
-                <strong>Doctor:</strong> doctor@peteat.com / doctor123
               </p>
               <p>
                 <strong>User:</strong> user@peteat.com / user123

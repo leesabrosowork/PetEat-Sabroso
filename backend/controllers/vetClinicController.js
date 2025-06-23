@@ -6,7 +6,6 @@ const Appointment = require('../models/appointmentModel');
 const Prescription = require('../models/prescriptionModel');
 const Inventory = require('../models/inventoryModel');
 const User = require('../models/userModel');
-const Doctor = require('../models/doctorModel');
 
 // Get dashboard overview data
 exports.getDashboardData = async (req, res) => {

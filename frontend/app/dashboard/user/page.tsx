@@ -970,7 +970,7 @@ export default function UserDashboard() {
                           <div className="font-bold text-lg">{selectedClinic.clinicName || selectedClinic.name}</div>
                           <div className="text-xs text-muted-foreground">{selectedClinic.address || selectedClinic.email}</div>
                         </div>
-                        <div className="flex-1 p-4 overflow-y-auto" ref={chatEndRef}>
+                        <div className="flex-1 p-4 overflow-y-auto max-h-[calc(70vh-120px)]">
                           {messages.length === 0 ? (
                             <div className="text-center text-muted-foreground h-full flex flex-col justify-center">
                               <p>No messages yet</p>
@@ -1009,19 +1009,27 @@ export default function UserDashboard() {
                                   {typingStatus}
                                 </div>
                               )}
+                              <div ref={chatEndRef}></div>
                             </div>
                           )}
                         </div>
-                        <div className="border-t p-3 flex">
-                          <input
-                            className="flex-1 border rounded px-3 py-2"
-                            type="text"
-                            placeholder="Type a message..."
-                            value={messageInput}
-                            onChange={handleInputChange}
-                            onKeyDown={e => { if (e.key === 'Enter') handleSendMessage(); }}
-                          />
-                          <Button onClick={handleSendMessage} disabled={!messageInput.trim() || isLoading}>Send</Button>
+                        <div className="border-t p-3 bg-background">
+                          <form 
+                            className="flex gap-2"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              handleSendMessage();
+                            }}
+                          >
+                            <input
+                              className="flex-1 border rounded px-3 py-2"
+                              type="text"
+                              placeholder="Type a message..."
+                              value={messageInput}
+                              onChange={handleInputChange}
+                            />
+                            <Button type="submit" disabled={!messageInput.trim() || isLoading}>Send</Button>
+                          </form>
                         </div>
                       </>
                     ) : (

@@ -1988,11 +1988,11 @@ function VetClinicDashboard() {
                                 }}>Reject</Button>
                               </div>
                             ) : consultation.status === 'scheduled' ? (
-                              <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/doctor/video-consultation?appointment=${consultation._id}`}>
+                              <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/vet-clinic/video-consultation?appointment=${consultation._id}`}>
                                 Join Call
                               </Button>
                             ) : (
-                              <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/doctor/video-consultation?appointment=${consultation._id}`}>
+                              <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/vet-clinic/video-consultation?appointment=${consultation._id}`}>
                                 View Details
                               </Button>
                             )}

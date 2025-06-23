@@ -1,5 +1,4 @@
 const Admin = require('../models/adminModel');
-const Doctor = require('../models/doctorModel');
 const User = require('../models/userModel');
 const Pet = require('../models/petModel');
 const Inventory = require('../models/inventoryModel');
@@ -148,13 +147,13 @@ exports.deleteAdmin = async (req, res) => {
     }
 };
 
-// Doctor Management
-exports.getAllDoctors = async (req, res) => {
+// VetClinic Management
+exports.getAllVetClinics = async (req, res) => {
     try {
-        const doctors = await Doctor.find().select('-password');
+        const vetClinics = await VetClinic.find().select('-password');
         res.json({
             success: true,
-            data: doctors
+            data: vetClinics
         });
     } catch (error) {
         res.status(500).json({
@@ -164,18 +163,18 @@ exports.getAllDoctors = async (req, res) => {
     }
 };
 
-exports.getDoctorById = async (req, res) => {
+exports.getVetClinicById = async (req, res) => {
     try {
-        const doctor = await Doctor.findById(req.params.id).select('-password');
-        if (!doctor) {
+        const vetClinic = await VetClinic.findById(req.params.id).select('-password');
+        if (!vetClinic) {
             return res.status(404).json({
                 success: false,
-                message: 'Doctor not found'
+                message: 'Vet Clinic not found'
             });
         }
         res.json({
             success: true,
-            data: doctor
+            data: vetClinic
         });
     } catch (error) {
         res.status(500).json({
@@ -185,16 +184,16 @@ exports.getDoctorById = async (req, res) => {
     }
 };
 
-exports.createDoctor = async (req, res) => {
+exports.createVetClinic = async (req, res) => {
     try {
-        const { name, email, password, contact, specialty, availability } = req.body;
+        const { name, email, password, contact, address, status } = req.body;
         
-        // Check if doctor already exists
-        const existingDoctor = await Doctor.findOne({ email });
-        if (existingDoctor) {
+        // Check if vet clinic already exists
+        const existingVetClinic = await VetClinic.findOne({ email });
+        if (existingVetClinic) {
             return res.status(400).json({
                 success: false,
-                message: 'Doctor already exists'
+                message: 'Vet Clinic already exists'
             });
         }
 
@@ -202,26 +201,26 @@ exports.createDoctor = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Create new doctor
-        const doctor = new Doctor({
+        // Create new vet clinic
+        const vetClinic = new VetClinic({
             name,
             email,
             password: hashedPassword,
             contact,
-            specialty,
-            availability,
-            role: 'doctor'
+            address,
+            status: status || 'pending',
+            role: 'vet clinic'
         });
 
-        await doctor.save();
+        await vetClinic.save();
 
         // Remove password from response
-        const doctorResponse = doctor.toObject();
-        delete doctorResponse.password;
+        const vetClinicResponse = vetClinic.toObject();
+        delete vetClinicResponse.password;
 
         res.status(201).json({
             success: true,
-            data: doctorResponse
+            data: vetClinicResponse
         });
     } catch (error) {
         res.status(500).json({
@@ -231,42 +230,41 @@ exports.createDoctor = async (req, res) => {
     }
 };
 
-exports.updateDoctor = async (req, res) => {
+exports.updateVetClinic = async (req, res) => {
     try {
-        const { name, email, password, contact, specialty, availability, status } = req.body;
-        const doctorId = req.params.id;
+        const { name, email, password, contact, address, status } = req.body;
+        const vetClinicId = req.params.id;
 
-        const doctor = await Doctor.findById(doctorId);
-        if (!doctor) {
+        const vetClinic = await VetClinic.findById(vetClinicId);
+        if (!vetClinic) {
             return res.status(404).json({
                 success: false,
-                message: 'Doctor not found'
+                message: 'Vet Clinic not found'
             });
         }
 
         // Update fields
-        if (name) doctor.name = name;
-        if (email) doctor.email = email;
-        if (contact) doctor.contact = contact;
-        if (specialty) doctor.specialty = specialty;
-        if (availability) doctor.availability = availability;
-        if (status) doctor.status = status;
+        if (name) vetClinic.name = name;
+        if (email) vetClinic.email = email;
+        if (contact) vetClinic.contact = contact;
+        if (address) vetClinic.address = address;
+        if (status) vetClinic.status = status;
         
         // Update password if provided
         if (password) {
             const salt = await bcrypt.genSalt(10);
-            doctor.password = await bcrypt.hash(password, salt);
+            vetClinic.password = await bcrypt.hash(password, salt);
         }
 
-        await doctor.save();
+        await vetClinic.save();
 
         // Remove password from response
-        const doctorResponse = doctor.toObject();
-        delete doctorResponse.password;
+        const vetClinicResponse = vetClinic.toObject();
+        delete vetClinicResponse.password;
 
         res.json({
             success: true,
-            data: doctorResponse
+            data: vetClinicResponse
         });
     } catch (error) {
         res.status(500).json({
@@ -276,18 +274,18 @@ exports.updateDoctor = async (req, res) => {
     }
 };
 
-exports.deleteDoctor = async (req, res) => {
+exports.deleteVetClinic = async (req, res) => {
     try {
-        const doctor = await Doctor.findByIdAndDelete(req.params.id);
-        if (!doctor) {
+        const vetClinic = await VetClinic.findByIdAndDelete(req.params.id);
+        if (!vetClinic) {
             return res.status(404).json({
                 success: false,
-                message: 'Doctor not found'
+                message: 'Vet Clinic not found'
             });
         }
         res.json({
             success: true,
-            message: 'Doctor deleted successfully'
+            message: 'Vet Clinic deleted successfully'
         });
     } catch (error) {
         res.status(500).json({

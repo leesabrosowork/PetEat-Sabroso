@@ -8,15 +8,14 @@ const {
     updateEMR,
     deleteEMR
 } = require('../controllers/emrController');
-const { protect } = require('../middleware/authMiddleware');
-const { doctorAuth } = require('../middleware/doctorAuth');
+const { protect, authorize } = require('../middleware/auth');
 
-// Doctor routes
-router.post('/', doctorAuth, createEMR);
-router.get('/', doctorAuth, getAllEMRs);
+// Vet Clinic routes
+router.post('/', protect, authorize('vet clinic'), createEMR);
+router.get('/', protect, authorize('vet clinic'), getAllEMRs);
 router.get('/:id', protect, getEMRById);
-router.put('/:id', doctorAuth, updateEMR);
-router.delete('/:id', doctorAuth, deleteEMR);
+router.put('/:id', protect, authorize('vet clinic'), updateEMR);
+router.delete('/:id', protect, authorize('vet clinic'), deleteEMR);
 
 // Common routes
 router.get('/pet/:petId', protect, getPetEMRs);
@@ -34,7 +33,7 @@ router.get('/user/pets', protect, async (req, res) => {
         
         // Get EMRs from the EMR collection
         const emrs = await EMR.find({ petId: { $in: petIds } })
-            .populate('doctor', 'name email')
+            .populate('clinic', 'clinicName email')
             .populate('petId', 'name type breed')
             .sort('-createdAt');
             
@@ -70,10 +69,10 @@ router.get('/user/pets', protect, async (req, res) => {
                         ? record.visitHistory[record.visitHistory.length - 1].notes 
                         : ''
                 },
-                doctor: {
+                clinic: {
                     name: record.visitHistory && record.visitHistory.length > 0 
                         ? record.visitHistory[record.visitHistory.length - 1].veterinarian 
-                        : 'Unknown',
+                        : 'Veterinary Clinic',
                     email: ''
                 },
                 createdAt: record.createdAt,

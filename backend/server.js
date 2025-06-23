@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const Admin = require('./models/adminModel');
-const Doctor = require('./models/doctorModel');
 const Staff = require('./models/staffModel');
 const User = require('./models/userModel');
 const Pet = require('./models/petModel');
@@ -64,12 +63,6 @@ const setupChangeStreams = () => {
   Admin.watch().on('change', async (change) => {
     const admins = await Admin.find().select('-password');
     io.emit('admins_updated', admins);
-  });
-
-  // DOCTORS
-  Doctor.watch().on('change', async (change) => {
-    const doctors = await Doctor.find().select('-password');
-    io.emit('doctors_updated', doctors);
   });
 
   // STAFF

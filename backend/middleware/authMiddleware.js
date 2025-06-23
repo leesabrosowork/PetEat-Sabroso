@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const Staff = require('../models/staffModel');
-const Doctor = require('../models/doctorModel');
 const Admin = require('../models/adminModel');
 const User = require('../models/userModel');
 const VetClinic = require('../models/vetClinicModel');
@@ -18,7 +17,6 @@ exports.protect = async (req, res, next) => {
             // Try to find the user in all possible models
             req.user =
                 (await Staff.findById(decoded.id).select('-password')) ||
-                (await Doctor.findById(decoded.id).select('-password')) ||
                 (await Admin.findById(decoded.id).select('-password')) ||
                 (await User.findById(decoded.id).select('-password')) ||
                 (await VetClinic.findById(decoded.id).select('-password'));

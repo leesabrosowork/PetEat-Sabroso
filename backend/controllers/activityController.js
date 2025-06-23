@@ -1,6 +1,6 @@
 const Activity = require('../models/activityModel');
 const User = require('../models/userModel');
-const Doctor = require('../models/doctorModel');
+const VetClinic = require('../models/vetClinicModel');
 const Pet = require('../models/petModel');
 
 // Get latest activities (limit 20)
@@ -10,7 +10,7 @@ exports.getRecentActivities = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(20)
       .populate('user', 'name email')
-      .populate('doctor', 'name')
+      .populate('clinic', 'name')
       .populate('pet', 'name');
     res.json({ success: true, data: activities });
   } catch (error) {

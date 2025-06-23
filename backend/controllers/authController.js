@@ -1,5 +1,4 @@
 const User = require('../models/userModel');
-const Doctor = require('../models/doctorModel');
 const Admin = require('../models/adminModel');
 const Staff = require('../models/staffModel');
 const SuperAdmin = require('../models/superAdminModel');
@@ -45,16 +44,15 @@ exports.signup = async (req, res) => {
         console.log("User Signup - Contact Number:", contactNumber);
 
         // Check if email already exists in ANY user model
-        const [existingUser, existingDoctor, existingAdmin, existingStaff, existingSuperAdmin, existingVetClinic] = await Promise.all([
+        const [existingUser, existingAdmin, existingStaff, existingSuperAdmin, existingVetClinic] = await Promise.all([
             User.findOne({ email }),
-            Doctor.findOne({ email }),
             Admin.findOne({ email }),
             Staff.findOne({ email }),
             SuperAdmin.findOne({ email }),
             VetClinic.findOne({ email })
         ]);
 
-        if (existingUser || existingDoctor || existingAdmin || existingStaff || existingSuperAdmin || existingVetClinic) {
+        if (existingUser || existingAdmin || existingStaff || existingSuperAdmin || existingVetClinic) {
             return res.status(400).json({
                 success: false,
                 message: 'Email already exists. Please use a different email address.'
@@ -64,21 +62,19 @@ exports.signup = async (req, res) => {
         // Check if contact number exists in any model
         if (contactNumber) {
             console.log("Checking for duplicate contact number:", contactNumber);
-            const [userWithSameContact, doctorWithSameContact, adminWithSameContact, staffWithSameContact, vetClinicWithSameContact] = await Promise.all([
+            const [userWithSameContact, adminWithSameContact, staffWithSameContact, vetClinicWithSameContact] = await Promise.all([
                 User.findOne({ contactNumber }),
-                Doctor.findOne({ contactNumber }),
                 Admin.findOne({ contactNumber }),
                 Staff.findOne({ contactNumber }),
                 VetClinic.findOne({ contactNumber })
             ]);
 
             if (userWithSameContact) console.log("Found duplicate contact in User model");
-            if (doctorWithSameContact) console.log("Found duplicate contact in Doctor model");
             if (adminWithSameContact) console.log("Found duplicate contact in Admin model");
             if (staffWithSameContact) console.log("Found duplicate contact in Staff model");
             if (vetClinicWithSameContact) console.log("Found duplicate contact in VetClinic model");
 
-            if (userWithSameContact || doctorWithSameContact || adminWithSameContact || staffWithSameContact || vetClinicWithSameContact) {
+            if (userWithSameContact || adminWithSameContact || staffWithSameContact || vetClinicWithSameContact) {
                 return res.status(400).json({
                     success: false,
                     message: 'Contact number already in use. Please use a different contact number.'
@@ -152,14 +148,12 @@ exports.login = async (req, res) => {
         // Try to find the user in each model
         const superAdmin = await SuperAdmin.findOne({ email }).select('+password');
         const user = await User.findOne({ email }).select('+password');
-        const doctor = await Doctor.findOne({ email }).select('+password');
         const admin = await Admin.findOne({ email }).select('+password');
         const staff = await Staff.findOne({ email }).select('+password');
         const vetClinic = await VetClinic.findOne({ email }).select('+password');
 
         console.log('Found super admin:', superAdmin ? 'Yes' : 'No');
         console.log('Found user:', user ? 'Yes' : 'No');
-        console.log('Found doctor:', doctor ? 'Yes' : 'No');
         console.log('Found admin:', admin ? 'Yes' : 'No');
         console.log('Found staff:', staff ? 'Yes' : 'No');
         console.log('Found vet clinic:', vetClinic ? 'Yes' : 'No');
@@ -189,14 +183,6 @@ exports.login = async (req, res) => {
                 }
                 authenticatedUser = user;
                 role = 'pet owner';
-            }
-        } else if (doctor) {
-            console.log('Checking doctor password...');
-            const isPasswordValid = await bcrypt.compare(password, doctor.password);
-            console.log('Doctor password valid:', isPasswordValid);
-            if (isPasswordValid) {
-                authenticatedUser = doctor;
-                role = 'doctor';
             }
         } else if (admin) {
             console.log('Checking admin password...');
@@ -302,16 +288,15 @@ exports.vetClinicSignup = async (req, res) => {
       console.log("Vet Clinic Signup - Contact Number:", contactNumber);
 
       // Check if email already exists in ANY user model
-      const [existingUser, existingDoctor, existingAdmin, existingStaff, existingSuperAdmin, existingVetClinic] = await Promise.all([
+      const [existingUser, existingAdmin, existingStaff, existingSuperAdmin, existingVetClinic] = await Promise.all([
         User.findOne({ email }),
-        Doctor.findOne({ email }),
         Admin.findOne({ email }),
         Staff.findOne({ email }),
         SuperAdmin.findOne({ email }),
         VetClinic.findOne({ email })
       ]);
 
-      if (existingUser || existingDoctor || existingAdmin || existingStaff || existingSuperAdmin || existingVetClinic) {
+      if (existingUser || existingAdmin || existingStaff || existingSuperAdmin || existingVetClinic) {
         return res.status(400).json({
           success: false,
           message: 'Email already exists. Please use a different email address.'
@@ -321,21 +306,19 @@ exports.vetClinicSignup = async (req, res) => {
       // Check if contact number exists in any model
       if (contactNumber) {
         console.log("Checking for duplicate contact number:", contactNumber);
-        const [userWithSameContact, doctorWithSameContact, adminWithSameContact, staffWithSameContact, vetClinicWithSameContact] = await Promise.all([
+        const [userWithSameContact, adminWithSameContact, staffWithSameContact, vetClinicWithSameContact] = await Promise.all([
           User.findOne({ contactNumber }),
-          Doctor.findOne({ contactNumber }),
           Admin.findOne({ contactNumber }),
           Staff.findOne({ contactNumber }),
           VetClinic.findOne({ contactNumber })
         ]);
 
         if (userWithSameContact) console.log("Found duplicate contact in User model");
-        if (doctorWithSameContact) console.log("Found duplicate contact in Doctor model");
         if (adminWithSameContact) console.log("Found duplicate contact in Admin model");
         if (staffWithSameContact) console.log("Found duplicate contact in Staff model");
         if (vetClinicWithSameContact) console.log("Found duplicate contact in VetClinic model");
 
-        if (userWithSameContact || doctorWithSameContact || adminWithSameContact || staffWithSameContact || vetClinicWithSameContact) {
+        if (userWithSameContact || adminWithSameContact || staffWithSameContact || vetClinicWithSameContact) {
           return res.status(400).json({
             success: false,
             message: 'Contact number already in use. Please use a different contact number.'

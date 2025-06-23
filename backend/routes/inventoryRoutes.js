@@ -1,18 +1,18 @@
 const express = require('express');
 const router = express.Router();
+const { protect, authorize } = require('../middleware/auth');
 const Inventory = require('../models/inventoryModel');
-const authDoctor = require('../middleware/authDoctor');
 
-// Get all medicines (inventory) for doctors
-router.get('/', authDoctor, async (req, res) => {
+// Get all medicines (inventory) for vet clinics
+router.get('/', protect, authorize('vet clinic'), async (req, res) => {
   try {
     // Return all inventory items for now to debug
     const inventory = await Inventory.find();
     console.log('Inventory items found:', inventory.length);
-    res.json({ success: true, data: inventory });
+    res.status(200).json({ success: true, data: inventory });
   } catch (error) {
     console.error('Inventory error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

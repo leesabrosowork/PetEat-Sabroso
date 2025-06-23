@@ -1,5 +1,4 @@
 const User = require('../models/userModel');
-const Doctor = require('../models/doctorModel');
 const Pet = require('../models/petModel');
 const Appointment = require('../models/appointmentModel');
 const Inventory = require('../models/inventoryModel');
@@ -7,27 +6,18 @@ const Activity = require('../models/activityModel');
 const Admin = require('../models/adminModel');
 const Settings = require('../models/settingsModel');
 const PetMedicalRecord = require('../models/petMedicalRecord');
+const VetClinic = require('../models/vetClinicModel');
 const bcrypt = require('bcrypt');
-
-// Get all distinct doctor specialties
-exports.getDoctorSpecialties = async (req, res) => {
-    try {
-        const specialties = await Doctor.distinct('specialty');
-        res.json({ success: true, data: specialties });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
 
 // Get dashboard overview data
 exports.getDashboardOverview = async (req, res) => {
     try {
         const userCount = await User.countDocuments();
-        const doctorCount = await Doctor.countDocuments();
+        const vetClinicCount = await VetClinic.countDocuments();
         const petCount = await Pet.countDocuments();
         const inventoryCount = await Inventory.countDocuments();
 
-        const availableDoctors = await Doctor.countDocuments({ availability: 'available' });
+        const availableVetClinics = await VetClinic.countDocuments({ status: 'approved' });
 
         const lowStockItems = await Inventory.countDocuments({
             $or: [
@@ -40,10 +30,10 @@ exports.getDashboardOverview = async (req, res) => {
             success: true,
             data: {
                 userCount,
-                doctorCount,
+                vetClinicCount,
                 petCount,
                 inventoryCount,
-                availableDoctors,
+                availableVetClinics,
                 lowStockItems
             }
         });
@@ -62,11 +52,11 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
-// Get all doctors
-exports.getAllDoctors = async (req, res) => {
+// Get all vet clinics
+exports.getAllVetClinics = async (req, res) => {
     try {
-        const doctors = await Doctor.find().select('-password');
-        res.json({ success: true, data: doctors });
+        const vetClinics = await VetClinic.find().select('-password');
+        res.json({ success: true, data: vetClinics });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -99,7 +89,7 @@ exports.getRecentActivities = async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(10)
             .populate('user', 'name')
-            .populate('doctor', 'name');
+            .populate('clinic', 'name');
         res.json({ success: true, data: activities });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -230,46 +220,52 @@ exports.deleteUser = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-// Update a doctor
-exports.updateDoctor = async (req, res) => {
+
+// Update a vet clinic
+exports.updateVetClinic = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, specialty, availability } = req.body;
+        const { name, status, email } = req.body;
 
-        const updatedDoctor = await Doctor.findByIdAndUpdate(id, { name, specialty, availability }, { new: true });
+        const updatedVetClinic = await VetClinic.findByIdAndUpdate(
+            id, 
+            { name, status, email }, 
+            { new: true }
+        );
 
-        if (!updatedDoctor) {
-            return res.status(404).json({ message: 'Doctor not found' });
+        if (!updatedVetClinic) {
+            return res.status(404).json({ message: 'Vet Clinic not found' });
         }
 
         res.json({
             success: true,
-            data: updatedDoctor
+            data: updatedVetClinic
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-// Delete a doctor
-exports.deleteDoctor = async (req, res) => {
+// Delete a vet clinic
+exports.deleteVetClinic = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const deletedDoctor = await Doctor.findByIdAndDelete(id);
+        const deletedVetClinic = await VetClinic.findByIdAndDelete(id);
 
-        if (!deletedDoctor) {
-            return res.status(404).json({ message: 'Doctor not found' });
+        if (!deletedVetClinic) {
+            return res.status(404).json({ message: 'Vet Clinic not found' });
         }
 
         res.json({
             success: true,
-            message: 'Doctor deleted successfully'
+            message: 'Vet Clinic deleted successfully'
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
+
 // Update a pet
 exports.updatePet = async (req, res) => {
     try {
@@ -408,19 +404,19 @@ exports.resetAndSeed = async (req, res) => {
         // 1. Remove all data
         await Promise.all([
             User.deleteMany({}),
-            Doctor.deleteMany({}),
             Admin.deleteMany({}),
             Pet.deleteMany({}),
             Appointment.deleteMany({}),
             Inventory.deleteMany({}),
             require('../models/prescriptionModel').deleteMany({}),
-            PetMedicalRecord.deleteMany({})
+            PetMedicalRecord.deleteMany({}),
+            VetClinic.deleteMany({})
         ]);
 
         // 2. Create bcrypt hashes
         const adminPassword = await bcrypt.hash('admin123', 10);
-        const doctorPassword = await bcrypt.hash('doctor123', 10);
         const userPassword = await bcrypt.hash('user123', 10);
+        const vetClinicPassword = await bcrypt.hash('vet123', 10);
 
         // 3. Insert one admin
         const admin = await Admin.create({
@@ -433,16 +429,15 @@ exports.resetAndSeed = async (req, res) => {
             updatedAt: new Date()
         });
 
-        // 4. Insert one doctor
-        const doctor = await Doctor.create({
-            name: 'Dr. Vet',
-            email: 'doctor@PetEat.com',
-            password: doctorPassword,
-            specialty: 'General',
-            availability: 'available',
-            role: 'doctor',
+        // 4. Insert one vet clinic
+        const vetClinic = await VetClinic.create({
+            name: 'PetEat Clinic',
+            email: 'clinic@PetEat.com',
+            password: vetClinicPassword,
+            role: 'vet clinic',
             contact: '09112223333',
             address: '456 Clinic Road',
+            status: 'approved',
             createdAt: new Date(),
             updatedAt: new Date()
         });
@@ -498,7 +493,7 @@ exports.resetAndSeed = async (req, res) => {
             message: 'Database reset and seeded.',
             credentials: {
                 admin: { email: 'admin@PetEat.com', password: 'admin123' },
-                doctor: { email: 'doctor@PetEat.com', password: 'doctor123' },
+                vetClinic: { email: 'clinic@PetEat.com', password: 'vet123' },
                 user: { email: 'user@PetEat.com', password: 'user123' }
             }
         });
