@@ -123,7 +123,7 @@ export default function VetEMRForm({
       const method = isAddEMR ? "POST" : "PUT";
       const url = method === "PUT"
         ? `http://localhost:8080/api/medical-records/${petId}`
-        : "http://localhost:8080/api/medical-records";
+        : "http://localhost:8080/api/emr";
       // Map vaccinations to backend schema
       const formToSend = {
         ...form,

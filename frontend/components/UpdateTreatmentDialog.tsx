@@ -7,11 +7,20 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from './ui/use-toast';
 
+interface Owner {
+  _id: string;
+  fullName?: string;
+  name?: string;
+  email?: string;
+  contactNumber?: string;
+}
+
 interface Pet {
   _id: string;
   name: string;
   breed: string;
   age: number;
+  owner?: Owner;
 }
 
 interface PetUnderTreatment {
@@ -106,6 +115,15 @@ export function UpdateTreatmentDialog({ open, onOpenChange, onUpdate, treatment 
             Update the status and add notes for {treatment.pet?.name}
           </DialogDescription>
         </DialogHeader>
+        {/* Owner Info Section */}
+        {treatment.pet?.owner && (
+          <div className="mb-4 p-3 rounded bg-gray-50 border">
+            <div className="font-semibold">Owner Information</div>
+            <div>Name: {treatment.pet.owner.fullName || treatment.pet.owner.name || 'N/A'}</div>
+            <div>Email: {treatment.pet.owner.email || 'N/A'}</div>
+            <div>Contact: {treatment.pet.owner.contactNumber || 'N/A'}</div>
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">

@@ -711,9 +711,22 @@ function VetClinicDashboard() {
     setInventoryDialogOpen(true);
   };
 
-  const handleViewMedicalRecord = (record: MedicalRecord) => {
-    setSelectedMedicalRecord(record);
-    setMedicalRecordDialogOpen(true);
+  const handleViewMedicalRecord = async (record: MedicalRecord) => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`http://localhost:8080/api/emr/${record._id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setSelectedMedicalRecord(data.data);
+      setMedicalRecordDialogOpen(true);
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to fetch EMR details",
+        variant: "destructive"
+      });
+    }
   };
 
   // Handle deleting a medical record
@@ -729,7 +742,7 @@ function VetClinicDashboard() {
         return;
       }
       
-      const response = await fetch(`http://localhost:8080/api/vet-clinic/medical-records/${recordId}`, {
+      const response = await fetch(`http://localhost:8080/api/emr/${recordId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`
@@ -815,7 +828,7 @@ function VetClinicDashboard() {
         currentVisit: formData.currentVisit || {},
       };
 
-      const response = await fetch("http://localhost:8080/api/medical-records", {
+      const response = await fetch("http://localhost:8080/api/emr", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -936,7 +949,7 @@ function VetClinicDashboard() {
     try {
       const token = localStorage.getItem("token")
       const response = await fetch(`http://localhost:8080/api/vet-clinic/inventory/${id}/stock`, {
-        method: "PATCH",
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -2134,7 +2147,11 @@ function VetClinicDashboard() {
                                 </Button>
                               </div>
                               <div className="flex space-x-2">
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" onClick={() => {
+                                  // Contact Owner: open chat inbox and select owner
+                                  setActiveTabValue('inbox');
+                                  setSelectedPetOwner(treatment.pet.owner);
+                                }}>
                                   Contact Owner
                                 </Button>
                               </div>

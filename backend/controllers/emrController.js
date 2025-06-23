@@ -23,6 +23,7 @@ exports.createEMR = async (req, res) => {
         } = req.body;
 
         const pet = await Pet.findById(petId).populate('owner');
+        console.log('Populated pet:', JSON.stringify(pet, null, 2));
         if (!pet) {
             return res.status(404).json({
                 success: false,
@@ -38,6 +39,12 @@ exports.createEMR = async (req, res) => {
             breed: breed || pet.breed,
             age: age || pet.age,
             sex: sex || pet.gender || pet.sex,
+            owner: {
+                name: pet.owner?.fullName || pet.owner?.name || 'Unknown',
+                phone: pet.owner?.contactNumber || pet.owner?.phone || 'Not provided',
+                email: pet.owner?.email || 'Not provided',
+                address: pet.owner?.address || ''
+            },
             vaccinations: vaccinations || [],
             medicalHistory: medicalHistory || [],
             visitHistory: visitHistory || [],
@@ -303,17 +310,9 @@ exports.deleteEMR = async (req, res) => {
             });
         }
 
-        // Check if doctor owns this EMR
-        if (emr.doctor.toString() !== req.user._id.toString()) {
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to delete this EMR'
-            });
-        }
-
+        // Allow any clinic user to delete any EMR
         await EMR.findByIdAndDelete(req.params.id);
-
-        res.json({
+        return res.json({
             success: true,
             message: 'EMR deleted successfully'
         });

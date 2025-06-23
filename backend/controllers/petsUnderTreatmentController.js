@@ -12,7 +12,7 @@ exports.getAllPetsUnderTreatment = async (req, res) => {
                 select: 'name type breed age gender color profilePicture owner',
                 populate: {
                     path: 'owner',
-                    select: 'name email contactNumber'
+                    select: 'name fullName email contactNumber'
                 }
             })
             .populate('clinic', 'name address contactNumber email')
@@ -45,7 +45,7 @@ exports.getClinicPetsUnderTreatment = async (req, res) => {
             select: 'name type breed age gender color profilePicture owner',
             populate: {
                 path: 'owner',
-                select: 'name email contactNumber'
+                select: 'name fullName email contactNumber'
             }
         })
         .populate('clinic', 'name address contactNumber email')
@@ -144,7 +144,7 @@ exports.addPetUnderTreatment = async (req, res) => {
                 select: 'name type breed age gender color profilePicture owner',
                 populate: {
                     path: 'owner',
-                    select: 'name email contactNumber'
+                    select: 'name fullName email contactNumber'
                 }
             },
             {
@@ -215,7 +215,7 @@ exports.updateTreatmentStatus = async (req, res) => {
                 select: 'name type breed age gender color profilePicture owner',
                 populate: {
                     path: 'owner',
-                    select: 'name email contactNumber'
+                    select: 'name fullName email contactNumber'
                 }
             },
             {
@@ -308,7 +308,7 @@ exports.getTreatmentDetails = async (req, res) => {
                 select: 'name type breed age gender color profilePicture owner',
                 populate: {
                     path: 'owner',
-                    select: 'name email contactNumber'
+                    select: 'name fullName email contactNumber'
                 }
             })
             .populate('clinic', 'name address contactNumber email')

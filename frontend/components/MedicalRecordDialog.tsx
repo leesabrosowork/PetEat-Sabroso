@@ -20,6 +20,7 @@ interface MedicalRecord {
     name: string;
     phone: string;
     email: string;
+    address: string;
   };
   vaccinations: Array<{
     name: string;
@@ -109,19 +110,12 @@ export function MedicalRecordDialog({ record, open, onOpenChange, onDelete }: Me
                 {/* Owner Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Owner Information</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <User className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm">{record.owner.name}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Phone className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm">{record.owner.phone}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Mail className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm">{record.owner.email}</span>
-                    </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="font-semibold">Owner Information</div>
+                    <span className="text-sm">{record.owner?.name || 'N/A'}</span>
+                    <span className="text-sm">{record.owner?.phone || 'N/A'}</span>
+                    <span className="text-sm">{record.owner?.email || 'N/A'}</span>
+                    <span className="text-sm">{record.owner?.address || 'N/A'}</span>
                   </div>
                 </div>
               </div>

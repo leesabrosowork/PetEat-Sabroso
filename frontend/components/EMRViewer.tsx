@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 interface EMRViewerProps {
     emrId: string
@@ -106,138 +107,145 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-6">
-                    {/* Pet Information */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Pet Information</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-500">Name</h4>
-                                <p>{emr.name}</p>
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-500">Species</h4>
-                                <p>{emr.species}</p>
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-500">Breed</h4>
-                                <p>{emr.breed}</p>
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-500">Age</h4>
-                                <p>{emr.age} years</p>
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-500">Sex</h4>
-                                <p className="capitalize">{emr.sex}</p>
-                            </div>
-                        </div>
-                    </div>
+                <Tabs defaultValue="overview" className="w-full">
+                    <TabsList className="grid w-full grid-cols-5 mb-4">
+                        <TabsTrigger value="overview">Overview</TabsTrigger>
+                        <TabsTrigger value="medications">Medications</TabsTrigger>
+                        <TabsTrigger value="vaccinations">Vaccinations</TabsTrigger>
+                        <TabsTrigger value="medical-history">Medical History</TabsTrigger>
+                        <TabsTrigger value="visit-history">Visit History</TabsTrigger>
+                    </TabsList>
 
-                    {/* Owner Information */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Owner Information</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-500">Name</h4>
-                                <p>{emr.petId?.owner?.name || (isPetMedicalRecord ? emr.owner?.name : 'N/A')}</p>
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-500">Phone</h4>
-                                <p>{emr.petId?.owner?.phone || (isPetMedicalRecord ? emr.owner?.phone : 'N/A')}</p>
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-500">Email</h4>
-                                <p>{emr.petId?.owner?.email || (isPetMedicalRecord ? emr.owner?.email : 'N/A')}</p>
-                            </div>
-                            {isPetMedicalRecord && emr.owner?.address && (
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-500">Address</h4>
-                                    <p>{emr.owner.address}</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Current Visit Information */}
-                    {emr.currentVisit && (
+                    <TabsContent value="overview" className="space-y-6">
+                        {/* Pet Information */}
                         <div className="space-y-4">
-                            <h3 className="text-lg font-semibold">Current Visit</h3>
+                            <h3 className="text-lg font-semibold">Pet Information</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <h4 className="text-sm font-medium text-gray-500">Visit Date</h4>
-                                    <p>{new Date(emr.currentVisit.date || emr.createdAt).toLocaleDateString()}</p>
+                                    <h4 className="text-sm font-medium text-gray-500">Name</h4>
+                                    <p>{emr.name}</p>
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-medium text-gray-500">Status</h4>
-                                    <Badge
-                                        variant={
-                                            emr.currentVisit.status === "active"
-                                                ? "default"
-                                                : emr.currentVisit.status === "ongoing"
-                                                ? "secondary"
-                                                : "destructive"
-                                        }
-                                    >
-                                        {emr.currentVisit.status || "Active"}
-                                    </Badge>
+                                    <h4 className="text-sm font-medium text-gray-500">Species</h4>
+                                    <p>{emr.species}</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-500">Breed</h4>
+                                    <p>{emr.breed}</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-500">Age</h4>
+                                    <p>{emr.age} years</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-500">Sex</h4>
+                                    <p className="capitalize">{emr.sex}</p>
                                 </div>
                             </div>
-                            
-                            {emr.currentVisit.diagnosis && (
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-500 mb-2">Diagnosis</h4>
-                                    <p className="whitespace-pre-wrap">{emr.currentVisit.diagnosis}</p>
-                                </div>
-                            )}
+                        </div>
 
-                            {emr.currentVisit.treatment && (
+                        {/* Owner Information */}
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold">Owner Information</h3>
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <h4 className="text-sm font-medium text-gray-500 mb-2">Treatment</h4>
-                                    <p className="whitespace-pre-wrap">{emr.currentVisit.treatment}</p>
+                                    <h4 className="text-sm font-medium text-gray-500">Name</h4>
+                                    <p>{emr.owner?.name || 'N/A'}</p>
                                 </div>
-                            )}
-
-                            {emr.currentVisit.medications && emr.currentVisit.medications.length > 0 && (
                                 <div>
-                                    <h4 className="text-sm font-medium text-gray-500 mb-2">Medications</h4>
-                                    <div className="space-y-4">
-                                        {emr.currentVisit.medications.map((med: any, index: number) => (
-                                            <div key={index} className="grid grid-cols-2 gap-4 p-4 border rounded">
-                                                <div>
-                                                    <h5 className="font-medium">{med.name}</h5>
-                                                    <p className="text-sm text-gray-500">Dosage: {med.dosage}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm text-gray-500">Frequency: {med.frequency}</p>
-                                                    <p className="text-sm text-gray-500">Duration: {med.duration}</p>
-                                                </div>
-                                            </div>
-                                        ))}
+                                    <h4 className="text-sm font-medium text-gray-500">Phone</h4>
+                                    <p>{emr.owner?.phone || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-500">Email</h4>
+                                    <p>{emr.owner?.email || 'N/A'}</p>
+                                </div>
+                                {emr.owner?.address && (
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-500">Address</h4>
+                                        <p>{emr.owner.address}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Current Visit Information */}
+                        {emr.currentVisit && (
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold">Current Visit</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-500">Visit Date</h4>
+                                        <p>{new Date(emr.currentVisit.date || emr.createdAt).toLocaleDateString()}</p>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-500">Status</h4>
+                                        <Badge
+                                            variant={
+                                                emr.currentVisit.status === "active"
+                                                    ? "default"
+                                                    : emr.currentVisit.status === "ongoing"
+                                                    ? "secondary"
+                                                    : "destructive"
+                                            }
+                                        >
+                                            {emr.currentVisit.status || "Active"}
+                                        </Badge>
                                     </div>
                                 </div>
-                            )}
+                                {emr.currentVisit.diagnosis && (
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-500 mb-2">Diagnosis</h4>
+                                        <p className="whitespace-pre-wrap">{emr.currentVisit.diagnosis}</p>
+                                    </div>
+                                )}
+                                {emr.currentVisit.treatment && (
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-500 mb-2">Treatment</h4>
+                                        <p className="whitespace-pre-wrap">{emr.currentVisit.treatment}</p>
+                                    </div>
+                                )}
+                                {emr.currentVisit.notes && (
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-500 mb-2">Notes</h4>
+                                        <p className="whitespace-pre-wrap">{emr.currentVisit.notes}</p>
+                                    </div>
+                                )}
+                                {emr.currentVisit.followUpDate && (
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-500 mb-2">Follow-up Date</h4>
+                                        <p>{new Date(emr.currentVisit.followUpDate).toLocaleDateString()}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </TabsContent>
 
-                            {emr.currentVisit.notes && (
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-500 mb-2">Notes</h4>
-                                    <p className="whitespace-pre-wrap">{emr.currentVisit.notes}</p>
-                                </div>
-                            )}
+                    <TabsContent value="medications" className="space-y-4">
+                        <h3 className="text-lg font-semibold">Medications</h3>
+                        {emr.currentVisit?.medications && emr.currentVisit.medications.length > 0 ? (
+                            <div className="space-y-4">
+                                {emr.currentVisit.medications.map((med: any, index: number) => (
+                                    <div key={index} className="grid grid-cols-2 gap-4 p-4 border rounded">
+                                        <div>
+                                            <h5 className="font-medium">{med.name}</h5>
+                                            <p className="text-sm text-gray-500">Dosage: {med.dosage}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-gray-500">Frequency: {med.frequency}</p>
+                                            <p className="text-sm text-gray-500">Duration: {med.duration}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-gray-500">No medications found for this visit.</p>
+                        )}
+                    </TabsContent>
 
-                            {emr.currentVisit.followUpDate && (
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-500 mb-2">Follow-up Date</h4>
-                                    <p>{new Date(emr.currentVisit.followUpDate).toLocaleDateString()}</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Vaccinations */}
-                    {emr.vaccinations && emr.vaccinations.length > 0 && (
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold">Vaccinations</h3>
+                    <TabsContent value="vaccinations" className="space-y-4">
+                        <h3 className="text-lg font-semibold">Vaccination History</h3>
+                        {emr.vaccinations && emr.vaccinations.length > 0 ? (
                             <div className="space-y-4">
                                 {emr.vaccinations.map((vaccination: any, index: number) => (
                                     <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded">
@@ -254,13 +262,14 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        ) : (
+                            <p className="text-gray-500">No vaccination records found.</p>
+                        )}
+                    </TabsContent>
 
-                    {/* Medical History */}
-                    {emr.medicalHistory && emr.medicalHistory.length > 0 && (
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold">Medical History</h3>
+                    <TabsContent value="medical-history" className="space-y-4">
+                        <h3 className="text-lg font-semibold">Medical History</h3>
+                        {emr.medicalHistory && emr.medicalHistory.length > 0 ? (
                             <div className="space-y-4">
                                 {emr.medicalHistory.map((condition: any, index: number) => (
                                     <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded">
@@ -278,13 +287,14 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        ) : (
+                            <p className="text-gray-500">No medical history records found.</p>
+                        )}
+                    </TabsContent>
 
-                    {/* Visit History */}
-                    {emr.visitHistory && emr.visitHistory.length > 0 && (
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold">Visit History</h3>
+                    <TabsContent value="visit-history" className="space-y-4">
+                        <h3 className="text-lg font-semibold">Visit History</h3>
+                        {emr.visitHistory && emr.visitHistory.length > 0 ? (
                             <div className="space-y-4">
                                 {emr.visitHistory.map((visit: any, index: number) => (
                                     <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded">
@@ -300,43 +310,29 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        ) : (
+                            <p className="text-gray-500">No visit history records found.</p>
+                        )}
+                    </TabsContent>
+                </Tabs>
 
-                    {/* Attachments */}
-                    {emr.attachments && emr.attachments.length > 0 && (
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold">Attachments</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {emr.attachments.map((attachment: any, index: number) => (
-                                    <div key={index} className="p-4 border rounded">
-                                        <a href={attachment} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                            Attachment {index + 1}
-                                        </a>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Doctor Actions */}
-                    {isDoctor && (
-                        <div className="flex justify-end gap-2 pt-4 border-t">
-                            <Button 
-                                variant="outline" 
-                                onClick={() => onEdit && onEdit(emr)}
-                            >
-                                Edit
-                            </Button>
-                            <Button 
-                                variant="destructive" 
-                                onClick={() => handleDeleteEMR && handleDeleteEMR(emr._id)}
-                            >
-                                Delete
-                            </Button>
-                        </div>
-                    )}
-                </div>
+                {/* Doctor Actions */}
+                {isDoctor && (
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => onEdit && onEdit(emr)}
+                        >
+                            Edit
+                        </Button>
+                        <Button 
+                            variant="destructive" 
+                            onClick={() => handleDeleteEMR && handleDeleteEMR(emr._id)}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     )
