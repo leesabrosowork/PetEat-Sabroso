@@ -1473,6 +1473,24 @@ function VetClinicDashboard() {
     }
   }, [activeTabValue, user]);
 
+  // Realtime dashboard updates
+  useEffect(() => {
+    if (!socket) return;
+    const handleRealtimeUpdate = () => {
+      fetchDashboardData();
+    };
+    socket.on("pets_updated", handleRealtimeUpdate);
+    socket.on("emrs_updated", handleRealtimeUpdate);
+    socket.on("appointments_updated", handleRealtimeUpdate);
+    socket.on("pets_under_treatment_updated", handleRealtimeUpdate);
+    return () => {
+      socket.off("pets_updated", handleRealtimeUpdate);
+      socket.off("emrs_updated", handleRealtimeUpdate);
+      socket.off("appointments_updated", handleRealtimeUpdate);
+      socket.off("pets_under_treatment_updated", handleRealtimeUpdate);
+    };
+  }, [socket]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
