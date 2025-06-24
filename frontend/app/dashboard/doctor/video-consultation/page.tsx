@@ -17,6 +17,9 @@ import {
   Save,
 } from "lucide-react"
 import Link from "next/link"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Appointment {
   _id: string;
@@ -47,6 +50,22 @@ export default function DoctorVideoConsultation() {
   const [vetClinicName, setVetClinicName] = useState<string>("")
   const [userRole, setUserRole] = useState<string>("doctor")
   const [dashboardPath, setDashboardPath] = useState<string>("/dashboard/doctor")
+  const [isInPerson, setIsInPerson] = useState(false)
+  const [petName, setPetName] = useState("")
+  const [petAge, setPetAge] = useState("")
+  const [petSex, setPetSex] = useState("")
+  const [petBreed, setPetBreed] = useState("")
+  const [petSpecies, setPetSpecies] = useState("")
+  const [medicalHistory, setMedicalHistory] = useState("")
+  const [diseaseHistory, setDiseaseHistory] = useState("")
+  const [weight, setWeight] = useState("")
+  const [temperature, setTemperature] = useState("")
+  const [respiratoryRate, setRespiratoryRate] = useState("")
+  const [crt, setCrt] = useState("")
+  const [skinTenting, setSkinTenting] = useState(false)
+  const [proofOfVaccines, setProofOfVaccines] = useState("")
+  const [prescription, setPrescription] = useState("")
+  const [clientEducation, setClientEducation] = useState("")
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
@@ -55,6 +74,7 @@ export default function DoctorVideoConsultation() {
   const searchParams = useSearchParams()
   const appointmentId = searchParams.get("appointment")
   const router = useRouter()
+  const { toast } = useToast()
 
   useEffect(() => {
     // Check user role for proper dashboard redirection
@@ -159,9 +179,38 @@ export default function DoctorVideoConsultation() {
     }
   }
 
-  const saveNotes = () => {
-    if (notes.trim()) {
-      alert("Consultation notes saved successfully!")
+  const saveNotes = async () => {
+    const clinicalNote = {
+      consultation: appointment?._id,
+      pet: appointment?.pet._id,
+      petName,
+      petAge,
+      petSex,
+      petBreed,
+      petSpecies,
+      medicalHistory,
+      diseaseHistory,
+      prescription,
+      clientEducation,
+      vitals: isInPerson ? { weight, temperature, respiratoryRate } : undefined,
+      crt: isInPerson ? crt : undefined,
+      skinTenting: isInPerson ? skinTenting : undefined,
+      proofOfVaccines: isInPerson ? proofOfVaccines : undefined,
+    }
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch("http://localhost:8080/api/clinical-notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(clinicalNote),
+      })
+      if (!res.ok) throw new Error("Failed to save clinical note")
+      toast({ title: "Success", description: "Clinical note saved successfully!", variant: "default" })
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message || "Failed to save clinical note", variant: "destructive" })
     }
   }
 
@@ -328,27 +377,92 @@ export default function DoctorVideoConsultation() {
           </CardContent>
         </Card>
 
-        {/* Doctor's Notes Section */}
+        {/* Doctor's Notes Section - replaced with structured form */}
         <Card className="border border-gray-200 dark:border-gray-700 shadow-md">
           <CardHeader className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <CardTitle className="text-lg text-gray-900 dark:text-white">Consultation Notes</CardTitle>
+            <CardTitle className="text-lg text-gray-900 dark:text-white">Clinical Note</CardTitle>
           </CardHeader>
           <CardContent className="p-6 bg-gray-50 dark:bg-gray-900">
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Type your consultation notes here..."
-              className="w-full h-32 mb-4 border border-gray-300 dark:border-gray-700 rounded-md"
-            />
-            <div className="flex justify-end">
-              <Button 
-                onClick={saveNotes} 
-                className="flex items-center gap-2"
-              >
-                <Save className="h-4 w-4" />
-                Save Notes
-              </Button>
-            </div>
+            <form className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Label htmlFor="inPerson">In-person consultation?</Label>
+                <input id="inPerson" type="checkbox" checked={isInPerson} onChange={e => setIsInPerson(e.target.checked)} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Pet Name</Label>
+                  <Input value={petName} onChange={e => setPetName(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Age</Label>
+                  <Input type="number" value={petAge} onChange={e => setPetAge(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Sex</Label>
+                  <Input value={petSex} onChange={e => setPetSex(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Breed</Label>
+                  <Input value={petBreed} onChange={e => setPetBreed(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Species</Label>
+                  <Input value={petSpecies} onChange={e => setPetSpecies(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Label>Medical History</Label>
+                <Textarea value={medicalHistory} onChange={e => setMedicalHistory(e.target.value)} placeholder="Summarize medical history..." />
+              </div>
+              <div>
+                <Label>Disease History</Label>
+                <Textarea value={diseaseHistory} onChange={e => setDiseaseHistory(e.target.value)} placeholder="Summarize disease history..." />
+              </div>
+              {isInPerson && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Weight (kg)</Label>
+                      <Input type="number" value={weight} onChange={e => setWeight(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>Temperature (°C)</Label>
+                      <Input type="number" value={temperature} onChange={e => setTemperature(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>Respiratory Rate</Label>
+                      <Input type="number" value={respiratoryRate} onChange={e => setRespiratoryRate(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>CRT (sec)</Label>
+                      <Input type="number" value={crt} onChange={e => setCrt(e.target.value)} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label>Skin Tenting</Label>
+                      <input type="checkbox" checked={skinTenting} onChange={e => setSkinTenting(e.target.checked)} />
+                    </div>
+                    <div>
+                      <Label>Proof of Vaccines</Label>
+                      <Input value={proofOfVaccines} onChange={e => setProofOfVaccines(e.target.value)} placeholder="Enter proof or file ref..." />
+                    </div>
+                  </div>
+                </>
+              )}
+              <div>
+                <Label>Prescription (Take-home meds)</Label>
+                <Textarea value={prescription} onChange={e => setPrescription(e.target.value)} placeholder="List take-home medications..." />
+              </div>
+              <div>
+                <Label>Client Education (Notes to client)</Label>
+                <Textarea value={clientEducation} onChange={e => setClientEducation(e.target.value)} placeholder="Instructions for client..." />
+              </div>
+              <div className="flex justify-end">
+                <Button type="button" onClick={saveNotes} className="flex items-center gap-2">
+                  <Save className="h-4 w-4" />
+                  Save Clinical Note
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       </div>

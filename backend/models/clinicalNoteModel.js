@@ -26,10 +26,28 @@ const clinicalNoteSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  // Online consultation fields
+  petName: String,
+  petAge: Number,
+  petSex: String,
+  petBreed: String,
+  petSpecies: String,
+  medicalHistory: String, // summary or reference
+  diseaseHistory: String, // summary or reference
+  // In-person consultation fields
   vitals: vitalsSchema,
+  crt: Number,
+  skinTenting: {
+    type: Boolean,
+    default: false
+  },
+  proofOfVaccines: String, // could be a file reference or text
+  // Discharge notes
+  prescription: String,
+  clientEducation: String,
+  // Common fields
   diagnosis: String,
   treatmentPlan: String,
-  prescription: String,
   additionalNotes: String,
   createdAt: {
     type: Date,

@@ -2,6 +2,7 @@ const PetsUnderTreatment = require('../models/petsUnderTreatmentModel');
 const Pet = require('../models/petModel');
 const User = require('../models/userModel');
 const { io } = require('../server');
+const nodemailer = require('nodemailer');
 
 // Get all pets under treatment (for superadmin)
 exports.getAllPetsUnderTreatment = async (req, res) => {
@@ -277,6 +278,34 @@ exports.dischargePet = async (req, res) => {
         });
         
         await petUnderTreatment.save();
+        
+        // Populate pet and owner
+        await petUnderTreatment.populate({
+            path: 'pet',
+            select: 'name owner',
+            populate: {
+                path: 'owner',
+                select: 'email fullName name'
+            }
+        });
+        
+        // Send email to pet owner
+        const owner = petUnderTreatment.pet.owner;
+        if (owner && owner.email) {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASS,
+                },
+            });
+            await transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: owner.email,
+                subject: `Your pet ${petUnderTreatment.pet.name} has been discharged`,
+                text: `Dear ${owner.fullName || owner.name || 'Pet Owner'},\n\nYour pet ${petUnderTreatment.pet.name} has been discharged from treatment.\n\nDischarge Notes: ${dischargeNotes || 'N/A'}\n\nThank you for trusting us with your pet's care.\n\nBest regards,\nYour Veterinary Clinic`
+            });
+        }
         
         // Emit socket event
         if (io) {

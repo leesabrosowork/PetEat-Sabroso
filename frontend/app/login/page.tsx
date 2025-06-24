@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Heart } from "lucide-react"
 import { useSocket } from "../context/SocketContext"
 import { useToast } from "@/components/ui/use-toast"
+import PublicLayout from '../public-layout'
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -151,88 +152,70 @@ export default function LoginPage() {
 
   if (maintenanceMode) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
-              <span className="text-2xl font-bold">PetEat</span>
-            </div>
-            <CardTitle>Under Maintenance</CardTitle>
-            <CardDescription>
-              We are currently performing maintenance. Please check back later.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <PublicLayout>
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
+          <Card className="w-full max-w-md text-center">
+            <CardHeader>
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
+                <span className="text-2xl font-bold">PetEat</span>
+              </div>
+              <CardTitle>Under Maintenance</CardTitle>
+              <CardDescription>
+                We are currently performing maintenance. Please check back later.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </PublicLayout>
     )
   }
  
    return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
-            <span className="text-2xl font-bold">PetEat</span>
-          </div>
-          <CardTitle>Welcome Back</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required 
-                placeholder="Enter your email"
-              />
+    <PublicLayout>
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
+              <span className="text-2xl font-bold">PetEat</span>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="Enter your password"
-              />
-              <div className="text-right mt-1">
-                <Link href="/forgot-password" className="text-xs text-blue-600 hover:underline">Forgot password?</Link>
+            <CardTitle>Welcome Back</CardTitle>
+            <CardDescription>Sign in to your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  required 
+                  placeholder="Enter your email"
+                />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="Enter your password"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>{loading ? "Signing in..." : "Sign In"}</Button>
+            </form>
+            <div className="flex justify-between mt-4">
+              <Link href="/forgot-password" className="text-blue-600 hover:underline text-sm">Forgot password?</Link>
+              <Link href="/signup" className="text-blue-600 hover:underline text-sm">Create account</Link>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center text-sm">
-            <p className="text-gray-600 mb-4">Demo Accounts:</p>
-            <div className="space-y-1 text-xs">
-              <p>
-                <strong>Super Admin:</strong> superadmin@peteat.com / superadmin123
-              </p>
-              <p>
-                <strong>Admin:</strong> admin@peteat.com / admin123
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link href="/signup" className="text-blue-600 hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </div>
+    </PublicLayout>
   )
 }

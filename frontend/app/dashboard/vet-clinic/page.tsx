@@ -100,6 +100,7 @@ interface MedicalRecord {
     notes: string;
     veterinarian: string;
   }>;
+  archived?: boolean;
 }
 
 interface Appointment {
@@ -1555,6 +1556,8 @@ function VetClinicDashboard() {
     };
   }, [socket, user]);
 
+  const [showArchived, setShowArchived] = useState(false);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1862,13 +1865,19 @@ function VetClinicDashboard() {
                     <CardTitle className="text-gray-900 dark:text-white">Medical Records</CardTitle>
                     <CardDescription>Electronic Medical Records for all pets</CardDescription>
                   </div>
-                  <Button onClick={() => {
-                    fetchPets(); // Fetch pets before opening the dialog
-                    setAddMedicalRecordDialogOpen(true);
-                  }}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Medical Record
-                  </Button>
+                  <div className="flex gap-2 items-center">
+                    <label className="flex items-center gap-1 text-sm">
+                      <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
+                      Show Archived
+                    </label>
+                    <Button onClick={() => {
+                      fetchPets(); // Fetch pets before opening the dialog
+                      setAddMedicalRecordDialogOpen(true);
+                    }}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Medical Record
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -1886,29 +1895,81 @@ function VetClinicDashboard() {
                         <TableHead>Owner</TableHead>
                         <TableHead className="text-gray-900 dark:text-white">Last Visit</TableHead>
                         <TableHead className="text-gray-900 dark:text-white">Vaccinations</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {medicalRecords.map((record) => (
-                        <TableRow key={record._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
-                          <TableCell className="font-medium text-gray-900 dark:text-white">{record.name}</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{record.species}</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{record.owner?.name || 'No owner info'}</TableCell>
-                          <TableCell>
-                            {record.visitHistory.length > 0 
-                              ? new Date(record.visitHistory[record.visitHistory.length - 1].date).toLocaleDateString()
-                              : 'No visits'
-                            }
-                          </TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{record.vaccinations.length} vaccines</TableCell>
-                          <TableCell>
-                            <Button variant="outline" size="sm" onClick={() => handleViewMedicalRecord(record)}>
-                              View EMR
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {medicalRecords
+                        .filter(record => showArchived ? record.archived : !record.archived)
+                        .map((record) => (
+                          <TableRow key={record._id} className={`hover:bg-gray-100 dark:hover:bg-gray-800 ${record.archived ? 'opacity-60' : ''}`}>
+                            <TableCell className="font-medium text-gray-900 dark:text-white">{record.name}</TableCell>
+                            <TableCell className="text-gray-900 dark:text-white">{record.species}</TableCell>
+                            <TableCell className="text-gray-900 dark:text-white">{record.owner?.name || 'No owner info'}</TableCell>
+                            <TableCell>
+                              {record.visitHistory.length > 0 
+                                ? new Date(record.visitHistory[record.visitHistory.length - 1].date).toLocaleDateString()
+                                : 'No visits'
+                              }
+                            </TableCell>
+                            <TableCell className="text-gray-900 dark:text-white">{record.vaccinations.length} vaccines</TableCell>
+                            <TableCell>
+                              {record.archived ? (
+                                <span className="text-xs text-gray-500">Archived</span>
+                              ) : (
+                                <span className="text-xs text-green-600">Active</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => handleViewMedicalRecord(record)}>
+                                View EMR
+                              </Button>
+                              {!record.archived && (
+                                <Button variant="outline" size="sm" onClick={async () => {
+                                  const token = localStorage.getItem('token');
+                                  const res = await fetch(`http://localhost:8080/api/emr/${record._id}/archive`, {
+                                    method: 'PATCH',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      Authorization: `Bearer ${token}`
+                                    },
+                                    body: JSON.stringify({ archived: true })
+                                  });
+                                  if (res.ok) {
+                                    toast({ title: 'Archived', description: 'EMR archived successfully' });
+                                    fetchMedicalRecords();
+                                  } else {
+                                    toast({ title: 'Error', description: 'Failed to archive EMR', variant: 'destructive' });
+                                  }
+                                }}>
+                                  Archive
+                                </Button>
+                              )}
+                              {record.archived && (
+                                <Button variant="outline" size="sm" onClick={async () => {
+                                  const token = localStorage.getItem('token');
+                                  const res = await fetch(`http://localhost:8080/api/emr/${record._id}/archive`, {
+                                    method: 'PATCH',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      Authorization: `Bearer ${token}`
+                                    },
+                                    body: JSON.stringify({ archived: false })
+                                  });
+                                  if (res.ok) {
+                                    toast({ title: 'Unarchived', description: 'EMR unarchived successfully' });
+                                    fetchMedicalRecords();
+                                  } else {
+                                    toast({ title: 'Error', description: 'Failed to unarchive EMR', variant: 'destructive' });
+                                  }
+                                }}>
+                                  Unarchive
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
                     </TableBody>
                   </Table>
                 )}

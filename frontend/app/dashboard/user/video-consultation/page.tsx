@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Video, VideoOff, Mic, MicOff, PhoneOff, ArrowLeft, Camera } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Appointment {
   _id: string;
@@ -36,6 +37,8 @@ export default function VideoConsultation() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userName, setUserName] = useState<string>("")
+  const [clinicalNote, setClinicalNote] = useState<any>(null)
+  const { toast } = useToast()
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const searchParams = useSearchParams()
@@ -91,6 +94,25 @@ export default function VideoConsultation() {
     }
     return () => clearInterval(interval)
   }, [isCallActive])
+
+  useEffect(() => {
+    if (!appointmentId) return
+    // Fetch clinical note after consultation
+    fetch(`http://localhost:8080/api/clinical-notes/consultation/${appointmentId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data && data.data.length > 0) {
+          setClinicalNote(data.data[0])
+        }
+      })
+      .catch(() => {
+        toast({ title: "Error", description: "Failed to load clinical note", variant: "destructive" })
+      })
+  }, [appointmentId])
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -298,6 +320,36 @@ export default function VideoConsultation() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Clinical Note Display */}
+        {clinicalNote && (
+          <Card className="border border-gray-200 dark:border-gray-700 shadow-md mt-6">
+            <CardHeader className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <CardTitle className="text-lg text-gray-900 dark:text-white">Clinical Note</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 bg-gray-50 dark:bg-gray-900 space-y-2">
+              <div><b>Pet Name:</b> {clinicalNote.petName || "-"}</div>
+              <div><b>Age:</b> {clinicalNote.petAge || "-"}</div>
+              <div><b>Sex:</b> {clinicalNote.petSex || "-"}</div>
+              <div><b>Breed:</b> {clinicalNote.petBreed || "-"}</div>
+              <div><b>Species:</b> {clinicalNote.petSpecies || "-"}</div>
+              <div><b>Medical History:</b> {clinicalNote.medicalHistory || "-"}</div>
+              <div><b>Disease History:</b> {clinicalNote.diseaseHistory || "-"}</div>
+              {clinicalNote.vitals && (
+                <>
+                  <div><b>Weight:</b> {clinicalNote.vitals.weight || "-"} kg</div>
+                  <div><b>Temperature:</b> {clinicalNote.vitals.temperature || "-"} °C</div>
+                  <div><b>Respiratory Rate:</b> {clinicalNote.vitals.respiratoryRate || "-"}</div>
+                </>
+              )}
+              {clinicalNote.crt && <div><b>CRT:</b> {clinicalNote.crt} sec</div>}
+              {clinicalNote.skinTenting !== undefined && <div><b>Skin Tenting:</b> {clinicalNote.skinTenting ? "Yes" : "No"}</div>}
+              {clinicalNote.proofOfVaccines && <div><b>Proof of Vaccines:</b> {clinicalNote.proofOfVaccines}</div>}
+              <div><b>Prescription (Take-home meds):</b> {clinicalNote.prescription || "-"}</div>
+              <div><b>Client Education (Notes to client):</b> {clinicalNote.clientEducation || "-"}</div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

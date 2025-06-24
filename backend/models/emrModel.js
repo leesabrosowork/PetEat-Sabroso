@@ -112,7 +112,11 @@ const emrSchema = new mongoose.Schema({
     attachments: [{
         type: String, // URLs to stored files
         description: String
-    }]
+    }],
+    archived: {
+        type: Boolean,
+        default: false
+    }
 }, {
     timestamps: true
 });

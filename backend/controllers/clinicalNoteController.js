@@ -7,6 +7,7 @@ const User = require('../models/userModel');
 exports.createClinicalNote = async (req, res) => {
   try {
     const data = req.body;
+    // Optionally, extract or validate new fields here
     const note = await ClinicalNote.create(data);
     if (req.app && req.app.get('io')) {
       req.app.get('io').emit('clinical_notes_updated');
@@ -57,10 +58,25 @@ exports.getNoteDetails = async (req, res) => {
       consultation: fallback(note.consultation),
       pet: fallback(note.pet),
       author: fallback(note.author),
+      // Online consultation fields
+      petName: fallback(note.petName),
+      petAge: fallback(note.petAge),
+      petSex: fallback(note.petSex),
+      petBreed: fallback(note.petBreed),
+      petSpecies: fallback(note.petSpecies),
+      medicalHistory: fallback(note.medicalHistory),
+      diseaseHistory: fallback(note.diseaseHistory),
+      // In-person consultation fields
       vitals: note.vitals || 'N/A',
+      crt: fallback(note.crt),
+      skinTenting: fallback(note.skinTenting),
+      proofOfVaccines: fallback(note.proofOfVaccines),
+      // Discharge notes
+      prescription: fallback(note.prescription),
+      clientEducation: fallback(note.clientEducation),
+      // Common fields
       diagnosis: fallback(note.diagnosis),
       treatmentPlan: fallback(note.treatmentPlan),
-      prescription: fallback(note.prescription),
       additionalNotes: fallback(note.additionalNotes),
       createdAt: fallback(note.createdAt)
     };

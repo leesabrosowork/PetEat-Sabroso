@@ -6,7 +6,8 @@ const {
     getAllEMRs,
     getEMRById,
     updateEMR,
-    deleteEMR
+    deleteEMR,
+    archiveEMR
 } = require('../controllers/emrController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -16,6 +17,7 @@ router.get('/', protect, authorize('clinic'), getAllEMRs);
 router.get('/:id', protect, getEMRById);
 router.put('/:id', protect, authorize('clinic'), updateEMR);
 router.delete('/:id', protect, authorize('clinic'), deleteEMR);
+router.patch('/:id/archive', protect, authorize('clinic'), archiveEMR);
 
 // Common routes
 router.get('/pet/:petId', protect, getPetEMRs);

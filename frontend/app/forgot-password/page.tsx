@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import PublicLayout from '../public-layout'
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState<0 | 1>(0)
@@ -82,69 +83,71 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Forgot Password</CardTitle>
-          <CardDescription>Reset your password using OTP verification</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {step === 0 && (
-            <form onSubmit={handleRequestOtp} className="space-y-4">
-              <Input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                placeholder="Enter your email"
-              />
-              <Button type="submit" className="w-full" disabled={loading}>{loading ? "Sending..." : "Send OTP"}</Button>
-              {error && <div className="text-red-500 text-xs">{error}</div>}
-              {success && <div className="text-green-600 text-xs">{success}</div>}
-            </form>
-          )}
-          {step === 1 && (
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <Input
-                type="text"
-                value={otp}
-                onChange={e => setOtp(e.target.value)}
-                maxLength={6}
-                minLength={6}
-                required
-                placeholder="Enter OTP"
-                className="tracking-widest text-center font-mono text-lg"
-              />
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                required
-                placeholder="New password"
-              />
-              <Input
-                type="password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                required
-                placeholder="Confirm new password"
-              />
-              <Button type="submit" className="w-full" disabled={loading}>{loading ? "Resetting..." : "Reset Password"}</Button>
-              {error && (
-                <div className="text-red-500 text-xs mt-2 flex flex-col items-center">
-                  {error}
-                  {(error.toLowerCase().includes("expired") || error.toLowerCase().includes("invalid") || error.toLowerCase().includes("no otp")) && (
-                    <Button variant="link" className="p-0 h-auto text-xs text-blue-600 underline mt-1" onClick={handleRequestNewOtp} type="button">
-                      Request new OTP
-                    </Button>
-                  )}
-                </div>
-              )}
-              {success && <div className="text-green-600 text-xs">{success}</div>}
-            </form>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    <PublicLayout>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Forgot Password</CardTitle>
+            <CardDescription>Reset your password using OTP verification</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {step === 0 && (
+              <form onSubmit={handleRequestOtp} className="space-y-4">
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  placeholder="Enter your email"
+                />
+                <Button type="submit" className="w-full" disabled={loading}>{loading ? "Sending..." : "Send OTP"}</Button>
+                {error && <div className="text-red-500 text-xs">{error}</div>}
+                {success && <div className="text-green-600 text-xs">{success}</div>}
+              </form>
+            )}
+            {step === 1 && (
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <Input
+                  type="text"
+                  value={otp}
+                  onChange={e => setOtp(e.target.value)}
+                  maxLength={6}
+                  minLength={6}
+                  required
+                  placeholder="Enter OTP"
+                  className="tracking-widest text-center font-mono text-lg"
+                />
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  required
+                  placeholder="New password"
+                />
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  required
+                  placeholder="Confirm new password"
+                />
+                <Button type="submit" className="w-full" disabled={loading}>{loading ? "Resetting..." : "Reset Password"}</Button>
+                {error && (
+                  <div className="text-red-500 text-xs mt-2 flex flex-col items-center">
+                    {error}
+                    {(error.toLowerCase().includes("expired") || error.toLowerCase().includes("invalid") || error.toLowerCase().includes("no otp")) && (
+                      <Button variant="link" className="p-0 h-auto text-xs text-blue-600 underline mt-1" onClick={handleRequestNewOtp} type="button">
+                        Request new OTP
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {success && <div className="text-green-600 text-xs">{success}</div>}
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </PublicLayout>
   )
 }

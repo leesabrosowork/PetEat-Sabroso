@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import OtpVerification from "./OtpVerification"
+import PublicLayout from '../public-layout'
 
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
@@ -104,128 +105,114 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-      {showOtp && registeredEmail ? (
-        <OtpVerification email={registeredEmail} isVetClinic={false} />
-      ) : (
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
-              <span className="text-2xl font-bold">PetEat</span>
-            </div>
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <CardTitle>Create Account</CardTitle>
-            <CardDescription>Join our pet care community as a pet owner</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input 
-                  id="username" 
-                  value={formData.username} 
-                  onChange={(e) => handleChange("username", e.target.value)} 
-                  required 
-                  placeholder="Choose a username"
-                />
+    <PublicLayout>
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
+        {showOtp && registeredEmail ? (
+          <OtpVerification email={registeredEmail} isVetClinic={false} />
+        ) : (
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
+                <span className="text-2xl font-bold">PetEat</span>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input 
-                  id="fullName" 
-                  value={formData.fullName} 
-                  onChange={(e) => handleChange("fullName", e.target.value)} 
-                  required 
-                  placeholder="Enter your full name"
-                />
+              {error && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              <CardTitle>Create Account</CardTitle>
+              <CardDescription>Join our pet care community as a pet owner</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input 
+                    id="username" 
+                    value={formData.username} 
+                    onChange={(e) => handleChange("username", e.target.value)} 
+                    required 
+                    placeholder="Choose a username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input 
+                    id="fullName" 
+                    value={formData.fullName} 
+                    onChange={(e) => handleChange("fullName", e.target.value)} 
+                    required 
+                    placeholder="Enter your full name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    required
+                    placeholder="Enter your email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contactNumber">Contact Number</Label>
+                  <Input
+                    id="contactNumber"
+                    type="tel"
+                    value={formData.contactNumber}
+                    onChange={(e) => handleChange("contactNumber", e.target.value)}
+                    placeholder="Enter your contact number"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => handleChange("address", e.target.value)}
+                    placeholder="Enter your address"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => handleChange("password", e.target.value)}
+                    required
+                    placeholder="Create a password"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Password must be at least 8 characters long and contain at least one number and one special character
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                    required
+                    placeholder="Confirm your password"
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>{loading ? "Signing up..." : "Sign Up"}</Button>
+              </form>
+              <div className="flex justify-between mt-4">
+                <Link href="/login" className="text-blue-600 hover:underline text-sm">Already have an account?</Link>
+                <Link href="/vet-signup" className="text-blue-600 hover:underline text-sm">Sign up as a vet clinic</Link>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleChange("email", e.target.value)}
-                  required
-                  placeholder="Enter your email"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="contactNumber">Contact Number</Label>
-                <Input
-                  id="contactNumber"
-                  type="tel"
-                  value={formData.contactNumber}
-                  onChange={(e) => handleChange("contactNumber", e.target.value)}
-                  placeholder="Enter your contact number"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => handleChange("address", e.target.value)}
-                  placeholder="Enter your address"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => handleChange("password", e.target.value)}
-                  required
-                  placeholder="Create a password"
-                />
-                <p className="text-xs text-gray-500">
-                  Password must be at least 8 characters long and contain at least one number and one special character
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleChange("confirmPassword", e.target.value)}
-                  required
-                  placeholder="Confirm your password"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Creating Account..." : "Create Account"}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                Already have an account?{" "}
-                <Link href="/login" className="text-blue-600 hover:underline">
-                  Sign in
-                </Link>
-              </p>
-            </div>
-
-            <div className="mt-4 text-center text-xs text-gray-500">
-              <p>Are you a veterinary clinic?{" "}
-                <Link href="/vet-signup" className="text-blue-600 hover:underline">
-                  Sign up as a vet clinic
-                </Link>
-              </p>
-              <p className="mt-2">Note: Doctors and administrators are created by the system administrator.</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </PublicLayout>
   )
 }
