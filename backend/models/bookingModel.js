@@ -41,6 +41,9 @@ const bookingSchema = new mongoose.Schema({
     notes: {
         type: String
     },
+    googleMeetLink: {
+        type: String
+    },
     
     createdAt: {
         type: Date,

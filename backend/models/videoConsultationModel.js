@@ -45,6 +45,15 @@ const videoConsultationSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  zoomJoinUrl: {
+    type: String
+  },
+  zoomMeetingId: {
+    type: String
+  },
+  googleMeetLink: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now

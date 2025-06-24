@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -66,6 +66,9 @@ export default function DoctorVideoConsultation() {
   const [proofOfVaccines, setProofOfVaccines] = useState("")
   const [prescription, setPrescription] = useState("")
   const [clientEducation, setClientEducation] = useState("")
+  const [meetLink, setMeetLink] = useState<string | null>(null)
+  const [meetLoading, setMeetLoading] = useState(false)
+  const [meetError, setMeetError] = useState<string | null>(null)
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
@@ -214,6 +217,37 @@ export default function DoctorVideoConsultation() {
     }
   }
 
+  // Google Meet: Start OAuth
+  const handleGoogleAuth = useCallback(() => {
+    window.location.href = "http://localhost:8080/api/google-meet/auth"
+  }, [])
+
+  // Google Meet: Create Meet Link
+  const handleCreateMeet = useCallback(async () => {
+    setMeetLoading(true)
+    setMeetError(null)
+    try {
+      const res = await fetch("http://localhost:8080/api/google-meet/create-meet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          summary: `Consultation for ${appointment?.pet.name}`,
+          description: `Consultation with ${appointment?.user.name}`,
+          startTime: appointment?.startTime,
+          endTime: appointment?.endTime,
+        }),
+      })
+      if (!res.ok) throw new Error("Failed to create Google Meet link. Make sure you are authenticated.")
+      const data = await res.json()
+      setMeetLink(data.meetLink)
+    } catch (e: any) {
+      setMeetError(e.message || "Failed to create Google Meet link.")
+    } finally {
+      setMeetLoading(false)
+    }
+  }, [appointment])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -248,6 +282,20 @@ export default function DoctorVideoConsultation() {
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Link>
+        </div>
+
+        {/* Google Meet Integration */}
+        <div className="mb-4 flex flex-col md:flex-row gap-2 items-start md:items-center">
+          <Button onClick={handleGoogleAuth} variant="outline">Authenticate with Google</Button>
+          <Button onClick={handleCreateMeet} disabled={meetLoading} variant="default">
+            {meetLoading ? "Creating Meet Link..." : "Create Google Meet Link"}
+          </Button>
+          {meetLink && (
+            <a href={meetLink} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 underline break-all">
+              Join Meet: {meetLink}
+            </a>
+          )}
+          {meetError && <span className="text-red-600 ml-2">{meetError}</span>}
         </div>
 
         <Card className="border border-gray-200 dark:border-gray-700 shadow-md mb-6">

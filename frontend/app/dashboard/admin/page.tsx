@@ -12,11 +12,9 @@ import { Heart, Users, Stethoscope, Package, LogOut, Plus, Edit, Trash2, Sun, Mo
 import Image from "next/image"
 import { AddItemDialog } from "@/components/AddItemDialog"
 import { EditUserDialog } from "@/components/EditUserDialog"
-import { EditDoctorDialog } from "@/components/EditDoctorDialog"
 import { EditPetDialog } from "@/components/EditPetDialog"
 import { UserPermissionsDialog } from "@/components/UserPermissionsDialog"
 import { EditInventoryItemDialog } from "@/components/EditInventoryItemDialog"
-import { AddDoctorDialog } from "@/components/AddDoctorDialog"
 import { toast } from "@/components/ui/use-toast"
 
 interface DashboardData {
@@ -35,17 +33,6 @@ interface User {
   role: string;
   createdAt: string;
   status: string;
-}
-
-interface Doctor {
-  _id?: string;
-  name: string;
-  email: string;
-  password: string;
-  contact: string;
-  address: string;
-  specialty: string;
-  availability: 'available' | 'busy';
 }
 
 interface PetOwner {
@@ -83,8 +70,6 @@ export default function AdminDashboard() {
   const [user, setUser] = useState<any>(null)
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [users, setUsers] = useState<User[]>([])
-  const [doctors, setDoctors] = useState<Doctor[]>([])
-  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([])
   const [pets, setPets] = useState<Pet[]>([])
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [recentActivities, setRecentActivities] = useState<RecentActivities | null>(null)
@@ -93,9 +78,6 @@ export default function AdminDashboard() {
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false)
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [isEditDoctorDialogOpen, setIsEditDoctorDialogOpen] = useState(false)
-  const [isAddDoctorDialogOpen, setIsAddDoctorDialogOpen] = useState(false)
-  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [isEditPetDialogOpen, setIsEditPetDialogOpen] = useState(false)
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null)
   const [isUserPermissionsDialogOpen, setIsUserPermissionsDialogOpen] = useState(false)
@@ -164,46 +146,10 @@ export default function AdminDashboard() {
     if (userData) {
       setUser(JSON.parse(userData))
       fetchDashboardData()
-      fetchSpecialties()
     } else {
       router.push("/login")
     }
   }, [router])
-
-  const fetchSpecialties = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("No authentication token found");
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-      const defaultSpecialties = [
-        'General Practitioner',
-        'Surgeon',
-        'Dermatologist',
-        'Cardiologist',
-        'Ophthalmologist',
-        'Dentist',
-        'Radiologist',
-        'Neurologist',
-        'Oncologist',
-        'Exotic Animal Specialist'
-      ];
-      const res = await fetch('http://localhost:8080/api/admin/doctor-specialties', { headers });
-      if (!res.ok) throw new Error('Failed to fetch specialties');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        // Merge backend specialties with defaults, remove duplicates
-        const merged = Array.from(new Set([...defaultSpecialties, ...data.data]));
-        setSpecialties(merged);
-      } else {
-        setSpecialties(defaultSpecialties);
-      }
-    } catch (error) {
-      setSpecialties([]);
-    }
-  }
 
   const fetchDashboardData = async () => {
     try {
@@ -224,21 +170,19 @@ export default function AdminDashboard() {
       const [
         overviewRes,
         usersRes,
-        doctorsRes,
         petsRes,
         inventoryRes,
         activitiesRes
       ] = await Promise.all([
         fetch('http://localhost:8080/api/admin/dashboard/overview', { headers }),
         fetch('http://localhost:8080/api/admin/users', { headers }),
-        fetch('http://localhost:8080/api/admin/doctors', { headers }),
         fetch('http://localhost:8080/api/admin/pets', { headers }),
         fetch('http://localhost:8080/api/admin/inventory', { headers }),
         fetch('http://localhost:8080/api/admin/recent-activities', { headers })
       ])
 
       // Check if any request failed
-      if (!overviewRes.ok || !usersRes.ok || !doctorsRes.ok || !petsRes.ok || !inventoryRes.ok || !activitiesRes.ok) {
+      if (!overviewRes.ok || !usersRes.ok || !petsRes.ok || !inventoryRes.ok || !activitiesRes.ok) {
         throw new Error('Failed to fetch dashboard data')
       }
 
@@ -246,14 +190,12 @@ export default function AdminDashboard() {
       const [
         overviewData,
         usersData,
-        doctorsData,
         petsData,
         inventoryData,
         activitiesData
       ] = await Promise.all([
         overviewRes.json(),
         usersRes.json(),
-        doctorsRes.json(),
         petsRes.json(),
         inventoryRes.json(),
         activitiesRes.json()
@@ -262,7 +204,6 @@ export default function AdminDashboard() {
       // Update state with fetched data
       setDashboardData(overviewData.data)
       setUsers(usersData.data)
-      setDoctors(doctorsData.data)
       setPets(petsData.data)
       setInventory(inventoryData.data)
       setRecentActivities(activitiesData.data)
@@ -368,69 +309,6 @@ export default function AdminDashboard() {
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred')
       console.error('Error deleting user:', error)
-    }
-  }
-
-  const handleUpdateDoctor = async (updatedDoctor: Doctor) => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/admin/doctors`, { headers });
-      if (!response.ok) {
-        throw new Error('Failed to fetch doctors');
-      }
-      const data = await response.json();
-      setDoctors(data.data || []);
-      setFilteredDoctors(data.data || []);
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
-      setDoctors([]);
-      setFilteredDoctors([]);
-    }
-  };
-
-  // Update filtered doctors when specialty changes
-  useEffect(() => {
-    if (selectedSpecialty) {
-      setFilteredDoctors(doctors.filter(doctor => doctor.specialty === selectedSpecialty));
-    } else {
-      setFilteredDoctors(doctors);
-    }
-  }, [selectedSpecialty, doctors]);
-
-  const handleDeleteDoctor = async (doctorId: string) => {
-    try {
-      const token = localStorage.getItem("token")
-      if (!token) {
-        throw new Error("No authentication token found")
-      }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-
-      const response = await fetch(`http://localhost:8080/api/admin/doctors/${doctorId}`, {
-        method: 'DELETE',
-        headers
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete doctor')
-      }
-
-      setDoctors(doctors.filter(doctor => doctor._id !== doctorId))
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
-      console.error('Error deleting doctor:', error)
     }
   }
 
@@ -639,90 +517,6 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleAddDoctor = async (newDoctor: Doctor) => {
-    try {
-      const token = localStorage.getItem("token")
-      if (!token) {
-        throw new Error("No authentication token found")
-      }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-
-      // Always send availability as 'available'
-      const doctorPayload = {
-        name: newDoctor.name,
-        email: newDoctor.email,
-        password: newDoctor.password,
-        contact: newDoctor.contact,
-        address: newDoctor.address,
-        specialty: newDoctor.specialty,
-        availability: 'available',
-      };
-      const response = await fetch('http://localhost:8080/api/doctors', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(doctorPayload),
-      })
-
-      if (!response.ok) {
-        let errorMsg = 'Failed to add doctor';
-        try {
-          const errorData = await response.json();
-          if (errorData && (errorData.message || errorData.status)) {
-            errorMsg = errorData.message || errorData.status;
-          }
-        } catch (parseError) {
-          // ignore JSON parse error
-        }
-        throw new Error(errorMsg);
-      }
-
-      const createdDoctor = await response.json()
-      setDoctors([...doctors, createdDoctor.data])
-      setIsAddDoctorDialogOpen(false)
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
-      console.error('Error adding doctor:', error)
-    }
-  }
-
-  const handleChangeStock = async (id: string, amount: number) => {
-    try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`http://localhost:8080/api/admin/inventory/${id}/stock`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ amount }),
-      })
-      const data = await response.json()
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: `Stock ${amount > 0 ? "increased" : "decreased"} successfully`,
-        })
-        fetchDashboardData() // Refresh inventory data
-      } else {
-        toast({
-          title: "Error",
-          description: data.message,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update stock",
-        variant: "destructive",
-      })
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -806,12 +600,6 @@ export default function AdminDashboard() {
               Users
             </TabsTrigger>
             <TabsTrigger 
-              value="doctors" 
-              className="data-[state=active]:bg-white data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white"
-            >
-              Doctors
-            </TabsTrigger>
-            <TabsTrigger 
               value="pets" 
               className="data-[state=active]:bg-white data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white"
             >
@@ -835,28 +623,6 @@ export default function AdminDashboard() {
                 <CardContent>
                   <div className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData?.totalUsers}</div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Active users</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Doctors</CardTitle>
-                  <Stethoscope className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData?.totalDoctors}</div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    <select
-                      id="specialty-filter"
-                      className="border rounded px-2 py-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                      value={selectedSpecialty}
-                      onChange={e => setSelectedSpecialty(e.target.value)}
-                    >
-                      <option value="">All</option>
-                      {specialties.map((s, idx) => (
-                        <option value={s} key={s + '-' + idx}>{s}</option>
-                      ))}
-                    </select>
-                  </p>
                 </CardContent>
               </Card>
               <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
@@ -966,66 +732,6 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="doctors" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Doctors</h2>
-              <Button onClick={() => setIsAddDoctorDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Doctor
-              </Button>
-            </div>
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-gray-900 dark:text-white">Name</TableHead>
-                    <TableHead className="text-gray-900 dark:text-white">Email</TableHead>
-                    <TableHead className="text-gray-900 dark:text-white">Specialty</TableHead>
-                    <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
-                    <TableHead className="text-right text-gray-900 dark:text-white">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDoctors.map((doctor) => (
-                    <TableRow key={doctor._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
-                      <TableCell className="font-medium text-gray-900 dark:text-white">{doctor.name}</TableCell>
-                      <TableCell className="text-gray-900 dark:text-white">{doctor.email}</TableCell>
-                      <TableCell className="text-gray-900 dark:text-white">{doctor.specialty}</TableCell>
-                      <TableCell>
-                        <Badge variant={doctor.availability === 'available' ? 'default' : 'secondary'} className="capitalize">
-                          {doctor.availability}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedDoctor(doctor);
-                              setIsEditDoctorDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteDoctor(doctor._id || '')}
-                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          </TabsContent>
-          
-          {/* Add other TabsContent components for Users, Pets, and Inventory tabs */}
           <TabsContent value="users" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Users</h2>
@@ -1105,7 +811,7 @@ export default function AdminDashboard() {
                       <TableCell className="text-gray-900 dark:text-white">{pet.type}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">{pet.breed}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">
-                        {typeof pet.owner === 'object' ? pet.owner.username || pet.owner.email : pet.owner}
+                        {typeof pet.owner === 'object' && pet.owner ? (pet.owner.username || pet.owner.email || 'N/A') : (pet.owner || 'N/A')}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -1203,18 +909,6 @@ export default function AdminDashboard() {
         isOpen={isAddItemDialogOpen}
         onClose={() => setIsAddItemDialogOpen(false)}
         onAddItem={handleAddItem}
-      />
-      <EditDoctorDialog
-        isOpen={isEditDoctorDialogOpen}
-        onClose={() => setIsEditDoctorDialogOpen(false)}
-        doctor={selectedDoctor}
-        onUpdateDoctor={handleUpdateDoctor}
-      />
-      <AddDoctorDialog
-        isOpen={isAddDoctorDialogOpen}
-        onClose={() => setIsAddDoctorDialogOpen(false)}
-        onAddDoctor={handleAddDoctor}
-        specialties={specialties}
       />
       <EditUserDialog
         isOpen={isEditUserDialogOpen}

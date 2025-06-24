@@ -6,6 +6,8 @@ const VideoConsultation = require('../models/videoConsultationModel');
 const Prescription = require('../models/prescriptionModel');
 const Inventory = require('../models/inventoryModel');
 const User = require('../models/userModel');
+const { createZoomMeeting } = require('../utils/zoom');
+const { createGoogleMeet } = require('../utils/googleMeet');
 
 // Get dashboard overview data
 exports.getDashboardData = async (req, res) => {
@@ -658,6 +660,45 @@ exports.approveAppointment = async (req, res) => {
         }
         appointment.status = 'confirmed';
         await appointment.save();
+
+        // If appointment type is 'consultation', create Google Meet link and update videoConsultation
+        if (appointment.type === 'consultation') {
+            // Find the corresponding video consultation
+            const videoConsultation = await VideoConsultation.findOne({
+                petOwner: appointment.petOwner,
+                clinic: appointment.clinic,
+                pet: appointment.pet,
+                scheduledTime: appointment.bookingDate
+            });
+            if (videoConsultation) {
+                // --- Google Meet Integration ---
+                try {
+                    // Fetch tokens for clinic from DB
+                    const clinicUser = await User.findById(appointment.clinic);
+                    const googleTokens = clinicUser && clinicUser.googleTokens;
+                    if (googleTokens) {
+                        const startTime = appointment.bookingDate.toISOString();
+                        const endTime = new Date(new Date(appointment.bookingDate).getTime() + (videoConsultation.duration || 30) * 60000).toISOString();
+                        const meetResult = await createGoogleMeet({
+                            summary: `Consultation for ${videoConsultation.pet}`,
+                            description: `Consultation with pet owner`,
+                            startTime,
+                            endTime,
+                            tokens: googleTokens
+                        });
+                        videoConsultation.googleMeetLink = meetResult.meetLink;
+                        await videoConsultation.save();
+                        appointment.googleMeetLink = meetResult.meetLink;
+                        await appointment.save();
+                    } else {
+                        console.warn('No Google tokens found for clinic, skipping Meet creation.');
+                    }
+                } catch (meetErr) {
+                    console.error('Failed to create Google Meet:', meetErr);
+                }
+            }
+        }
+
         // Emit socket event for real-time update
         if (req.app.get('io')) {
             req.app.get('io').emit('appointments_updated');

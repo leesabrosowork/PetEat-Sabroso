@@ -154,6 +154,10 @@ const userSchema = new mongoose.Schema({
     completedOnboarding: {
         type: Boolean,
         default: false
+    },
+    googleTokens: {
+        type: Object,
+        default: null
     }
 }, {
     timestamps: true

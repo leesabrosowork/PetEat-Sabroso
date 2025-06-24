@@ -313,6 +313,8 @@ function VetClinicDashboard() {
   const [filteredPetOwners, setFilteredPetOwners] = useState<any[]>([]);
   const [selectedPetOwner, setSelectedPetOwner] = useState<any | null>(null);
 
+  const [googleAuthSuccess, setGoogleAuthSuccess] = useState(false);
+
   // Toggle dark mode
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -352,6 +354,21 @@ function VetClinicDashboard() {
       router.push("/login");
     }
   }, [router]);
+
+  useEffect(() => {
+    // Check if redirected from Google OAuth success
+    if (typeof window !== 'undefined' && window.location.pathname === '/api/google-meet/success') {
+      setGoogleAuthSuccess(true);
+      // Optionally, redirect to dashboard after a delay
+      setTimeout(() => {
+        window.location.href = '/dashboard/vet-clinic';
+      }, 2000);
+    }
+  }, []);
+
+  const handleGoogleAuth = () => {
+    window.location.href = 'http://localhost:8080/api/google-meet/auth';
+  };
 
   // Fetch dashboard overview data
   const fetchDashboardData = async () => {
@@ -1645,6 +1662,12 @@ function VetClinicDashboard() {
           </div>
         </div>
       </header>
+
+      {/* Google Auth Button for Clinic */}
+      <div className="mb-4 flex flex-col md:flex-row gap-2 items-start md:items-center">
+        <Button onClick={handleGoogleAuth} variant="outline">Authenticate with Google (for Meet)</Button>
+        {googleAuthSuccess && <span className="text-green-600 ml-2">Google authentication successful!</span>}
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Overview Cards */}

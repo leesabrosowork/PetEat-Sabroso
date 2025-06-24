@@ -22,6 +22,7 @@ interface Appointment {
     _id: string;
     name: string;
   };
+  googleMeetLink?: string;
 }
 
 export default function VetClinicVideoConsultation() {
@@ -34,6 +35,7 @@ export default function VetClinicVideoConsultation() {
   const [error, setError] = useState<string | null>(null);
   const [clinicName, setClinicName] = useState<string>("");
   const [dashboardPath] = useState<string>("/dashboard/vet-clinic");
+  const [meetLink, setMeetLink] = useState<string | null>(null);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -49,25 +51,26 @@ export default function VetClinicVideoConsultation() {
     if (role === "clinic") {
       setClinicName(localStorage.getItem("clinicName") || "Your Clinic");
     }
-    // Mock data for testing instead of API calls
-    setTimeout(() => {
-      setAppointment({
-        _id: appointmentId || "mock123",
-        startTime: new Date().toISOString(),
-        endTime: new Date(Date.now() + 3600000).toISOString(),
-        status: "scheduled",
-        user: {
-          _id: "user123",
-          name: "John Smith",
-          email: "john.smith@example.com"
-        },
-        pet: {
-          _id: "pet123",
-          name: "Max"
-        }
-      });
+    // Fetch appointment from backend
+    if (appointmentId) {
+      fetch(`http://localhost:8080/api/bookings/${appointmentId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.data) {
+            setAppointment(data.data);
+            setMeetLink(data.data.googleMeetLink || null);
+          } else {
+            setError('Appointment not found');
+          }
+          setLoading(false);
+        })
+        .catch(() => {
+          setError('Failed to fetch appointment');
+          setLoading(false);
+        });
+    } else {
       setLoading(false);
-    }, 1000);
+    }
   }, [appointmentId]);
 
   useEffect(() => {
@@ -190,6 +193,15 @@ export default function VetClinicVideoConsultation() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Google Meet Link */}
+            {meetLink && (
+              <div className="mb-4 flex flex-col items-center">
+                <a href={meetLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-lg font-semibold mb-2">
+                  Join Google Meet
+                </a>
+                <span className="text-xs text-gray-500 break-all">{meetLink}</span>
+              </div>
+            )}
             {/* Participant Information */}
             <div className="mb-6 flex flex-wrap gap-4 justify-center">
               <Badge variant="outline" className="px-4 py-2 text-base bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">

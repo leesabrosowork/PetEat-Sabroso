@@ -39,6 +39,7 @@ const petsUnderTreatmentRoutes = require('./routes/petsUnderTreatmentRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const videoConsultationRoutes = require('./routes/videoConsultationRoutes');
 const clinicalNoteRoutes = require('./routes/clinicalNoteRoutes');
+const googleMeetRoutes = require('./routes/googleMeetRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/otp', otpRoutes);
@@ -57,6 +58,7 @@ app.use('/api/pets-under-treatment', petsUnderTreatmentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/video-consultations', videoConsultationRoutes);
 app.use('/api/clinical-notes', clinicalNoteRoutes);
+app.use('/api/google-meet', googleMeetRoutes);
 
 // Status endpoints
 app.get('/api/status', (req, res) => {

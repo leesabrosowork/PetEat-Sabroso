@@ -26,6 +26,7 @@ interface Appointment {
     _id: string;
     name: string;
   };
+  googleMeetLink?: string;
 }
 
 export default function VideoConsultation() {
@@ -38,12 +39,36 @@ export default function VideoConsultation() {
   const [error, setError] = useState<string | null>(null)
   const [userName, setUserName] = useState<string>("")
   const [clinicalNote, setClinicalNote] = useState<any>(null)
+  const [meetLink, setMeetLink] = useState<string | null>(null)
   const { toast } = useToast()
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const searchParams = useSearchParams()
   const appointmentId = searchParams.get("appointment")
   const router = useRouter()
+
+  useEffect(() => {
+    // Fetch appointment from backend
+    if (appointmentId) {
+      fetch(`http://localhost:8080/api/bookings/${appointmentId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.data) {
+            setAppointment(data.data);
+            setMeetLink(data.data.googleMeetLink || null);
+          } else {
+            setError('Appointment not found');
+          }
+          setLoading(false);
+        })
+        .catch(() => {
+          setError('Failed to fetch appointment');
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  }, [appointmentId]);
 
   useEffect(() => {
     // Mock data for testing instead of API calls
@@ -214,6 +239,15 @@ export default function VideoConsultation() {
             </div>
           </CardHeader>
           <CardContent className="p-6 bg-gray-50 dark:bg-gray-900">
+            {/* Google Meet Link */}
+            {meetLink && (
+              <div className="mb-4 flex flex-col items-center">
+                <a href={meetLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-lg font-semibold mb-2">
+                  Join Google Meet
+                </a>
+                <span className="text-xs text-gray-500 break-all">{meetLink}</span>
+              </div>
+            )}
             {/* Participant Information */}
             <div className="mb-6 flex flex-wrap gap-4 justify-center">
               <Badge variant="outline" className="px-4 py-2 text-base bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">

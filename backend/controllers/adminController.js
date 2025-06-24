@@ -17,11 +17,11 @@ function fallback(value) {
 exports.getDashboardOverview = async (req, res) => {
     try {
         const userCount = await User.countDocuments();
-        const vetClinicCount = await VetClinic.countDocuments();
+        const vetClinicCount = await User.countDocuments({ role: 'clinic' });
         const petCount = await Pet.countDocuments();
         const inventoryCount = await Inventory.countDocuments();
 
-        const availableVetClinics = await VetClinic.countDocuments({ status: 'approved' });
+        const availableVetClinics = await User.countDocuments({ role: 'clinic', status: 'approved' });
 
         const lowStockItems = await Inventory.countDocuments({
             $or: [
