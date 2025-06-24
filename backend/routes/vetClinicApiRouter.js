@@ -7,6 +7,9 @@ const { protect, authorize } = require('../middleware/auth');
 // Add public endpoint for all approved clinics (must be before auth middleware)
 router.get('/public-list', vetClinicController.getAllApprovedClinics);
 
+// Add public endpoint for all clinics (must be before auth middleware)
+router.get('/all-clinics', vetClinicController.getAllClinics);
+
 // All routes require authentication and clinic role
 router.use(protect, authorize('clinic'));
 
@@ -14,8 +17,10 @@ router.use(protect, authorize('clinic'));
 router.get('/dashboard', vetClinicController.getDashboardData);
 // Appointments
 router.get('/bookings', vetClinicController.getAppointments);
-router.put('/bookings/:id/approve', (req, res) => res.status(501).json({ success: false, message: 'Not implemented' }));
-router.put('/bookings/:id/reject', (req, res) => res.status(501).json({ success: false, message: 'Not implemented' }));
+router.put('/bookings/:id/approve', vetClinicController.approveAppointment);
+router.put('/bookings/:id/reject', vetClinicController.rejectAppointment);
+router.patch('/bookings/:id/approve', vetClinicController.approveAppointment);
+router.patch('/bookings/:id/reject', vetClinicController.rejectAppointment);
 // Inventory
 router.get('/inventory', vetClinicController.getInventory);
 router.post('/inventory', vetClinicController.addInventoryItem || ((req, res) => res.status(501).json({ success: false, message: 'Not implemented' })));

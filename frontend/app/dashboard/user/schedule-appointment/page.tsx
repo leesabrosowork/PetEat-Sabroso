@@ -33,6 +33,8 @@ interface Clinic {
   clinicName: string;
   location?: { address?: string; city?: string; province?: string };
   operatingHours?: { mondayToFriday?: string; saturday?: string; sunday?: string };
+  role?: string;
+  userType?: string;
 }
 
 interface TimeSlot {
@@ -107,7 +109,7 @@ export default function ScheduleAppointment() {
         const doctorsData = await doctorsResponse.json()
         if (doctorsData.success) setDoctors(doctorsData.data)
         // Fetch all clinics (public)
-        const clinicsResponse = await fetch('http://localhost:8080/api/vet-clinic/public-list')
+        const clinicsResponse = await fetch('http://localhost:8080/api/vet-clinic/all-clinics')
         const clinicsData = await clinicsResponse.json()
         if (clinicsData.success) setClinics(clinicsData.data)
       } catch (error) {
@@ -156,36 +158,48 @@ export default function ScheduleAppointment() {
   const handleBack = () => setStep((s) => s - 1)
 
   const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    setLoading(true)
+    if (e) e.preventDefault();
+    setLoading(true);
     try {
-      const token = localStorage.getItem('token')
-      // Compose bookingDate and appointmentTime from formData
-      const bookingDate = formData.date;
-      const appointmentTime = formData.startTime ? new Date(parseInt(formData.startTime)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      const token = localStorage.getItem('token');
+      // Map frontend type to backend type
+      const typeMap: Record<string, string> = {
+        video: "consultation",
+        inperson: "checkup", // adjust if you want a different mapping
+      };
+      // Convert startTime (timestamp) to "HH:mm"
+      let appointmentTime = "";
+      if (formData.startTime) {
+        const date = new Date(parseInt(formData.startTime));
+        const hours = date.getHours().toString().padStart(2, "0");
+        const minutes = date.getMinutes().toString().padStart(2, "0");
+        appointmentTime = `${hours}:${minutes}`;
+      }
       const requestData = {
         petId: formData.petId,
         clinicId: formData.clinicId,
-        bookingDate,
+        bookingDate: formData.date,
         appointmentTime,
         reason: formData.notes,
-      }
+        type: typeMap[formData.appointmentType],
+      };
+      console.log('Submitting booking:', requestData);
       const response = await fetch('http://localhost:8080/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(requestData)
-      })
-      const data = await response.json()
+      });
+      const data = await response.json();
       if (data.success) {
-        toast({ title: "Success", description: "Appointment scheduled successfully!" })
-        router.push("/dashboard/user")
+        toast({ title: "Success", description: "Appointment scheduled successfully!" });
+        router.push("/dashboard/user");
       } else {
-        toast({ title: "Error", description: data.message || "Failed to schedule appointment.", variant: "destructive" })
+        toast({ title: "Error", description: data.message || "Failed to schedule appointment.", variant: "destructive" });
       }
     } catch (error) {
-      toast({ title: "Error", description: "An error occurred while scheduling the appointment.", variant: "destructive" })
+      toast({ title: "Error", description: "An error occurred while scheduling the appointment.", variant: "destructive" });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -254,7 +268,7 @@ export default function ScheduleAppointment() {
           <SelectContent>
             {clinics.map(clinic => (
               <SelectItem key={clinic._id} value={clinic._id}>
-                {clinic.clinicName} {clinic.location?.city ? `(${clinic.location.city})` : ""}
+                {clinic.clinicName} {clinic.location?.city ? `(${clinic.location.city})` : ""} {clinic.role ? `- ${clinic.role}` : ""} {clinic.userType ? `/ ${clinic.userType}` : ""}
               </SelectItem>
             ))}
           </SelectContent>

@@ -46,6 +46,7 @@ interface Booking {
   reason: string;
   type?: string;
   doctor?: Doctor;
+  startTime?: string;
 }
 
 interface Medicine {
@@ -190,15 +191,31 @@ export default function UserDashboard() {
     const handleRealtimeUpdate = () => {
       fetchDashboardData(user._id);
     };
-    socket.on("pets_updated", handleRealtimeUpdate);
-    socket.on("bookings_updated", handleRealtimeUpdate);
-    socket.on("prescriptions_updated", handleRealtimeUpdate);
-    socket.on("pets_under_treatment_updated", handleRealtimeUpdate);
+    [
+      "pets_updated",
+      "bookings_updated",
+      "prescriptions_updated",
+      "users_updated",
+      "pets_under_treatment_updated",
+      "emrs_updated",
+      "inventory_updated",
+      "admins_updated",
+      "clinical_notes_updated",
+      "video_consultations_updated"
+    ].forEach(event => socket.on(event, handleRealtimeUpdate));
     return () => {
-      socket.off("pets_updated", handleRealtimeUpdate);
-      socket.off("bookings_updated", handleRealtimeUpdate);
-      socket.off("prescriptions_updated", handleRealtimeUpdate);
-      socket.off("pets_under_treatment_updated", handleRealtimeUpdate);
+      [
+        "pets_updated",
+        "bookings_updated",
+        "prescriptions_updated",
+        "users_updated",
+        "pets_under_treatment_updated",
+        "emrs_updated",
+        "inventory_updated",
+        "admins_updated",
+        "clinical_notes_updated",
+        "video_consultations_updated"
+      ].forEach(event => socket.off(event, handleRealtimeUpdate));
     };
   }, [socket, user]);
 
@@ -719,7 +736,7 @@ export default function UserDashboard() {
   }
 
   const videoAppointments = dashboardData.bookings.filter(a => a.type === 'consultation');
-  const inPersonAppointments = dashboardData.bookings.filter(a => a.type !== 'consultation');
+  const inPersonAppointments = dashboardData.bookings.filter(a => a.type === 'checkup' || a.type === 'surgery');
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -921,6 +938,8 @@ export default function UserDashboard() {
                     <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
                     <TabsTrigger value="pets" className="flex-shrink-0">My Pets</TabsTrigger>
                     <TabsTrigger value="appointments" className="flex-shrink-0">Appointments</TabsTrigger>
+                    <TabsTrigger value="video-consultations" className="flex-shrink-0">Video Consultations</TabsTrigger>
+                    <TabsTrigger value="in-person" className="flex-shrink-0">In Person Appointments</TabsTrigger>
                     <TabsTrigger value="hospitalizations" className="flex-shrink-0">Hospitalizations</TabsTrigger>
                     <TabsTrigger value="prescriptions" className="flex-shrink-0">Prescriptions</TabsTrigger>
                     <TabsTrigger value="medical-records" className="flex-shrink-0">Medical Records</TabsTrigger>
@@ -1111,8 +1130,21 @@ export default function UserDashboard() {
                               {booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {new Date(booking.bookingDate).toLocaleDateString()} at{" "}
-                              {new Date(booking.bookingDate).toLocaleTimeString()}
+                              {(() => {
+                                let dateString = "No date specified";
+                                let timeString = "No time specified";
+                                if (
+                                  booking.startTime &&
+                                  booking.startTime !== "No date specified"
+                                ) {
+                                  const date = new Date(booking.startTime);
+                                  if (!isNaN(date.getTime())) {
+                                    dateString = date.toLocaleDateString();
+                                    timeString = date.toLocaleTimeString();
+                                  }
+                                }
+                                return `${dateString} at ${timeString}`;
+                              })()}
                             </p>
                           </div>
                           <div className="flex flex-col items-end gap-2">
@@ -1244,7 +1276,7 @@ export default function UserDashboard() {
 
             <TabsContent value="appointments" className="space-y-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">Appointments</h2>
+                <h2 className="text-2xl font-bold">All Appointments</h2>
                 <Link href="/dashboard/user/schedule-appointment">
                   <Button>
                     <Calendar className="h-4 w-4 mr-2" />
@@ -1253,13 +1285,27 @@ export default function UserDashboard() {
                 </Link>
               </div>
               <div className="space-y-4">
-                {inPersonAppointments.map((booking) => (
+                {dashboardData.bookings.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">No appointments scheduled</p>
+                    <Link href="/dashboard/user/schedule-appointment">
+                      <Button>
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Schedule Your First Appointment
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+                {dashboardData.bookings.map((booking) => (
                   <Card key={booking._id}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">Appointment{booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}</h3>
+                            <h3 className="font-semibold">
+                              {booking.type === 'consultation' ? 'Video Consultation' : 'In Person Appointment'}
+                              {booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}
+                            </h3>
                             <Badge className={
                               booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                               booking.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
@@ -1274,11 +1320,35 @@ export default function UserDashboard() {
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
-                              {new Date(booking.bookingDate).toLocaleDateString()}
+                              {(() => {
+                                let dateString = "No date specified";
+                                if (
+                                  booking.startTime &&
+                                  booking.startTime !== "No date specified"
+                                ) {
+                                  const date = new Date(booking.startTime);
+                                  if (!isNaN(date.getTime())) {
+                                    dateString = date.toLocaleDateString();
+                                  }
+                                }
+                                return dateString;
+                              })()}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-4 w-4" />
-                              {new Date(booking.bookingDate).toLocaleTimeString()}
+                              {(() => {
+                                let timeString = "No time specified";
+                                if (
+                                  booking.startTime &&
+                                  booking.startTime !== "No date specified"
+                                ) {
+                                  const date = new Date(booking.startTime);
+                                  if (!isNaN(date.getTime())) {
+                                    timeString = date.toLocaleTimeString();
+                                  }
+                                }
+                                return timeString;
+                              })()}
                             </span>
                           </div>
                         </div>
@@ -1293,6 +1363,101 @@ export default function UserDashboard() {
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="video-consultations" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Video Consultations</h2>
+              </div>
+              <div className="space-y-4">
+                {videoAppointments.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">No video consultations scheduled</p>
+                    <Link href="/dashboard/user/schedule-appointment">
+                      <Button>
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Schedule Video Consultation
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+                {videoAppointments.map((booking) => (
+                  <Card key={booking._id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">Video Consultation{booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}</h3>
+                            <Badge className={
+                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              booking.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                              booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              booking.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }>
+                              {getStatusLabel(booking.status)}
+                            </Badge>
+                          </div>
+                          <p className="text-gray-600">{booking.doctor ? booking.doctor.email : null}</p>
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {(() => {
+                                let dateString = "No date specified";
+                                if (
+                                  booking.startTime &&
+                                  booking.startTime !== "No date specified"
+                                ) {
+                                  const date = new Date(booking.startTime);
+                                  if (!isNaN(date.getTime())) {
+                                    dateString = date.toLocaleDateString();
+                                  }
+                                }
+                                return dateString;
+                              })()}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {(() => {
+                                let timeString = "No time specified";
+                                if (
+                                  booking.startTime &&
+                                  booking.startTime !== "No date specified"
+                                ) {
+                                  const date = new Date(booking.startTime);
+                                  if (!isNaN(date.getTime())) {
+                                    timeString = date.toLocaleTimeString();
+                                  }
+                                }
+                                return timeString;
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                        <Link href={`/dashboard/user/video-consultation?appointment=${booking._id}`}>
+                          <Button variant="outline" size="sm">
+                            {booking.status === 'scheduled' ? 'Join Call' : 'View Details'}
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="in-person" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">In Person Appointments</h2>
+                <Link href="/dashboard/user/schedule-appointment">
+                  <Button>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Schedule In Person
+                  </Button>
+                </Link>
+              </div>
+              <div className="space-y-4">
                 {inPersonAppointments.length === 0 && (
                   <div className="text-center py-8">
                     <p className="text-gray-500 mb-4">No in-person appointments scheduled</p>
@@ -1304,6 +1469,63 @@ export default function UserDashboard() {
                     </Link>
                   </div>
                 )}
+                {inPersonAppointments.map((booking) => (
+                  <Card key={booking._id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">In Person Appointment{booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}</h3>
+                            <Badge className={
+                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              booking.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                              booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              booking.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }>
+                              {getStatusLabel(booking.status)}
+                            </Badge>
+                          </div>
+                          <p className="text-gray-600">{booking.doctor ? booking.doctor.email : null}</p>
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {(() => {
+                                let dateString = "No date specified";
+                                if (
+                                  booking.startTime &&
+                                  booking.startTime !== "No date specified"
+                                ) {
+                                  const date = new Date(booking.startTime);
+                                  if (!isNaN(date.getTime())) {
+                                    dateString = date.toLocaleDateString();
+                                  }
+                                }
+                                return dateString;
+                              })()}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {(() => {
+                                let timeString = "No time specified";
+                                if (
+                                  booking.startTime &&
+                                  booking.startTime !== "No date specified"
+                                ) {
+                                  const date = new Date(booking.startTime);
+                                  if (!isNaN(date.getTime())) {
+                                    timeString = date.toLocaleTimeString();
+                                  }
+                                }
+                                return timeString;
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </TabsContent>
 

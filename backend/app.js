@@ -37,6 +37,8 @@ const superAdminRoutes = require('./routes/superAdminRoutes');
 const vetClinicApiRouter = require('./routes/vetClinicApiRouter');
 const petsUnderTreatmentRoutes = require('./routes/petsUnderTreatmentRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const videoConsultationRoutes = require('./routes/videoConsultationRoutes');
+const clinicalNoteRoutes = require('./routes/clinicalNoteRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/otp', otpRoutes);
@@ -53,6 +55,8 @@ app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/vet-clinic', vetClinicApiRouter);
 app.use('/api/pets-under-treatment', petsUnderTreatmentRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/video-consultations', videoConsultationRoutes);
+app.use('/api/clinical-notes', clinicalNoteRoutes);
 
 // Status endpoints
 app.get('/api/status', (req, res) => {

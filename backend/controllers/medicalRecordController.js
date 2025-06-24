@@ -16,6 +16,9 @@ exports.createMedicalRecord = async (req, res) => {
   try {
     const newRecord = new PetMedicalRecord(req.body);
     await newRecord.save();
+    if (req.app && req.app.get('io')) {
+      req.app.get('io').emit('emrs_updated');
+    }
     res.status(201).json(newRecord);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -31,6 +34,9 @@ exports.updateMedicalRecord = async (req, res) => {
       { new: true, runValidators: true }
     );
     if (!updated) return res.status(404).json({ message: 'Record not found' });
+    if (req.app && req.app.get('io')) {
+      req.app.get('io').emit('emrs_updated');
+    }
     res.json(updated);
   } catch (err) {
     res.status(400).json({ message: err.message });

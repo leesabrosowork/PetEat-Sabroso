@@ -2,6 +2,11 @@ const Booking = require('../models/bookingModel');
 const Pet = require('../models/petModel');
 const User = require('../models/userModel');
 
+function fallback(value) {
+    if (value === undefined || value === null || value === '') return 'N/A';
+    return value;
+}
+
 // Get all bookings for a specific date and clinic
 const getAvailableTimeSlots = async (clinicId, date) => {
     const startOfDay = new Date(date);
@@ -41,86 +46,63 @@ const getAvailableTimeSlots = async (clinicId, date) => {
 exports.getAvailableTimeSlots = async (req, res) => {
     try {
         const { clinicId, date } = req.query;
-
         if (!clinicId || !date) {
             return res.status(400).json({
                 success: false,
                 message: 'Clinic ID and date are required'
             });
         }
-
-        // Get available slots based on clinic operating hours
         const clinic = await User.findById(clinicId);
         if (!clinic) {
             return res.status(404).json({ success: false, message: 'Clinic not found' });
         }
-        
-        // Determine which hours to use
         const day = new Date(date).getDay();
         let hoursStr = '';
-        if (day === 0) hoursStr = clinic.operatingHours.sunday;
-        else if (day === 6) hoursStr = clinic.operatingHours.saturday;
-        else hoursStr = clinic.operatingHours.mondayToFriday;
-        
-        // Debug logs
-        console.log('ClinicId:', clinicId, 'Date:', date);
-        console.log('Operating hours string:', hoursStr);
-        
+        if (day === 0) hoursStr = clinic.operatingHours?.sunday;
+        else if (day === 6) hoursStr = clinic.operatingHours?.saturday;
+        else hoursStr = clinic.operatingHours?.mondayToFriday;
         if (!hoursStr || hoursStr.toLowerCase() === 'closed') {
-            console.log('Clinic is closed on this day.');
             return res.json({ success: true, data: [] });
         }
-        
         const [start, end] = hoursStr.split('-');
         const [sh, sm] = start.split(':').map(Number);
         const [eh, em] = end.split(':').map(Number);
-        
-        // Generate 30-min slots within the open hours
         const slots = [];
         let current = new Date(date);
         current.setHours(sh, sm, 0, 0);
         const endTime = new Date(date);
         endTime.setHours(eh, em, 0, 0);
-        
         while (current < endTime) {
             const slotStart = new Date(current);
             current.setMinutes(current.getMinutes() + 30);
             const slotEnd = new Date(current);
             slots.push({ startTime: slotStart.getTime(), endTime: slotEnd.getTime() });
         }
-        
-        console.log('Generated slots:', slots);
-        
-        // Double booking prevention: filter out slots that overlap with existing bookings for this clinic
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(date);
         endOfDay.setHours(23, 59, 59, 999);
-        
         const existingBookings = await Booking.find({
             clinic: clinicId,
-            startTime: { $gte: startOfDay, $lte: endOfDay },
-            status: 'scheduled'
+            bookingDate: { $gte: startOfDay, $lte: endOfDay },
+            status: { $in: ['pending', 'confirmed', 'scheduled'] }
         });
-        
-        console.log('Existing bookings:', existingBookings);
-        
         const availableSlots = slots.filter(slot => {
             return !existingBookings.some(booking => {
-                const bookingStart = new Date(booking.startTime).getTime();
-                const bookingEnd = new Date(booking.endTime).getTime();
+                const [hours, minutes] = booking.appointmentTime.split(':');
+                const bookingStart = new Date(booking.bookingDate);
+                bookingStart.setHours(Number(hours), Number(minutes), 0, 0);
+                const bookingEnd = new Date(bookingStart);
+                bookingEnd.setMinutes(bookingEnd.getMinutes() + 30);
                 return (
-                    (slot.startTime >= bookingStart && slot.startTime < bookingEnd) ||
-                    (slot.endTime > bookingStart && slot.endTime <= bookingEnd) ||
-                    (slot.startTime <= bookingStart && slot.endTime >= bookingEnd)
+                    (slot.startTime >= bookingStart.getTime() && slot.startTime < bookingEnd.getTime()) ||
+                    (slot.endTime > bookingStart.getTime() && slot.endTime <= bookingEnd.getTime()) ||
+                    (slot.startTime <= bookingStart.getTime() && slot.endTime >= bookingEnd.getTime())
                 );
             });
         });
-        
-        console.log('Available slots:', availableSlots);
         return res.json({ success: true, data: availableSlots });
     } catch (error) {
-        console.error('Error in getAvailableTimeSlots:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching available time slots',
@@ -132,18 +114,19 @@ exports.getAvailableTimeSlots = async (req, res) => {
 // Create new booking
 exports.createBooking = async (req, res) => {
     try {
-        console.log('Received booking data:', req.body);
-        const { petId, clinicId, bookingDate, appointmentTime, reason } = req.body;
-
-        // Validate required fields
-        if (!petId || !clinicId || !bookingDate || !appointmentTime || !reason) {
+        const { petId, clinicId, bookingDate, appointmentTime, reason, type } = req.body;
+        if (!petId || !clinicId || !bookingDate || !appointmentTime || !reason || !type) {
             return res.status(400).json({
                 success: false,
                 message: 'Missing required fields'
             });
         }
-
-        // Check if pet exists and belongs to the user
+        if (!['consultation', 'checkup', 'surgery'].includes(type)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid appointment type'
+            });
+        }
         const pet = await Pet.findOne({ _id: petId, owner: req.user.id });
         if (!pet) {
             return res.status(400).json({
@@ -151,8 +134,6 @@ exports.createBooking = async (req, res) => {
                 message: 'Pet not found or does not belong to you'
             });
         }
-
-        // Create booking
         const bookingData = {
             petOwner: req.user.id,
             clinic: clinicId,
@@ -160,30 +141,22 @@ exports.createBooking = async (req, res) => {
             bookingDate: new Date(bookingDate),
             appointmentTime,
             reason,
+            type,
             status: 'pending'
         };
-
-        console.log('Creating booking with data:', bookingData);
-
         const booking = new Booking(bookingData);
         await booking.save();
-
-        // Populate the booking with pet and clinic details
         await booking.populate([
             { path: 'pet', select: 'name type breed' },
             { path: 'clinic', select: 'clinicName email' },
             { path: 'petOwner', select: 'fullName email' }
         ]);
-
-        console.log('Booking created successfully:', booking);
-
         res.status(201).json({
             success: true,
             message: 'Booking scheduled successfully',
             data: booking
         });
     } catch (error) {
-        console.error('Error in createBooking:', error);
         res.status(500).json({
             success: false,
             message: 'Error creating booking',
@@ -195,17 +168,32 @@ exports.createBooking = async (req, res) => {
 // Get user's bookings
 exports.getUserBookings = async (req, res) => {
     try {
-        const bookings = await Booking.find({ user: req.user.id })
+        const bookings = await Booking.find({ petOwner: req.user.id })
             .populate('pet', 'name type breed')
-            .populate('clinic', 'name email')
-            .sort({ startTime: 'asc' });
-
+            .populate('clinic', 'clinicName email')
+            .sort({ bookingDate: 1, appointmentTime: 1 });
+        const transformed = bookings.map(b => {
+            let startTime = 'N/A';
+            if (b.bookingDate && b.appointmentTime) {
+                const date = new Date(b.bookingDate);
+                const [hours, minutes] = b.appointmentTime.split(':');
+                date.setHours(Number(hours), Number(minutes), 0, 0);
+                startTime = date.toISOString();
+            }
+            return {
+                _id: b._id,
+                pet: b.pet,
+                clinic: b.clinic || 'N/A',
+                startTime,
+                status: fallback(b.status),
+                notes: fallback(b.reason),
+            };
+        });
         res.json({
             success: true,
-            data: bookings
+            data: transformed
         });
     } catch (error) {
-        console.error('Error in getUserBookings:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching bookings',
@@ -221,10 +209,30 @@ exports.getClinicBookings = async (req, res) => {
         const bookings = await Booking.find({ clinic: clinicId })
             .populate('pet', 'name type breed')
             .populate('petOwner', 'fullName email')
-            .populate('clinic', 'clinicName email');
-        res.json({ success: true, data: bookings });
+            .populate('clinic', 'clinicName email')
+            .sort({ bookingDate: 1, appointmentTime: 1 });
+        const transformed = bookings.map(b => {
+            let startTime = 'N/A';
+            if (b.bookingDate && b.appointmentTime) {
+                const date = new Date(b.bookingDate);
+                const [hours, minutes] = b.appointmentTime.split(':');
+                date.setHours(Number(hours), Number(minutes), 0, 0);
+                startTime = date.toISOString();
+            }
+            return {
+                _id: b._id,
+                pet: b.pet,
+                petOwner: b.petOwner || 'N/A',
+                startTime,
+                status: fallback(b.status),
+                notes: fallback(b.reason),
+            };
+        });
+        res.json({
+            success: true,
+            data: transformed
+        });
     } catch (error) {
-        console.error('Error in getClinicBookings:', error);
         res.status(500).json({ success: false, message: 'Error fetching clinic bookings', error: error.message });
     }
 };
@@ -234,33 +242,41 @@ exports.getBookingById = async (req, res) => {
     try {
         const booking = await Booking.findById(req.params.id)
             .populate('pet', 'name type breed')
-            .populate('clinic', 'name email')
-            .populate('user', 'username email');
-
+            .populate('clinic', 'clinicName email')
+            .populate('petOwner', 'fullName email');
         if (!booking) {
             return res.status(404).json({
                 success: false,
                 message: 'Booking not found'
             });
         }
-
         // Check if the user is authorized to view this booking
-        const isUser = booking.user._id.toString() === req.user.id;
-        const isClinic = booking.clinic._id.toString() === req.user.id;
-
+        const isUser = booking.petOwner && booking.petOwner._id.toString() === req.user.id;
+        const isClinic = booking.clinic && booking.clinic._id.toString() === req.user.id;
         if (!isUser && !isClinic) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to view this booking'
             });
         }
-
+        // Populate with fallback for missing info
+        const result = {
+            _id: booking._id,
+            pet: booking.pet || 'N/A',
+            clinic: booking.clinic || 'N/A',
+            petOwner: booking.petOwner || 'N/A',
+            bookingDate: booking.bookingDate || 'N/A',
+            appointmentTime: booking.appointmentTime || 'N/A',
+            reason: fallback(booking.reason),
+            status: fallback(booking.status),
+            notes: fallback(booking.notes),
+            createdAt: booking.createdAt || 'N/A',
+        };
         res.json({
             success: true,
-            data: booking
+            data: result
         });
     } catch (error) {
-        console.error('Error in getBookingById:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching booking',

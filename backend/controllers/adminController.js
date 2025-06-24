@@ -8,6 +8,11 @@ const Settings = require('../models/settingsModel');
 const PetMedicalRecord = require('../models/petMedicalRecord');
 const bcrypt = require('bcrypt');
 
+function fallback(value) {
+    if (value === undefined || value === null || value === '') return 'N/A';
+    return value;
+}
+
 // Get dashboard overview data
 exports.getDashboardOverview = async (req, res) => {
     try {
@@ -126,6 +131,10 @@ exports.createAdmin = async (req, res) => {
         // Remove password from response
         newAdmin.password = undefined;
 
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('admins_updated');
+        }
+
         res.status(201).json({
             status: 'success',
             data: {
@@ -153,6 +162,10 @@ exports.createInventoryItem = async (req, res) => {
             minStock,
             status: stock > minStock ? 'in-stock' : 'low-stock'
         });
+
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('inventory_updated');
+        }
 
         res.status(201).json({
             success: true,
@@ -189,6 +202,10 @@ exports.updateUser = async (req, res) => {
 
         if (!updatedUser) {
             return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('users_updated');
         }
 
         res.json({
@@ -335,6 +352,10 @@ exports.updateInventoryItem = async (req, res) => {
         if (minStock !== undefined) inventoryItem.minStock = minStock;
 
         await inventoryItem.save(); // This will trigger the middleware
+
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('inventory_updated');
+        }
 
         res.json({
             success: true,

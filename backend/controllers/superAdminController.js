@@ -70,6 +70,10 @@ exports.createAdmin = async (req, res) => {
         const adminResponse = admin.toObject();
         delete adminResponse.password;
 
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('admins_updated');
+        }
+
         res.status(201).json({
             success: true,
             data: adminResponse
@@ -113,6 +117,10 @@ exports.updateAdmin = async (req, res) => {
         const adminResponse = admin.toObject();
         delete adminResponse.password;
 
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('admins_updated');
+        }
+
         res.json({
             success: true,
             data: adminResponse
@@ -133,6 +141,9 @@ exports.deleteAdmin = async (req, res) => {
                 success: false,
                 message: 'Admin not found'
             });
+        }
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('admins_updated');
         }
         res.json({
             success: true,
@@ -215,6 +226,10 @@ exports.createUser = async (req, res) => {
         const userResponse = user.toObject();
         delete userResponse.password;
 
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('users_updated');
+        }
+
         res.status(201).json({
             success: true,
             data: userResponse
@@ -258,6 +273,10 @@ exports.updateUser = async (req, res) => {
         const userResponse = user.toObject();
         delete userResponse.password;
 
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('users_updated');
+        }
+
         res.json({
             success: true,
             data: userResponse
@@ -278,6 +297,9 @@ exports.deleteUser = async (req, res) => {
                 success: false,
                 message: 'User not found'
             });
+        }
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('users_updated');
         }
         res.json({
             success: true,
@@ -343,6 +365,10 @@ exports.createPet = async (req, res) => {
 
         await pet.save();
 
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('pets_updated');
+        }
+
         res.status(201).json({
             success: true,
             data: pet
@@ -377,6 +403,10 @@ exports.updatePet = async (req, res) => {
 
         await pet.save();
 
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('pets_updated');
+        }
+
         res.json({
             success: true,
             data: pet
@@ -397,6 +427,9 @@ exports.deletePet = async (req, res) => {
                 success: false,
                 message: 'Pet not found'
             });
+        }
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('pets_updated');
         }
         res.json({
             success: true,
@@ -460,6 +493,10 @@ exports.createInventoryItem = async (req, res) => {
             status: status || (stock > minStock ? 'in-stock' : 'low-stock')
         });
 
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('inventory_updated');
+        }
+
         res.status(201).json({
             success: true,
             data: newItem
@@ -496,6 +533,10 @@ exports.updateInventoryItem = async (req, res) => {
 
         await inventoryItem.save(); // This will trigger the middleware
 
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('inventory_updated');
+        }
+
         res.json({
             success: true,
             data: inventoryItem
@@ -516,6 +557,9 @@ exports.deleteInventoryItem = async (req, res) => {
                 success: false,
                 message: 'Inventory item not found'
             });
+        }
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('inventory_updated');
         }
         res.json({
             success: true,
@@ -550,6 +594,9 @@ exports.updateInventoryStock = async (req, res) => {
         item.stock += amount;
         if (item.stock < 0) item.stock = 0;
         await item.save();
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('inventory_updated');
+        }
         res.json({
             success: true,
             data: item

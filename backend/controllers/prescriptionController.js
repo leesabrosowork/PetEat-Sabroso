@@ -37,6 +37,9 @@ exports.createPrescription = async (req, res) => {
         });
 
         await newPrescription.save();
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('prescriptions_updated');
+        }
         res.status(201).json({ success: true, data: newPrescription });
     } catch (err) {
         res.status(400).json({ success: false, message: 'Error creating prescription', error: err.message });
@@ -64,6 +67,9 @@ exports.deletePrescription = async (req, res) => {
         const prescription = await Prescription.findOneAndDelete({ _id: req.params.id, doctor: doctorId });
         if (!prescription) {
             return res.status(404).json({ success: false, message: 'Prescription not found or not authorized' });
+        }
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('prescriptions_updated');
         }
         res.json({ success: true, message: 'Prescription deleted successfully' });
     } catch (err) {

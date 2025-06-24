@@ -4,6 +4,47 @@ const Booking = require('../models/bookingModel');
 const Prescription = require('../models/prescriptionModel');
 const EMR = require('../models/emrModel');
 
+function fallback(value) {
+    if (value === undefined || value === null || value === '') return 'N/A';
+    return value;
+}
+
+function getBookingStartTime(booking) {
+    // If both are present and valid
+    if (
+        booking.bookingDate &&
+        typeof booking.appointmentTime === 'string' &&
+        booking.appointmentTime.includes(':')
+    ) {
+        const [hours, minutes] = booking.appointmentTime.split(':');
+        if (!isNaN(Number(hours)) && !isNaN(Number(minutes))) {
+            const date = new Date(booking.bookingDate);
+            date.setHours(Number(hours), Number(minutes), 0, 0);
+            if (!isNaN(date.getTime())) {
+                return date.toISOString();
+            }
+        }
+    }
+    // If only bookingDate is present
+    if (booking.bookingDate && !booking.appointmentTime) {
+        const date = new Date(booking.bookingDate);
+        if (!isNaN(date.getTime())) {
+            return date.toISOString();
+        }
+    }
+    // If only appointmentTime is present
+    if (!booking.bookingDate && typeof booking.appointmentTime === 'string' && booking.appointmentTime.includes(':')) {
+        const [hours, minutes] = booking.appointmentTime.split(':');
+        if (!isNaN(Number(hours)) && !isNaN(Number(minutes))) {
+            const date = new Date();
+            date.setHours(Number(hours), Number(minutes), 0, 0);
+            return date.toISOString();
+        }
+    }
+    // If neither is present or invalid
+    return 'No date specified';
+}
+
 // Create new user
 exports.createUser = async (req, res) => {
     try {
@@ -16,6 +57,9 @@ exports.createUser = async (req, res) => {
                 user: newUser
             }
         });
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('users_updated');
+        }
     } catch (error) {
         res.status(400).json({
             status: 'fail',
@@ -47,28 +91,38 @@ exports.getAllUsers = async (req, res) => {
 exports.getUserDashboard = async (req, res) => {
     try {
         const userId = req.params.userId;
-
-        // Validate that the logged-in user is requesting their own data
         if (req.user.id !== userId) {
             return res.status(403).json({
                 success: false,
                 message: 'You are not authorized to view this dashboard'
             });
         }
-
         const pets = await Pet.find({ owner: userId });
-        const bookings = await Booking.find({ user: userId })
-            .sort({ startTime: 'desc' });
+        const bookings = await Booking.find({ petOwner: userId })
+            .populate('pet', 'name type breed')
+            .populate('clinic', 'clinicName email')
+            .sort({ bookingDate: -1, appointmentTime: -1 });
+        const transformedBookings = bookings.map(b => {
+            const startTime = getBookingStartTime(b);
+            return {
+                _id: b._id,
+                pet: b.pet || 'N/A',
+                clinic: b.clinic || 'N/A',
+                startTime,
+                status: fallback(b.status),
+                notes: fallback(b.reason),
+                type: b.type
+            };
+        });
         const prescriptions = await Prescription.find({ user: userId })
             .populate('pet', 'name')
             .populate('medicine', 'item')
             .sort({ createdAt: 'desc' });
-
         res.json({
             success: true,
             data: {
                 pets,
-                bookings,
+                bookings: transformedBookings,
                 prescriptions
             }
         });
@@ -124,6 +178,9 @@ exports.updateUserProfile = async (req, res) => {
             success: true,
             data: user
         });
+        if (req.app && req.app.get('io')) {
+            req.app.get('io').emit('users_updated');
+        }
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -154,35 +211,19 @@ exports.getUserPets = async (req, res) => {
 exports.deleteAccount = async (req, res) => {
     try {
         const userId = req.user.id;
-        
-        // Start a transaction to ensure all operations succeed or fail together
         const session = await User.startSession();
         session.startTransaction();
-        
         try {
-            // Find user's pets first
             const pets = await Pet.find({ owner: userId });
             const petIds = pets.map(pet => pet._id);
-            
-            // Delete all EMRs related to the user's pets
             if (petIds.length > 0) {
                 await EMR.deleteMany({ petId: { $in: petIds } }, { session });
             }
-            
-            // Delete all user's pets
             await Pet.deleteMany({ owner: userId }, { session });
-            
-            // Delete all user's bookings
-            await Booking.deleteMany({ user: userId }, { session });
-            
-            // Delete all user's prescriptions
+            await Booking.deleteMany({ petOwner: userId }, { session });
             await Prescription.deleteMany({ user: userId }, { session });
-            
-            // Finally, delete the user account
             const deletedUser = await User.findByIdAndDelete(userId).session(session);
-            
             if (!deletedUser) {
-                // If user not found, abort transaction
                 await session.abortTransaction();
                 session.endSession();
                 return res.status(404).json({
@@ -190,25 +231,24 @@ exports.deleteAccount = async (req, res) => {
                     message: 'User not found'
                 });
             }
-            
-            // Commit the transaction
             await session.commitTransaction();
             session.endSession();
-            
             res.json({
                 success: true,
                 message: 'Account and all associated data deleted successfully'
             });
+            if (req.app && req.app.get('io')) {
+                req.app.get('io').emit('users_updated');
+            }
         } catch (error) {
-            // If any error occurs, abort the transaction
             await session.abortTransaction();
             session.endSession();
-            throw error; // Re-throw for outer catch
+            throw error;
         }
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: 'Failed to delete account',
+            message: 'Error deleting account',
             error: error.message
         });
     }

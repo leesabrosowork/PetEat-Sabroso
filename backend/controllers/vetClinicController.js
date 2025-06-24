@@ -2,6 +2,7 @@ const Pet = require('../models/petModel');
 const PetMedicalRecord = require('../models/petMedicalRecord');
 const EMR = require('../models/emrModel');
 const Booking = require('../models/bookingModel');
+const VideoConsultation = require('../models/videoConsultationModel');
 const Prescription = require('../models/prescriptionModel');
 const Inventory = require('../models/inventoryModel');
 const User = require('../models/userModel');
@@ -31,21 +32,22 @@ exports.getDashboardData = async (req, res) => {
         tomorrow.setDate(tomorrow.getDate() + 1);
         
         const upcomingAppointments = await Booking.countDocuments({
-            startTime: { $gte: today },
-            type: { $ne: 'consultation' },
-            status: { $in: ['pending', 'scheduled'] }
+            clinic: clinicId,
+            bookingDate: { $gte: today },
+            status: { $in: ['pending', 'confirmed'] }
         });
         
         const completedAppointments = await Booking.countDocuments({
-            startTime: { $gte: today, $lt: tomorrow },
+            clinic: clinicId,
+            bookingDate: { $gte: today, $lt: tomorrow },
             status: 'completed'
         });
 
         // Get video consultations (assuming they're appointments with type 'consultation')
-        const videoConsultations = await Booking.countDocuments({
-            type: 'consultation',
-            startTime: { $gte: today },
-            status: { $in: ['pending', 'scheduled'] }
+        const videoConsultations = await VideoConsultation.countDocuments({
+            clinic: clinicId,
+            scheduledTime: { $gte: today },
+            status: { $in: ['scheduled', 'in-progress'] }
         });
 
         // Get prescriptions count
@@ -215,9 +217,20 @@ exports.getAppointments = async (req, res) => {
             .populate('petOwner', 'fullName email')
             .populate('clinic', 'clinicName email')
             .sort({ bookingDate: 1, appointmentTime: 1 });
+        const transformed = bookings.map(b => {
+            const startTime = getBookingStartTime(b);
+            return {
+                _id: b._id,
+                pet: b.pet,
+                user: b.petOwner,
+                startTime,
+                status: b.status || 'N/A',
+                notes: b.reason || 'N/A',
+            };
+        });
         res.json({
             success: true,
-            data: bookings
+            data: transformed
         });
     } catch (error) {
         res.status(500).json({
@@ -231,11 +244,10 @@ exports.getAppointments = async (req, res) => {
 exports.getVideoConsultations = async (req, res) => {
     try {
         const clinicId = req.user._id;
-        const videoConsultations = await Booking.find({ type: 'consultation' })
+        const videoConsultations = await VideoConsultation.find({ clinic: clinicId })
             .populate('pet')
-            .populate('user', 'username fullName name email')
-            .populate('doctor', 'name')
-            .sort({ startTime: 1 });
+            .populate('petOwner', 'username fullName name email')
+            .sort({ scheduledTime: 1 });
         res.json({
             success: true,
             data: videoConsultations
@@ -644,7 +656,7 @@ exports.approveAppointment = async (req, res) => {
         if (!appointment) {
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }
-        appointment.status = 'scheduled';
+        appointment.status = 'confirmed';
         await appointment.save();
         // Emit socket event for real-time update
         if (req.app.get('io')) {
@@ -665,7 +677,7 @@ exports.rejectAppointment = async (req, res) => {
         if (!appointment) {
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }
-        appointment.status = 'rejected';
+        appointment.status = 'cancelled';
         await appointment.save();
         // Emit socket event for real-time update
         if (req.app.get('io')) {
@@ -740,5 +752,64 @@ exports.getActivityFeed = async (req, res) => {
     } catch (error) {
         console.error('Get activity feed error:', error);
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+function getBookingStartTime(booking) {
+    // If both are present and valid
+    if (
+        booking.bookingDate &&
+        typeof booking.appointmentTime === 'string' &&
+        booking.appointmentTime.includes(':')
+    ) {
+        const [hours, minutes] = booking.appointmentTime.split(':');
+        if (!isNaN(Number(hours)) && !isNaN(Number(minutes))) {
+            const date = new Date(booking.bookingDate);
+            date.setHours(Number(hours), Number(minutes), 0, 0);
+            if (!isNaN(date.getTime())) {
+                return date.toISOString();
+            }
+        }
+    }
+    // If only bookingDate is present
+    if (booking.bookingDate && !booking.appointmentTime) {
+        const date = new Date(booking.bookingDate);
+        if (!isNaN(date.getTime())) {
+            return date.toISOString();
+        }
+    }
+    // If only appointmentTime is present
+    if (!booking.bookingDate && typeof booking.appointmentTime === 'string' && booking.appointmentTime.includes(':')) {
+        const [hours, minutes] = booking.appointmentTime.split(':');
+        if (!isNaN(Number(hours)) && !isNaN(Number(minutes))) {
+            const date = new Date();
+            date.setHours(Number(hours), Number(minutes), 0, 0);
+            return date.toISOString();
+        }
+    }
+    // If neither is present
+    return null;
+}
+
+// PUBLIC: Get all clinics (regardless of status)
+exports.getAllClinics = async (req, res) => {
+    try {
+        // Fetch all users with role or userType 'clinic'
+        const clinics = await User.find({
+            $or: [
+                { role: 'clinic' },
+                { userType: 'clinic' }
+            ]
+        }).select('-password -otp -otpExpires');
+        res.json({
+            success: true,
+            data: clinics
+        });
+    } catch (error) {
+        console.error('Get all clinics error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
 }; 

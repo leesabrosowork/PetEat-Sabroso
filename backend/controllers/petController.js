@@ -102,6 +102,10 @@ exports.createPet = async (req, res) => {
                     message: 'Pet registered successfully',
                     data: newPet
                 });
+
+                if (req.app && req.app.get('io')) {
+                    req.app.get('io').emit('pets_updated');
+                }
             } catch (error) {
                 res.status(400).json({
                     success: false,

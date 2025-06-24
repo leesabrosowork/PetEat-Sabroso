@@ -1523,21 +1523,37 @@ function VetClinicDashboard() {
 
   // Realtime dashboard updates
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !user) return;
     const handleRealtimeUpdate = () => {
       fetchDashboardData();
     };
-    socket.on("pets_updated", handleRealtimeUpdate);
-    socket.on("emrs_updated", handleRealtimeUpdate);
-    socket.on("bookings_updated", handleRealtimeUpdate);
-    socket.on("pets_under_treatment_updated", handleRealtimeUpdate);
+    [
+      "pets_updated",
+      "bookings_updated",
+      "prescriptions_updated",
+      "users_updated",
+      "pets_under_treatment_updated",
+      "emrs_updated",
+      "inventory_updated",
+      "admins_updated",
+      "clinical_notes_updated",
+      "video_consultations_updated"
+    ].forEach(event => socket.on(event, handleRealtimeUpdate));
     return () => {
-      socket.off("pets_updated", handleRealtimeUpdate);
-      socket.off("emrs_updated", handleRealtimeUpdate);
-      socket.off("bookings_updated", handleRealtimeUpdate);
-      socket.off("pets_under_treatment_updated", handleRealtimeUpdate);
+      [
+        "pets_updated",
+        "bookings_updated",
+        "prescriptions_updated",
+        "users_updated",
+        "pets_under_treatment_updated",
+        "emrs_updated",
+        "inventory_updated",
+        "admins_updated",
+        "clinical_notes_updated",
+        "video_consultations_updated"
+      ].forEach(event => socket.off(event, handleRealtimeUpdate));
     };
-  }, [socket]);
+  }, [socket, user]);
 
   if (loading) {
     return (

@@ -16,6 +16,11 @@ const bookingSchema = new mongoose.Schema({
         ref: 'Pet',
         required: true
     },
+    type: {
+        type: String,
+        enum: ['consultation', 'checkup', 'surgery'],
+        required: true
+    },
     bookingDate: {
         type: Date,
         required: true
@@ -30,12 +35,21 @@ const bookingSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'confirmed', 'cancelled', 'completed'],
+        enum: ['pending', 'confirmed', 'completed', 'cancelled'],
         default: 'pending'
+    },
+    notes: {
+        type: String
+    },
+    
+    createdAt: {
+        type: Date,
+        default: Date.now
     }
-}, {
-    timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
 });
+
+// Index to accelerate clinic/day lookups and prevent duplicates
+bookingSchema.index({ clinic: 1, bookingDate: 1, appointmentTime: 1 });
 
 const Booking = mongoose.model('Booking', bookingSchema);
 module.exports = Booking; 
