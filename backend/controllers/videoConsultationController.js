@@ -88,7 +88,6 @@ exports.getConsultationDetails = async (req, res) => {
       status: fallback(consultation.status),
       notes: fallback(consultation.notes),
       diagnosis: fallback(consultation.diagnosis),
-      prescription: fallback(consultation.prescription),
       followUpRecommended: fallback(consultation.followUpRecommended),
       createdAt: fallback(consultation.createdAt)
     };

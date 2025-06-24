@@ -1,5 +1,25 @@
 const mongoose = require('mongoose');
 
+const prescriptionSchema = new mongoose.Schema({
+  medication: {
+    type: String,
+    required: true
+  },
+  dosage: {
+    type: String,
+    required: true
+  },
+  frequency: {
+    type: String,
+    required: true
+  },
+  duration: {
+    type: String,
+    required: true
+  },
+  specialInstructions: String
+}, { _id: false });
+
 const videoConsultationSchema = new mongoose.Schema({
   petOwner: {
     type: mongoose.Schema.Types.ObjectId,
@@ -38,8 +58,20 @@ const videoConsultationSchema = new mongoose.Schema({
   diagnosis: {
     type: String
   },
-  prescription: {
-    type: String
+  prescription: [prescriptionSchema],
+  clientEducation: {
+    type: String,
+    description: "Instructions and notes for the client about pet care and medications"
+  },
+  requireCamera: {
+    type: Boolean,
+    default: true,
+    description: "Indicates if camera is required for both parties"
+  },
+  cameraEnabled: {
+    type: Boolean,
+    default: false,
+    description: "Tracks if camera is currently enabled during consultation"
   },
   followUpRecommended: {
     type: Boolean,

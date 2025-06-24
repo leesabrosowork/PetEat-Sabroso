@@ -1,7 +1,6 @@
 const User = require('../models/userModel');
 const Pet = require('../models/petModel');
 const Booking = require('../models/bookingModel');
-const Prescription = require('../models/prescriptionModel');
 const EMR = require('../models/emrModel');
 
 function fallback(value) {
@@ -114,16 +113,11 @@ exports.getUserDashboard = async (req, res) => {
                 type: b.type
             };
         });
-        const prescriptions = await Prescription.find({ user: userId })
-            .populate('pet', 'name')
-            .populate('medicine', 'item')
-            .sort({ createdAt: 'desc' });
         res.json({
             success: true,
             data: {
                 pets,
-                bookings: transformedBookings,
-                prescriptions
+                bookings: transformedBookings
             }
         });
     } catch (error) {
@@ -221,7 +215,6 @@ exports.deleteAccount = async (req, res) => {
             }
             await Pet.deleteMany({ owner: userId }, { session });
             await Booking.deleteMany({ petOwner: userId }, { session });
-            await Prescription.deleteMany({ user: userId }, { session });
             const deletedUser = await User.findByIdAndDelete(userId).session(session);
             if (!deletedUser) {
                 await session.abortTransaction();

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google Meet Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        #meetLink {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Google Meet Integration Test</h1>
+    
+    <button onclick="getAuthUrl()">1. Get Auth URL</button>
+    <div id="authUrlResult"></div>
+    
+    <button onclick="createMeeting()">2. Create Test Meeting</button>
+    <div id="meetLink"></div>
+
+    <script>
+        let tokens = null;
+
+        async function getAuthUrl() {
+            try {
+                const response = await fetch('http://localhost:3000/api/google-meet/auth-url');
+                const data = await response.json();
+                const authUrlDiv = document.getElementById('authUrlResult');
+                authUrlDiv.innerHTML = `
+                    <p>Click the link below to authorize:</p>
+                    <a href="${data.authUrl}" target="_blank">${data.authUrl}</a>
+                `;
+            } catch (error) {
+                console.error('Error getting auth URL:', error);
+                alert('Error getting auth URL');
+            }
+        }
+
+        async function createMeeting() {
+            if (!tokens) {
+                const tokensStr = prompt('Please paste your OAuth tokens JSON:');
+                try {
+                    tokens = JSON.parse(tokensStr);
+                } catch (e) {
+                    alert('Invalid tokens JSON');
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch('http://localhost:3000/api/google-meet/test-meeting', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ tokens })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    const meetLinkDiv = document.getElementById('meetLink');
+                    meetLinkDiv.style.display = 'block';
+                    meetLinkDiv.innerHTML = `
+                        <p>Meeting created successfully!</p>
+                        <p>Meet Link: <a href="${data.meetLink}" target="_blank">${data.meetLink}</a></p>
+                        <pre>${JSON.stringify(data.eventDetails, null, 2)}</pre>
+                    `;
+                } else {
+                    alert('Error creating meeting: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error creating meeting:', error);
+                alert('Error creating meeting');
+            }
+        }
+
+        // Handle OAuth callback
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        if (code) {
+            fetch('http://localhost:3000/api/google-meet/oauth2callback?code=' + code)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        tokens = data.tokens;
+                        alert('Authorization successful! You can now create a test meeting.');
+                    } else {
+                        alert('Authorization failed: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error in OAuth callback:', error);
+                    alert('Error in OAuth callback');
+                });
+        }
+    </script>
+</body>
+</html> 

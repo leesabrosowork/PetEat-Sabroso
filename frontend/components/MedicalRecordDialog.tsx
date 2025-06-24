@@ -40,6 +40,7 @@ interface MedicalRecord {
     notes: string;
     veterinarian: string;
   }>;
+  archived?: boolean;
 }
 
 interface MedicalRecordDialogProps {
@@ -47,9 +48,10 @@ interface MedicalRecordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDelete?: (recordId: string) => void;
+  onArchive?: (recordId: string, archived: boolean) => void;
 }
 
-export function MedicalRecordDialog({ record, open, onOpenChange, onDelete }: MedicalRecordDialogProps) {
+export function MedicalRecordDialog({ record, open, onOpenChange, onDelete, onArchive }: MedicalRecordDialogProps) {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   
   if (!record) return null;
@@ -220,12 +222,23 @@ export function MedicalRecordDialog({ record, open, onOpenChange, onDelete }: Me
           </Tabs>
 
           <div className="flex justify-between pt-4">
-            {onDelete && (
-              <Button variant="destructive" onClick={() => setShowDeleteConfirmation(true)}>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Record
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {onDelete && (
+                <Button variant="destructive" onClick={() => setShowDeleteConfirmation(true)}>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Record
+                </Button>
+              )}
+              {onArchive && (
+                <Button 
+                  variant="outline" 
+                  className={record.archived ? "bg-blue-100 hover:bg-blue-200" : ""}
+                  onClick={() => onArchive(record._id, !record.archived)}
+                >
+                  {record.archived ? "Unarchive" : "Archive"}
+                </Button>
+              )}
+            </div>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>

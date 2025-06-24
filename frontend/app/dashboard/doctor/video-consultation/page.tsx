@@ -64,7 +64,6 @@ export default function DoctorVideoConsultation() {
   const [crt, setCrt] = useState("")
   const [skinTenting, setSkinTenting] = useState(false)
   const [proofOfVaccines, setProofOfVaccines] = useState("")
-  const [prescription, setPrescription] = useState("")
   const [clientEducation, setClientEducation] = useState("")
   const [meetLink, setMeetLink] = useState<string | null>(null)
   const [meetLoading, setMeetLoading] = useState(false)
@@ -193,7 +192,6 @@ export default function DoctorVideoConsultation() {
       petSpecies,
       medicalHistory,
       diseaseHistory,
-      prescription,
       clientEducation,
       vitals: isInPerson ? { weight, temperature, respiratoryRate } : undefined,
       crt: isInPerson ? crt : undefined,
@@ -496,10 +494,6 @@ export default function DoctorVideoConsultation() {
                   </div>
                 </>
               )}
-              <div>
-                <Label>Prescription (Take-home meds)</Label>
-                <Textarea value={prescription} onChange={e => setPrescription(e.target.value)} placeholder="List take-home medications..." />
-              </div>
               <div>
                 <Label>Client Education (Notes to client)</Label>
                 <Textarea value={clientEducation} onChange={e => setClientEducation(e.target.value)} placeholder="Instructions for client..." />

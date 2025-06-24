@@ -379,7 +379,6 @@ export default function VideoConsultation() {
               {clinicalNote.crt && <div><b>CRT:</b> {clinicalNote.crt} sec</div>}
               {clinicalNote.skinTenting !== undefined && <div><b>Skin Tenting:</b> {clinicalNote.skinTenting ? "Yes" : "No"}</div>}
               {clinicalNote.proofOfVaccines && <div><b>Proof of Vaccines:</b> {clinicalNote.proofOfVaccines}</div>}
-              <div><b>Prescription (Take-home meds):</b> {clinicalNote.prescription || "-"}</div>
               <div><b>Client Education (Notes to client):</b> {clinicalNote.clientEducation || "-"}</div>
             </CardContent>
           </Card>

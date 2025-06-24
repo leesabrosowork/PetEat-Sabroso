@@ -34,11 +34,6 @@ router.post('/pets', vetClinicController.addPet || ((req, res) => res.status(501
 router.get('/medical-records', vetClinicController.getMedicalRecords);
 router.post('/medical-records', vetClinicController.createMedicalRecord);
 router.put('/medical-records/:petId', vetClinicController.updateMedicalRecord);
-// Prescriptions
-router.get('/prescriptions', vetClinicController.getPrescriptions);
-router.post('/prescriptions', vetClinicController.createPrescription);
-router.put('/prescriptions/:id', (req, res) => res.status(501).json({ success: false, message: 'Not implemented' }));
-router.delete('/prescriptions/:id', vetClinicController.deletePrescription || ((req, res) => res.status(501).json({ success: false, message: 'Not implemented' })));
 // Update pet health status
 router.put('/pets/:petId/health-status', vetClinicController.updatePetHealthStatus);
 // Pets under treatment

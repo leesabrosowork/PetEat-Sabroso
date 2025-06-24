@@ -252,7 +252,7 @@ export default function StaffDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventory.map(item => (
+                  {(inventory || []).map(item => (
                     <TableRow key={item._id}>
                       <TableCell className="font-medium">{item.item}</TableCell>
                       <TableCell>{item.category}</TableCell>

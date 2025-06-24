@@ -18,7 +18,7 @@ const bookingSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['consultation', 'checkup', 'surgery'],
+        enum: ['in person', 'online'],
         required: true
     },
     bookingDate: {

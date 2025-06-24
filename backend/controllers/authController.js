@@ -197,6 +197,13 @@ exports.login = async (req, res) => {
                         message: 'Please verify your email address before logging in. Check your email for the OTP.'
                     });
                 }
+                // Check if vet clinic is approved
+                if (user.role === 'clinic' && user.status !== 'approved') {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'Your vet clinic account is pending approval by the super admin. You will be able to log in once your account is approved.'
+                    });
+                }
                 authenticatedUser = user;
                 // Use the actual role from the user document
                 role = user.role;

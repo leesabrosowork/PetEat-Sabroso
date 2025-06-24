@@ -164,8 +164,8 @@ export default function ScheduleAppointment() {
       const token = localStorage.getItem('token');
       // Map frontend type to backend type
       const typeMap: Record<string, string> = {
-        video: "consultation",
-        inperson: "checkup", // adjust if you want a different mapping
+        video: "online",
+        inperson: "in person",
       };
       // Convert startTime (timestamp) to "HH:mm"
       let appointmentTime = "";

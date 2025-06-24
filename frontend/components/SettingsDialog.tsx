@@ -183,7 +183,7 @@ export function SettingsDialog({ userId }: SettingsDialogProps) {
                   <li>Your personal information will be removed</li>
                   <li>All your registered pets will be deleted</li>
                   <li>All medical records will be permanently lost</li>
-                  <li>All appointments and prescriptions will be deleted</li>
+                  <li>All appointments will be deleted</li>
                 </ul>
               </div>
               <p className="mt-2 font-medium">This action cannot be undone.</p>

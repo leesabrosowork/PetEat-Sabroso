@@ -1,12 +1,32 @@
 const mongoose = require('mongoose');
 
 const vitalsSchema = new mongoose.Schema({
-  weight: Number,          // kg
-  temperature: Number,     // °C
-  crt: Number,             // capillary refill time seconds
+  weight: {
+    type: Number,
+    required: true
+  },
+  temperature: {
+    type: Number,
+    required: true
+  },
+  respiratoryRate: {
+    type: Number,
+    required: true
+  },
+  crt: {
+    type: Number,
+    required: true,
+    description: "Capillary refill time in seconds"
+  },
   skinTenting: {
     type: Boolean,
-    default: false
+    default: false,
+    description: "Indicates dehydration or other problems"
+  },
+  gumsColor: {
+    type: String,
+    enum: ['pale', 'pinkish', 'other'],
+    required: true
   }
 }, { _id: false });
 
@@ -27,31 +47,84 @@ const clinicalNoteSchema = new mongoose.Schema({
     required: true
   },
   // Online consultation fields
-  petName: String,
-  petAge: Number,
-  petSex: String,
-  petBreed: String,
-  petSpecies: String,
-  medicalHistory: String, // summary or reference
-  diseaseHistory: String, // summary or reference
+  petName: {
+    type: String,
+    required: true
+  },
+  petAge: {
+    type: Number,
+    required: true
+  },
+  petSex: {
+    type: String,
+    required: true,
+    enum: ['male', 'female', 'unknown']
+  },
+  petBreed: {
+    type: String,
+    required: true
+  },
+  petSpecies: {
+    type: String,
+    required: true
+  },
+  medicalHistory: {
+    type: String,
+    required: true
+  },
+  diseaseHistory: {
+    type: String,
+    required: true
+  },
   // In-person consultation fields
-  vitals: vitalsSchema,
-  crt: Number,
-  skinTenting: {
+  isInPerson: {
     type: Boolean,
     default: false
   },
-  proofOfVaccines: String, // could be a file reference or text
+  vitals: {
+    type: vitalsSchema,
+    required: function() {
+      return this.isInPerson;
+    }
+  },
+  proofOfVaccines: [{
+    name: String,
+    date: Date,
+    validUntil: Date,
+    veterinarian: String,
+    documentUrl: String
+  }],
   // Discharge notes
-  prescription: String,
-  clientEducation: String,
+  dischargePrescription: [{
+    medication: String,
+    dosage: String,
+    frequency: String,
+    duration: String,
+    specialInstructions: String
+  }],
+  clientEducation: {
+    type: String,
+    required: true,
+    description: "Notes to client about medicines and pet care instructions"
+  },
   // Common fields
-  diagnosis: String,
-  treatmentPlan: String,
+  diagnosis: {
+    type: String,
+    required: true
+  },
+  treatmentPlan: {
+    type: String,
+    required: true
+  },
   additionalNotes: String,
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  archived: {
+    type: Boolean,
+    default: false,
+    description: "Instead of deletion, records are archived for future reference"
   }
 });
 

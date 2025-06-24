@@ -4,7 +4,6 @@ const userController = require('../controllers/userController');
 const User = require('../models/userModel');
 const Pet = require('../models/petModel');
 const Booking = require('../models/bookingModel');
-const Prescription = require('../models/prescriptionModel');
 const { protect } = require('../middleware/auth');
 
 // Create a new user

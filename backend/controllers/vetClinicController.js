@@ -3,7 +3,6 @@ const PetMedicalRecord = require('../models/petMedicalRecord');
 const EMR = require('../models/emrModel');
 const Booking = require('../models/bookingModel');
 const VideoConsultation = require('../models/videoConsultationModel');
-const Prescription = require('../models/prescriptionModel');
 const Inventory = require('../models/inventoryModel');
 const User = require('../models/userModel');
 const { createZoomMeeting } = require('../utils/zoom');
@@ -45,15 +44,13 @@ exports.getDashboardData = async (req, res) => {
             status: 'completed'
         });
 
-        // Get video consultations (assuming they're appointments with type 'consultation')
-        const videoConsultations = await VideoConsultation.countDocuments({
+        // Get video consultations (appointments with type 'online')
+        const videoConsultations = await Booking.countDocuments({
             clinic: clinicId,
-            scheduledTime: { $gte: today },
-            status: { $in: ['scheduled', 'in-progress'] }
+            bookingDate: { $gte: today },
+            type: 'online',
+            status: { $in: ['pending', 'confirmed'] }
         });
-
-        // Get prescriptions count
-        const prescriptions = await Prescription.countDocuments();
 
         // Get inventory data
         const inventoryItems = await Inventory.countDocuments();
@@ -73,7 +70,6 @@ exports.getDashboardData = async (req, res) => {
                 upcomingAppointments,
                 completedAppointments,
                 videoConsultations,
-                totalPrescriptions: prescriptions,
                 inventoryItems,
                 lowStockItems
             }
@@ -228,6 +224,8 @@ exports.getAppointments = async (req, res) => {
                 startTime,
                 status: b.status || 'N/A',
                 notes: b.reason || 'N/A',
+                type: b.type || 'in person',
+                googleMeetLink: b.googleMeetLink
             };
         });
         res.json({
@@ -262,77 +260,7 @@ exports.getVideoConsultations = async (req, res) => {
     }
 };
 
-// Get prescriptions for the clinic
-exports.getPrescriptions = async (req, res) => {
-    try {
-        const clinicId = req.user._id;
-        
-        const prescriptions = await Prescription.find()
-            .populate('pet')
-            .populate('user', 'username fullName name email')
-            .populate('medicine', 'item')
-            .sort({ createdAt: -1 });
 
-        res.json({
-            success: true,
-            data: prescriptions
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
-
-// Create a new prescription
-exports.createPrescription = async (req, res) => {
-    try {
-        const { pet, user, medicine, description } = req.body;
-        
-        // Validate required fields
-        if (!pet || !user || !medicine || !description) {
-            return res.status(400).json({
-                success: false,
-                message: 'All fields are required: pet, user, medicine, description'
-            });
-        }
-
-        // Create new prescription
-        const newPrescription = new Prescription({
-            pet,
-            user,
-            doctor: req.user._id, // Set the current vet clinic as the doctor
-            medicine,
-            description
-        });
-
-        await newPrescription.save();
-
-        // Populate the prescription for response
-        await newPrescription.populate([
-            { path: 'pet', select: 'name' },
-            { path: 'user', select: 'name email' },
-            { path: 'medicine', select: 'item' }
-        ]);
-
-        // Emit socket event for real-time update
-        if (req.app.get('io')) {
-            req.app.get('io').emit('prescriptions_updated');
-        }
-
-        res.status(201).json({
-            success: true,
-            data: newPrescription
-        });
-    } catch (error) {
-        console.error('Error in createPrescription:', error);
-        res.status(400).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
 
 // Get inventory for the clinic
 exports.getInventory = async (req, res) => {
@@ -576,24 +504,7 @@ exports.addPet = async (req, res) => {
     }
 };
 
-// Delete prescription
-exports.deletePrescription = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const deleted = await Prescription.findByIdAndDelete(id);
-        if (!deleted) {
-            return res.status(404).json({ success: false, message: 'Prescription not found' });
-        }
-        // Optionally emit socket event here
-        if (req.app.get('io')) {
-            req.app.get('io').emit('prescriptions_updated');
-        }
-        res.json({ success: true, message: 'Prescription deleted' });
-    } catch (error) {
-        console.error('Delete prescription error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
+
 
 // Increment or decrement inventory stock
 exports.updateInventoryStock = async (req, res) => {
@@ -654,51 +565,47 @@ exports.getAllApprovedClinics = async (req, res) => {
 exports.approveAppointment = async (req, res) => {
     try {
         const { id } = req.params;
-        const appointment = await Booking.findById(id);
+        const appointment = await Booking.findById(id).populate('pet_owner clinic pet');
         if (!appointment) {
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }
         appointment.status = 'confirmed';
-        await appointment.save();
-
-        // If appointment type is 'consultation', create Google Meet link and update videoConsultation
-        if (appointment.type === 'consultation') {
-            // Find the corresponding video consultation
-            const videoConsultation = await VideoConsultation.findOne({
-                petOwner: appointment.petOwner,
-                clinic: appointment.clinic,
-                pet: appointment.pet,
-                scheduledTime: appointment.bookingDate
-            });
-            if (videoConsultation) {
-                // --- Google Meet Integration ---
-                try {
-                    // Fetch tokens for clinic from DB
-                    const clinicUser = await User.findById(appointment.clinic);
-                    const googleTokens = clinicUser && clinicUser.googleTokens;
-                    if (googleTokens) {
-                        const startTime = appointment.bookingDate.toISOString();
-                        const endTime = new Date(new Date(appointment.bookingDate).getTime() + (videoConsultation.duration || 30) * 60000).toISOString();
-                        const meetResult = await createGoogleMeet({
-                            summary: `Consultation for ${videoConsultation.pet}`,
-                            description: `Consultation with pet owner`,
-                            startTime,
-                            endTime,
-                            tokens: googleTokens
-                        });
-                        videoConsultation.googleMeetLink = meetResult.meetLink;
-                        await videoConsultation.save();
-                        appointment.googleMeetLink = meetResult.meetLink;
-                        await appointment.save();
-                    } else {
-                        console.warn('No Google tokens found for clinic, skipping Meet creation.');
-                    }
-                } catch (meetErr) {
-                    console.error('Failed to create Google Meet:', meetErr);
+        // If appointment type is 'online', create Google Meet link
+        if (appointment.type === 'online') {
+            try {
+                // Get emails for attendees
+                const petOwnerEmail = appointment.pet_owner?.email;
+                const clinicEmail = appointment.clinic?.email;
+                // Calculate start and end time
+                const startDate = new Date(appointment.bookingDate);
+                if (appointment.appointmentTime) {
+                    const [hours, minutes] = appointment.appointmentTime.split(':').map(Number);
+                    startDate.setHours(hours, minutes, 0, 0);
                 }
+                const endDate = new Date(startDate.getTime() + 30 * 60000); // 30 min duration
+                // Use the clinic's Google tokens
+                const googleTokens = appointment.clinic?.googleTokens;
+                if (googleTokens && petOwnerEmail && clinicEmail) {
+                    const meetResult = await createGoogleMeet({
+                        summary: `Online Consultation for ${appointment.pet?.name || 'Pet'}`,
+                        description: `Online consultation for ${appointment.pet?.name || 'Pet'}`,
+                        startTime: startDate.toISOString(),
+                        endTime: endDate.toISOString(),
+                        tokens: googleTokens,
+                        attendees: [
+                            { email: petOwnerEmail },
+                            { email: clinicEmail }
+                        ]
+                    });
+                    appointment.googleMeetLink = meetResult.meetLink;
+                } else {
+                    console.warn('Missing Google tokens or attendee emails, skipping Meet creation.');
+                }
+            } catch (meetErr) {
+                console.error('Failed to create Google Meet:', meetErr);
             }
         }
-
+        await appointment.save();
         // Emit socket event for real-time update
         if (req.app.get('io')) {
             req.app.get('io').emit('appointments_updated');

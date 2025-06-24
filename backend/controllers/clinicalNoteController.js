@@ -72,7 +72,6 @@ exports.getNoteDetails = async (req, res) => {
       skinTenting: fallback(note.skinTenting),
       proofOfVaccines: fallback(note.proofOfVaccines),
       // Discharge notes
-      prescription: fallback(note.prescription),
       clientEducation: fallback(note.clientEducation),
       // Common fields
       diagnosis: fallback(note.diagnosis),

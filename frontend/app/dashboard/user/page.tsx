@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2, Settings, Moon, Sun, Laptop, MessageSquare } from "lucide-react"
+import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2, Settings, Moon, Sun, Laptop, MessageSquare, Edit } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { EMRViewer } from "@/components/EMRViewer"
@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
 import { getUserPreferences, saveUserPreferences } from "@/lib/storage"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface Pet {
   _id: string;
@@ -47,21 +48,7 @@ interface Booking {
   type?: string;
   doctor?: Doctor;
   startTime?: string;
-}
-
-interface Medicine {
-  _id: string;
-  name: string;
-  item: string;
-}
-
-interface Prescription {
-  _id: string;
-  pet: Pet;
-  doctor: Doctor;
-  medicine: Medicine;
-  description: string;
-  createdAt: string;
+  googleMeetLink?: string;
 }
 
 interface PetUnderTreatment {
@@ -94,7 +81,6 @@ interface PetUnderTreatment {
 interface DashboardData {
   pets: Pet[];
   bookings: Booking[];
-  prescriptions: Prescription[];
   petsUnderTreatment: PetUnderTreatment[];
 }
 
@@ -104,7 +90,6 @@ export default function UserDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     pets: [],
     bookings: [],
-    prescriptions: [],
     petsUnderTreatment: []
   })
   const [loading, setLoading] = useState(true)
@@ -113,7 +98,6 @@ export default function UserDashboard() {
 
   const { socket } = useSocket();
 
-  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [emrs, setEmrs] = useState<any[]>([]);
   const [emrsLoading, setEmrsLoading] = useState(true);
   const [emrsError, setEmrsError] = useState<string | null>(null);
@@ -194,28 +178,24 @@ export default function UserDashboard() {
     [
       "pets_updated",
       "bookings_updated",
-      "prescriptions_updated",
       "users_updated",
       "pets_under_treatment_updated",
       "emrs_updated",
-      "inventory_updated",
-      "admins_updated",
-      "clinical_notes_updated",
-      "video_consultations_updated"
-    ].forEach(event => socket.on(event, handleRealtimeUpdate));
+    ].forEach(event => {
+      socket.on(event, handleRealtimeUpdate);
+    });
+    
+    // Cleanup
     return () => {
       [
         "pets_updated",
         "bookings_updated",
-        "prescriptions_updated",
         "users_updated",
         "pets_under_treatment_updated",
         "emrs_updated",
-        "inventory_updated",
-        "admins_updated",
-        "clinical_notes_updated",
-        "video_consultations_updated"
-      ].forEach(event => socket.off(event, handleRealtimeUpdate));
+      ].forEach(event => {
+        socket.off(event, handleRealtimeUpdate);
+      });
     };
   }, [socket, user]);
 
@@ -240,15 +220,34 @@ export default function UserDashboard() {
       const petsUnderTreatmentData = await petsUnderTreatmentRes.json();
       
       if (data.success) {
+        // Make sure bookings have the necessary properties
+        const processedBookings = data.data.bookings.map((booking: any) => {
+          // Convert bookingDate and appointmentTime to a startTime
+          let startTime = booking.bookingDate ? new Date(booking.bookingDate) : new Date();
+          if (booking.appointmentTime) {
+            const [hours, minutes] = booking.appointmentTime.split(':').map(Number);
+            startTime.setHours(hours, minutes, 0, 0);
+          }
+          
+          return {
+            ...booking,
+            startTime: startTime.toISOString(),
+            // Ensure googleMeetLink is properly passed through
+            googleMeetLink: booking.googleMeetLink || null
+          };
+        });
+        
         setDashboardData({
           ...data.data,
+          bookings: processedBookings,
           petsUnderTreatment: petsUnderTreatmentData.success ? petsUnderTreatmentData.data : []
         });
       } else {
         setError(data.message);
       }
     } catch (e: any) {
-      setError(e.message || "Failed to fetch dashboard data");
+      setError(e.message);
+      console.error("Error fetching dashboard data:", e);
     } finally {
       setLoading(false);
     }
@@ -726,6 +725,16 @@ export default function UserDashboard() {
     apt => apt.status === 'scheduled'
   )
 
+  // Update the booking type display
+  const getBookingTypeDisplay = (type: string | undefined) => {
+    if (type === 'online') return 'Online Consultation';
+    if (type === 'in person') return 'In Person Appointment';
+    return type || 'Appointment';
+  }
+
+  const videoAppointments = dashboardData.bookings.filter(a => a.type === 'online');
+  const inPersonAppointments = dashboardData.bookings.filter(a => a.type === 'in person');
+
   // Before rendering, define a function or variable to get the status label as a string
   function getStatusLabel(status: string) {
     if (status === 'pending') return 'Pending';
@@ -734,9 +743,6 @@ export default function UserDashboard() {
     if (status === 'rejected') return 'Rejected';
     return status;
   }
-
-  const videoAppointments = dashboardData.bookings.filter(a => a.type === 'consultation');
-  const inPersonAppointments = dashboardData.bookings.filter(a => a.type === 'checkup' || a.type === 'surgery');
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -938,10 +944,9 @@ export default function UserDashboard() {
                     <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
                     <TabsTrigger value="pets" className="flex-shrink-0">My Pets</TabsTrigger>
                     <TabsTrigger value="appointments" className="flex-shrink-0">Appointments</TabsTrigger>
-                    <TabsTrigger value="video-consultations" className="flex-shrink-0">Video Consultations</TabsTrigger>
+                    <TabsTrigger value="video-consultations" className="flex-shrink-0">Online Consultations</TabsTrigger>
                     <TabsTrigger value="in-person" className="flex-shrink-0">In Person Appointments</TabsTrigger>
                     <TabsTrigger value="hospitalizations" className="flex-shrink-0">Hospitalizations</TabsTrigger>
-                    <TabsTrigger value="prescriptions" className="flex-shrink-0">Prescriptions</TabsTrigger>
                     <TabsTrigger value="medical-records" className="flex-shrink-0">Medical Records</TabsTrigger>
                   </>
                 ) : (
@@ -964,11 +969,11 @@ export default function UserDashboard() {
                   <div className="border rounded-lg p-4 h-full flex flex-col">
                     <h3 className="text-lg font-medium mb-4">Clinics</h3>
                     <div className="flex-1 overflow-y-auto">
-                      {clinics.length === 0 ? (
+                      {(clinics || []).length === 0 ? (
                         <p className="text-muted-foreground">No clinics available.</p>
                       ) : (
                         <ul className="space-y-2">
-                          {clinics.map(clinic => (
+                          {(clinics || []).map(clinic => (
                             <li 
                               key={clinic._id} 
                               className={`p-2 rounded cursor-pointer ${
@@ -1008,14 +1013,14 @@ export default function UserDashboard() {
                           <div className="text-xs text-muted-foreground">{selectedClinic.address || selectedClinic.email}</div>
                         </div>
                         <div className="flex-1 p-4 overflow-y-auto max-h-[calc(70vh-120px)]">
-                          {messages.length === 0 ? (
+                          {(messages || []).length === 0 ? (
                             <div className="text-center text-muted-foreground h-full flex flex-col justify-center">
                               <p>No messages yet</p>
                               <p className="text-sm">Send a message to start the conversation</p>
                             </div>
                           ) : (
                             <div className="space-y-4">
-                              {messages.map((message) => {
+                              {(messages || []).map((message) => {
                                 const isOwnMessage = message.sender && message.sender._id === user._id;
                                 
                                 return (
@@ -1087,7 +1092,7 @@ export default function UserDashboard() {
                     <Image src="/peteat-logo.png" alt="PetEat Logo" width={16} height={16} />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.pets.length}</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{(dashboardData.pets || []).length}</div>
                     <p className="text-xs text-gray-600 dark:text-gray-300">Registered pets</p>
                   </CardContent>
                 </Card>
@@ -1097,20 +1102,10 @@ export default function UserDashboard() {
                     <Calendar className="h-4 w-4 text-gray-600 dark:text-gray-300" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{upcomingAppointments.length}</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{(upcomingAppointments || []).length}</div>
                     <p className="text-xs text-gray-600 dark:text-gray-300">
-                      {inPersonAppointments.filter(apt => apt.status === 'scheduled').length} in-person • {videoAppointments.filter(apt => apt.status === 'scheduled').length} video
+                      {(inPersonAppointments || []).filter(apt => apt.status === 'scheduled').length} in-person • {(videoAppointments || []).filter(apt => apt.status === 'scheduled').length} video
                     </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Active Prescriptions</CardTitle>
-                    <FileText className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.prescriptions.length}</div>
-                    <p className="text-xs text-gray-600 dark:text-gray-300">Current medications</p>
                   </CardContent>
                 </Card>
               </div>
@@ -1122,11 +1117,11 @@ export default function UserDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {dashboardData.bookings.slice(0, 3).map((booking) => (
+                      {(dashboardData.bookings || []).slice(0, 3).map((booking) => (
                         <div key={booking._id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div>
                             <p className="font-medium">
-                              {booking.type === 'consultation' ? 'Video Consultation' : 'Appointment'}
+                              {getBookingTypeDisplay(booking.type)}
                               {booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}
                             </p>
                             <p className="text-sm text-gray-500">
@@ -1157,17 +1152,30 @@ export default function UserDashboard() {
                             }>
                               {getStatusLabel(booking.status)}
                             </Badge>
-                            {booking.type === 'consultation' && (
+                            {booking.type === 'online' && booking.status === 'confirmed' && booking.googleMeetLink && (
+                              <a 
+                                href={booking.googleMeetLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                              >
+                                <Button className="bg-green-600 hover:bg-green-700" size="sm">
+                                  <Video className="w-4 h-4 mr-2" />
+                                  Start Call
+                                </Button>
+                              </a>
+                            )}
+                            {booking.type === 'online' && (
                               <Link href={`/dashboard/user/video-consultation?appointment=${booking._id}`}>
-                                <Button variant="outline" size="sm">
-                                  {booking.status === 'scheduled' ? 'Join Call' : 'View Details'}
+                                <Button variant="outline" size="sm" className="bg-blue-100 hover:bg-blue-200 text-blue-800">
+                                  <Video className="h-4 w-4 mr-1" />
+                                  View Online Consultation
                                 </Button>
                               </Link>
                             )}
                           </div>
                         </div>
                       ))}
-                      {dashboardData.bookings.length === 0 && (
+                      {(dashboardData.bookings || []).length === 0 && (
                         <p className="text-gray-500 text-center py-4">No appointments scheduled</p>
                       )}
                     </div>
@@ -1195,7 +1203,7 @@ export default function UserDashboard() {
                       <Link href={`/dashboard/user/video-consultation?appointment=${videoAppointments[0]._id}`}>
                         <Button variant="outline" className="w-full justify-start">
                           <Video className="h-4 w-4 mr-2" />
-                          Start Video Consultation
+                          Start Online Consultation
                         </Button>
                       </Link>
                     )}
@@ -1214,7 +1222,7 @@ export default function UserDashboard() {
                 </Link>
               </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {dashboardData.pets.map((pet) => (
+                {(dashboardData.pets || []).map((pet) => (
                   <Card key={pet._id}>
                     <CardContent className="p-6">
                       <div className="flex flex-col items-center text-center space-y-4">
@@ -1265,7 +1273,7 @@ export default function UserDashboard() {
                     </CardContent>
                   </Card>
                 ))}
-                {dashboardData.pets.length === 0 && (
+                {(dashboardData.pets || []).length === 0 && (
                   <div className="col-span-3 text-center py-8">
                     <p className="text-gray-500">You don't have any pets yet.</p>
                     <p className="text-gray-500">Click "Add Pet" to register your first pet.</p>
@@ -1285,7 +1293,7 @@ export default function UserDashboard() {
                 </Link>
               </div>
               <div className="space-y-4">
-                {dashboardData.bookings.length === 0 && (
+                {(dashboardData.bookings || []).length === 0 && (
                   <div className="text-center py-8">
                     <p className="text-gray-500 mb-4">No appointments scheduled</p>
                     <Link href="/dashboard/user/schedule-appointment">
@@ -1296,14 +1304,14 @@ export default function UserDashboard() {
                     </Link>
                   </div>
                 )}
-                {dashboardData.bookings.map((booking) => (
+                {(dashboardData.bookings || []).map((booking) => (
                   <Card key={booking._id}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold">
-                              {booking.type === 'consultation' ? 'Video Consultation' : 'In Person Appointment'}
+                              {getBookingTypeDisplay(booking.type)}
                               {booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}
                             </h3>
                             <Badge className={
@@ -1352,13 +1360,16 @@ export default function UserDashboard() {
                             </span>
                           </div>
                         </div>
-                        {booking.type === 'consultation' && (
-                          <Link href={`/dashboard/user/video-consultation?appointment=${booking._id}`}>
-                            <Button variant="outline" size="sm">
-                              {booking.status === 'scheduled' ? 'Join Call' : 'View Details'}
-                            </Button>
-                          </Link>
-                        )}
+                        <div className="flex gap-2">
+                          {booking.type === 'online' && (
+                            <Link href={`/dashboard/user/video-consultation?appointment=${booking._id}`}>
+                              <Button variant="outline" size="sm" className="bg-blue-100 hover:bg-blue-200 text-blue-800">
+                                <Video className="h-4 w-4 mr-1" />
+                                View Online Consultation
+                              </Button>
+                            </Link>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -1368,82 +1379,81 @@ export default function UserDashboard() {
 
             <TabsContent value="video-consultations" className="space-y-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">Video Consultations</h2>
+                <h2 className="text-2xl font-bold">Online Consultations</h2>
               </div>
               <div className="space-y-4">
                 {videoAppointments.length === 0 && (
                   <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">No video consultations scheduled</p>
+                    <p className="text-gray-500 mb-4">No online consultations scheduled</p>
                     <Link href="/dashboard/user/schedule-appointment">
                       <Button>
                         <Calendar className="h-4 w-4 mr-2" />
-                        Schedule Video Consultation
+                        Schedule Online Consultation
                       </Button>
                     </Link>
                   </div>
                 )}
-                {videoAppointments.map((booking) => (
-                  <Card key={booking._id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">Video Consultation{booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead>Pet</TableHead>
+                      <TableHead>Clinic</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(videoAppointments || []).map((consultation) => {
+                      const consultationDate = new Date(consultation.startTime || new Date());
+                      const isToday = consultationDate.toDateString() === new Date().toDateString();
+                      const isPast = consultationDate < new Date();
+                      
+                      return (
+                        <TableRow key={consultation._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                          <TableCell>
+                            {consultationDate.toLocaleDateString()} <br />
+                            {consultationDate.toLocaleTimeString()}
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-900 dark:text-white">
+                            {consultation.pet?.name || JSON.stringify(consultation.pet) || 'Pet'}
+                          </TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">
+                            {consultation.clinic?.clinicName || consultation.clinic?.name || JSON.stringify(consultation.clinic) || 'Clinic'}
+                          </TableCell>
+                          <TableCell>
                             <Badge className={
-                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              booking.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                              booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              booking.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              consultation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              consultation.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                              consultation.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              consultation.status === 'rejected' ? 'bg-red-100 text-red-800' :
                               'bg-gray-100 text-gray-800'
                             }>
-                              {getStatusLabel(booking.status)}
+                              {consultation.status === 'pending' ? 'Pending' : consultation.status}
                             </Badge>
-                          </div>
-                          <p className="text-gray-600">{booking.doctor ? booking.doctor.email : null}</p>
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              {(() => {
-                                let dateString = "No date specified";
-                                if (
-                                  booking.startTime &&
-                                  booking.startTime !== "No date specified"
-                                ) {
-                                  const date = new Date(booking.startTime);
-                                  if (!isNaN(date.getTime())) {
-                                    dateString = date.toLocaleDateString();
-                                  }
-                                }
-                                return dateString;
-                              })()}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              {(() => {
-                                let timeString = "No time specified";
-                                if (
-                                  booking.startTime &&
-                                  booking.startTime !== "No date specified"
-                                ) {
-                                  const date = new Date(booking.startTime);
-                                  if (!isNaN(date.getTime())) {
-                                    timeString = date.toLocaleTimeString();
-                                  }
-                                }
-                                return timeString;
-                              })()}
-                            </span>
-                          </div>
-                        </div>
-                        <Link href={`/dashboard/user/video-consultation?appointment=${booking._id}`}>
-                          <Button variant="outline" size="sm">
-                            {booking.status === 'scheduled' ? 'Join Call' : 'View Details'}
-                          </Button>
-                        </Link>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                          </TableCell>
+                          <TableCell>
+                            {consultation.reason || '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/user/video-consultation?appointment=${consultation._id}`}>View Details</Button>
+                              {consultation.type === 'online' && (consultation.status === 'confirmed' || consultation.status === 'scheduled') && consultation.googleMeetLink && (
+                                <a href={consultation.googleMeetLink} target="_blank" rel="noopener noreferrer">
+                                  <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700">
+                                    <Video className="w-4 h-4 mr-2" />
+                                    Join Call
+                                  </Button>
+                                </a>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             </TabsContent>
 
@@ -1469,7 +1479,7 @@ export default function UserDashboard() {
                     </Link>
                   </div>
                 )}
-                {inPersonAppointments.map((booking) => (
+                {(inPersonAppointments || []).map((booking) => (
                   <Card key={booking._id}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
@@ -1534,7 +1544,7 @@ export default function UserDashboard() {
                 <h2 className="text-2xl font-bold">Hospitalizations</h2>
               </div>
               <div className="space-y-4">
-                {dashboardData.petsUnderTreatment.map((treatment) => (
+                {(dashboardData.petsUnderTreatment || []).map((treatment) => (
                   <Card key={treatment._id}>
                     <CardContent className="p-6">
                       <div className="space-y-4">
@@ -1601,37 +1611,9 @@ export default function UserDashboard() {
                     </CardContent>
                   </Card>
                 ))}
-                {dashboardData.petsUnderTreatment.length === 0 && (
+                {(dashboardData.petsUnderTreatment || []).length === 0 && (
                   <div className="text-center py-8">
                     <p className="text-gray-500 mb-4">None of your pets are currently under treatment</p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="prescriptions" className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">Prescriptions</h2>
-              </div>
-              <div className="space-y-4">
-                {dashboardData.prescriptions.map((prescription) => (
-                  <Card key={prescription._id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                          <h3 className="font-semibold">Pet: {prescription.pet?.name || 'Pet'}</h3>
-                          <p className="text-gray-600">Medicine: {prescription.medicine.item}</p>
-                          <p className="text-gray-600">Description: {prescription.description || 'No description provided'}</p>
-                          <p className="text-sm text-gray-500">Date: {new Date(prescription.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {dashboardData.prescriptions.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No prescriptions found</p>
                   </div>
                 )}
               </div>
@@ -1646,12 +1628,12 @@ export default function UserDashboard() {
                   <p>Loading medical records...</p>
                 ) : emrsError ? (
                   <p className="text-red-500">{emrsError}</p>
-                ) : emrs.length === 0 ? (
+                ) : (emrs || []).length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500">No medical records found</p>
                   </div>
                 ) : (
-                  emrs.map((emr) => (
+                  (emrs || []).map((emr) => (
                     <Card key={emr._id}>
                       <CardHeader>
                         <div className="flex justify-between items-center">
@@ -1729,20 +1711,6 @@ export default function UserDashboard() {
         </main>
       </div>
 
-      {selectedPrescription && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-8 rounded-lg w-full max-w-lg">
-            <h2 className="text-xl font-bold mb-4">Prescription Details</h2>
-            <p><strong>Pet:</strong> {selectedPrescription.pet.name}</p>
-            <p><strong>Medicine:</strong> {selectedPrescription.medicine.item}</p>
-            <p><strong>Doctor:</strong> {selectedPrescription.doctor?.name || 'Clinic Staff'}</p>
-            <p><strong>Description:</strong> {selectedPrescription.description}</p>
-            <p><strong>Date:</strong> {new Date(selectedPrescription.createdAt).toLocaleDateString()}</p>
-            <Button className="mt-4" onClick={() => setSelectedPrescription(null)}>Close</Button>
-          </div>
-        </div>
-      )}
-
       {/* No Medical Record Dialog */}
       <AlertDialog open={showNoEMRDialog} onOpenChange={setShowNoEMRDialog}>
         <AlertDialogContent>
@@ -1796,7 +1764,7 @@ export default function UserDashboard() {
                   <li>Your personal information will be removed</li>
                   <li>All your registered pets will be deleted</li>
                   <li>All medical records will be permanently lost</li>
-                  <li>All appointments and prescriptions will be deleted</li>
+                  <li>All appointments will be deleted</li>
                 </ul>
               </div>
               <p className="mt-2 font-semibold">This action cannot be undone.</p>

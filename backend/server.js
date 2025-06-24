@@ -8,7 +8,6 @@ const Staff = require('./models/staffModel');
 const User = require('./models/userModel');
 const Pet = require('./models/petModel');
 const Booking = require('./models/bookingModel');
-const Prescription = require('./models/prescriptionModel');
 const Inventory = require('./models/inventoryModel');
 const EMR = require('./models/petMedicalRecord');
 require('dotenv').config();
@@ -80,12 +79,6 @@ const setupChangeStreams = () => {
   Booking.watch().on('change', async (change) => {
     const bookings = await Booking.find();
     io.emit('bookings_updated', bookings);
-  });
-
-  // PRESCRIPTIONS
-  Prescription.watch().on('change', async (change) => {
-    const prescriptions = await Prescription.find();
-    io.emit('prescriptions_updated', prescriptions);
   });
 
   // USERS

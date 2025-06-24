@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef, useCallback } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useSocket } from "@/app/context/SocketContext"
 import { useTheme } from "next-themes"
@@ -263,7 +263,6 @@ function VetClinicDashboard() {
   const [videoConsultations, setVideoConsultations] = useState<VideoConsultation[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [petsUnderTreatment, setPetsUnderTreatment] = useState<PetUnderTreatment[]>([]);
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   
   // Loading states for tabs
   const [petsLoading, setPetsLoading] = useState(false);
@@ -351,25 +350,6 @@ function VetClinicDashboard() {
     }
   }, [router]);
 
-  // Global error handler for DOM manipulation errors
-  useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
-      if (event.error && event.error.message && 
-          event.error.message.includes('removeChild') && 
-          event.error.message.includes('not a child of this node')) {
-        console.warn('DOM manipulation error caught and handled:', event.error.message);
-        event.preventDefault();
-        // Optionally refresh the component or show a user-friendly message
-        return false;
-      }
-    };
-
-    window.addEventListener('error', handleError);
-    return () => {
-      window.removeEventListener('error', handleError);
-    };
-  }, []);
-
   useEffect(() => {
     // Check if redirected from Google OAuth success
     if (typeof window !== 'undefined' && window.location.pathname === '/api/google-meet/success') {
@@ -386,9 +366,7 @@ function VetClinicDashboard() {
   };
 
   // Fetch dashboard overview data
-  const fetchDashboardData = useCallback(async () => {
-    if (loading) return; // Prevent multiple simultaneous requests
-    
+  const fetchDashboardData = async () => {
     setLoading(true);
     setError(null);
     try {
@@ -412,7 +390,7 @@ function VetClinicDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [loading]);
+  };
 
   // Fetch pets data
   const fetchPets = async () => {
@@ -577,7 +555,27 @@ function VetClinicDashboard() {
     }
   };
 
-  
+  // Fetch prescriptions
+  const fetchPrescriptions = async () => {
+    setPrescriptionsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:8080/api/vet-clinic/prescriptions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setPrescriptions(data.data);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching prescriptions:", error);
+    } finally {
+      setPrescriptionsLoading(false);
+    }
+  };
 
   // Fetch inventory
   const fetchInventory = async () => {
@@ -941,7 +939,10 @@ function VetClinicDashboard() {
     }
   };
 
-  
+  const handleViewPrescription = (prescription: Prescription) => {
+    setSelectedPrescription(prescription);
+    setPrescriptionDialogOpen(true);
+  };
 
   const handleViewAppointmentDetails = (appointment: Appointment) => {
     // Implementation for viewing appointment details
@@ -1593,20 +1594,10 @@ function VetClinicDashboard() {
   // Realtime dashboard updates
   useEffect(() => {
     if (!socket || !user) return;
-    
     const handleRealtimeUpdate = () => {
-      // Add a small delay to prevent rapid re-renders
-      setTimeout(() => {
-        try {
-          fetchDashboardData();
-        } catch (error) {
-          console.error('Error in real-time update:', error);
-          // Don't let socket errors crash the component
-        }
-      }, 100);
+      fetchDashboardData();
     };
-
-    const events = [
+    [
       "pets_updated",
       "bookings_updated",
       "prescriptions_updated",
@@ -1617,25 +1608,22 @@ function VetClinicDashboard() {
       "admins_updated",
       "clinical_notes_updated",
       "video_consultations_updated"
-    ];
-
-    // Remove any existing listeners first
-    events.forEach(event => {
-      socket.off(event, handleRealtimeUpdate);
-    });
-
-    // Add new listeners
-    events.forEach(event => {
-      socket.on(event, handleRealtimeUpdate);
-    });
-
-    // Cleanup function
+    ].forEach(event => socket.on(event, handleRealtimeUpdate));
     return () => {
-      events.forEach(event => {
-        socket.off(event, handleRealtimeUpdate);
-      });
+      [
+        "pets_updated",
+        "bookings_updated",
+        "prescriptions_updated",
+        "users_updated",
+        "pets_under_treatment_updated",
+        "emrs_updated",
+        "inventory_updated",
+        "admins_updated",
+        "clinical_notes_updated",
+        "video_consultations_updated"
+      ].forEach(event => socket.off(event, handleRealtimeUpdate));
     };
-  }, [socket, user, fetchDashboardData]);
+  }, [socket, user]);
 
   const [showArchived, setShowArchived] = useState(false);
 
@@ -1643,13 +1631,6 @@ function VetClinicDashboard() {
   const handleViewEMR = (emr: any) => {
     setSelectedMedicalRecord(emr);
     setMedicalRecordDialogOpen(true);
-  };
-
-  // Handle viewing a prescription
-  const handleViewPrescription = (prescription: Prescription) => {
-    // Implementation for viewing prescription details
-    console.log("Viewing prescription details:", prescription);
-    // You can add a dialog or modal to show prescription details
   };
 
   if (loading) {
@@ -2345,12 +2326,17 @@ function VetClinicDashboard() {
                     <CardTitle className="text-gray-900 dark:text-white">Prescriptions</CardTitle>
                     <CardDescription>All prescribed medications</CardDescription>
                   </div>
+                  <Button onClick={() => setAddPrescriptionDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Prescription
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                {prescriptions.length === 0 ? (
+                {prescriptionsLoading ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-500">No prescriptions found.</p>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Loading prescriptions...</p>
                   </div>
                 ) : (
                   <Table>

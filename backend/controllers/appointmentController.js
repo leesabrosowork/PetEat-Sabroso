@@ -121,7 +121,7 @@ exports.createBooking = async (req, res) => {
                 message: 'Missing required fields'
             });
         }
-        if (!['consultation', 'checkup', 'surgery'].includes(type)) {
+        if (!['in person', 'online'].includes(type)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid appointment type'

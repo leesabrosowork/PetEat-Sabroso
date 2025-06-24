@@ -664,7 +664,7 @@ export default function AdminDashboard() {
                     <TableBody>
                       {(recentActivities?.recentUsers || []).slice(0, 5).map((user) => (
                         <TableRow key={user._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
-                          <TableCell className="text-gray-900 dark:text-white">{user.username}</TableCell>
+                          <TableCell className="font-medium text-gray-900 dark:text-white">{user.username}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{user.email}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{user.role}</TableCell>
                         </TableRow>
@@ -719,7 +719,11 @@ export default function AdminDashboard() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={item.status === 'Low' ? 'destructive' : 'default'}>
+                            <Badge variant={
+                              item.status === 'in-stock' ? 'default' :
+                              item.status === 'low-stock' ? 'secondary' :
+                              'destructive'
+                            }>
                               {item.status}
                             </Badge>
                           </TableCell>
@@ -751,7 +755,7 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
+                  {(users || []).map((user) => (
                     <TableRow key={user._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                       <TableCell className="font-medium text-gray-900 dark:text-white">{user.username}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">{user.email}</TableCell>
@@ -805,7 +809,7 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pets.map((pet) => (
+                  {(pets || []).map((pet) => (
                     <TableRow key={pet._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                       <TableCell className="font-medium text-gray-900 dark:text-white">{pet.name}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">{pet.type}</TableCell>
@@ -863,14 +867,18 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventory.map((item) => (
+                  {(inventory || []).map((item) => (
                     <TableRow key={item._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                       <TableCell className="font-medium text-gray-900 dark:text-white">{item.item}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">{item.category}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">{item.stock}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">{item.minStock}</TableCell>
                       <TableCell>
-                        <Badge variant={item.status === 'Low' ? 'destructive' : 'default'}>
+                        <Badge variant={
+                          item.status === 'in-stock' ? 'default' :
+                          item.status === 'low-stock' ? 'secondary' :
+                          'destructive'
+                        }>
                           {item.status}
                         </Badge>
                       </TableCell>

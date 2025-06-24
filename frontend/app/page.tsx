@@ -33,7 +33,7 @@ export default function HomePage() {
         <section className="container mx-auto px-4 py-16 text-center">
           <h2 className="text-5xl font-bold text-gray-900 mb-6">Complete Pet Care Management</h2>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Schedule appointments, manage your pets, get prescriptions, and have online consultations with certified
+            Schedule appointments, manage your pets, and have online consultations with certified
             veterinarians.
           </p>
           <div className="flex gap-4 justify-center">
@@ -65,7 +65,6 @@ export default function HomePage() {
                   <li>• Schedule appointments</li>
                   <li>• Add and manage pets</li>
                   <li>• View appointment history</li>
-                  <li>• Get digital prescriptions</li>
                   <li>• Online video consultations</li>
                 </ul>
               </CardContent>
@@ -81,7 +80,6 @@ export default function HomePage() {
                 <ul className="space-y-2 text-sm">
                   <li>• View appointment schedule</li>
                   <li>• Manage availability status</li>
-                  <li>• Issue prescriptions</li>
                   <li>• Conduct video consultations</li>
                   <li>• Access patient records</li>
                 </ul>

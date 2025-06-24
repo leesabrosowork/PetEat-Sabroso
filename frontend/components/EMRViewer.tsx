@@ -20,9 +20,10 @@ interface EMRViewerProps {
     onEdit?: (emr: any) => void
     isDoctor?: boolean
     handleDeleteEMR?: (emrId: string) => void
+    handleArchiveEMR?: (emrId: string, archived: boolean) => void
 }
 
-export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDeleteEMR }: EMRViewerProps) {
+export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDeleteEMR, handleArchiveEMR }: EMRViewerProps) {
     const [emr, setEmr] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const { toast } = useToast()
@@ -319,18 +320,29 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                 {/* Doctor Actions */}
                 {isDoctor && (
                     <div className="flex justify-end gap-2 pt-4 border-t">
+                        {handleArchiveEMR && (
+                            <Button 
+                                variant="outline"
+                                className={emr.archived ? "bg-blue-100 hover:bg-blue-200" : ""}
+                                onClick={() => handleArchiveEMR(emr._id, !emr.archived)}
+                            >
+                                {emr.archived ? "Unarchive" : "Archive"}
+                            </Button>
+                        )}
                         <Button 
                             variant="outline" 
                             onClick={() => onEdit && onEdit(emr)}
                         >
                             Edit
                         </Button>
-                        <Button 
-                            variant="destructive" 
-                            onClick={() => handleDeleteEMR && handleDeleteEMR(emr._id)}
-                        >
-                            Delete
-                        </Button>
+                        {handleDeleteEMR && (
+                            <Button 
+                                variant="destructive" 
+                                onClick={() => handleDeleteEMR(emr._id)}
+                            >
+                                Delete
+                            </Button>
+                        )}
                     </div>
                 )}
             </DialogContent>

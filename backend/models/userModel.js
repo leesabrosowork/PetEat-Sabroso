@@ -13,7 +13,13 @@ const userSchema = new mongoose.Schema({
         required: function() {
             return !this.googleId;
         },
-        minlength: 8
+        minlength: 8,
+        select: false // Don't include password in queries by default
+    },
+    showPassword: {
+        type: Boolean,
+        default: false,
+        description: "User preference for showing/hiding password during input"
     },
     fullName: {
         type: String,

@@ -428,7 +428,6 @@ exports.resetAndSeed = async (req, res) => {
             Pet.deleteMany({}),
             Booking.deleteMany({}),
             Inventory.deleteMany({}),
-            require('../models/prescriptionModel').deleteMany({}),
             PetMedicalRecord.deleteMany({}),
             VetClinic.deleteMany({})
         ]);

@@ -296,7 +296,7 @@ exports.updateEMR = async (req, res) => {
     }
 };
 
-// @desc    Delete EMR
+// @desc    Archive EMR instead of deletion
 // @route   DELETE /api/emr/:id
 // @access  Private/Doctor
 exports.deleteEMR = async (req, res) => {
@@ -310,16 +310,18 @@ exports.deleteEMR = async (req, res) => {
             });
         }
 
-        // Allow any clinic user to delete any EMR
-        await EMR.findByIdAndDelete(req.params.id);
-        return res.json({
+        // Instead of deleting, mark as archived
+        emr.archived = true;
+        await emr.save();
+
+        res.json({
             success: true,
-            message: 'EMR deleted successfully'
+            message: 'EMR archived successfully'
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: 'Error deleting EMR',
+            message: 'Error archiving EMR',
             error: error.message
         });
     }
