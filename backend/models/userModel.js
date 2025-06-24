@@ -120,6 +120,7 @@ const userSchema = new mongoose.Schema({
     isApproved: {
         type: Boolean,
         default: function() {
+            // Always approved for pet owners, only clinics require approval
             return this.role !== 'clinic';
         }
     },
@@ -171,6 +172,9 @@ userSchema.pre('save', async function(next) {
     try {
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
+        if (this.role === 'pet owner') {
+            this.isApproved = true;
+        }
         next();
     } catch (error) {
         next(error);

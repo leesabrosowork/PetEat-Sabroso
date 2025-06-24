@@ -61,6 +61,26 @@ const emrSchema = new mongoose.Schema({
         required: true
     },
     
+    // Owner Information
+    owner: {
+        name: {
+            type: String,
+            required: true
+        },
+        phone: {
+            type: String,
+            required: true
+        },
+        email: {
+            type: String,
+            required: true
+        },
+        address: {
+            type: String,
+            default: ''
+        }
+    },
+    
     // Medical Records
     vaccinations: [VaccinationRecordSchema],
     medicalHistory: [MedicalConditionSchema],

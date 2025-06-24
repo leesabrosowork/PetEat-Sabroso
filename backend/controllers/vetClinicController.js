@@ -115,41 +115,51 @@ exports.getMedicalRecords = async (req, res) => {
     try {
         const clinicId = req.user._id;
         
-        // Get all EMRs and populate the petId field with owner information
+        // Get all EMRs and deeply populate the petId.owner fields
         const emrRecords = await EMR.find()
-            .populate('petId', 'name type breed owner')
+            .populate({
+                path: 'petId',
+                select: 'name type breed owner',
+                populate: {
+                    path: 'owner',
+                    select: 'name fullName contactNumber phone email address'
+                }
+            })
             .sort('-createdAt');
-
-        console.log(`Found ${emrRecords.length} records in EMR collection`);
 
         // Get all PetMedicalRecord records
         const petMedicalRecords = await PetMedicalRecord.find()
             .sort('-createdAt');
 
-        console.log(`Found ${petMedicalRecords.length} records in PetMedicalRecord collection`);
-
         // Transform EMR data to match the frontend interface
-        const transformedEmrRecords = emrRecords.map(emr => ({
-            _id: emr._id,
-            petId: emr.petId?._id || 'unknown',
-            name: emr.name,
-            species: emr.species,
-            breed: emr.breed,
-            age: emr.age,
-            sex: emr.sex,
-            owner: emr.petId?.owner ? {
-                name: emr.petId.owner.name,
-                phone: emr.petId.owner.contactNumber || emr.petId.owner.phone,
-                email: emr.petId.owner.email
-            } : {
-                name: 'N/A',
-                phone: 'N/A',
-                email: 'N/A'
-            },
-            vaccinations: emr.vaccinations || [],
-            medicalHistory: emr.medicalHistory || [],
-            visitHistory: emr.visitHistory || []
-        }));
+        const transformedEmrRecords = emrRecords.map(emr => {
+            // Owner info: prefer name, fallback to fullName, fallback to 'Unknown'
+            let ownerInfo = { name: 'N/A', phone: 'N/A', email: 'N/A', address: '' };
+            if (emr.petId?.owner) {
+                const owner = emr.petId.owner;
+                ownerInfo = {
+                    name: owner.name || owner.fullName || 'Unknown',
+                    phone: owner.contactNumber || owner.phone || 'N/A',
+                    email: owner.email || 'N/A',
+                    address: owner.address || ''
+                };
+            }
+            return {
+                _id: emr._id,
+                petId: emr.petId?._id || 'unknown',
+                name: emr.name,
+                species: emr.species,
+                breed: emr.breed,
+                age: emr.age,
+                sex: emr.sex,
+                owner: ownerInfo,
+                vaccinations: emr.vaccinations || [],
+                medicalHistory: emr.medicalHistory || [],
+                visitHistory: emr.visitHistory || [],
+                createdAt: emr.createdAt,
+                updatedAt: emr.updatedAt
+            };
+        });
 
         // Transform PetMedicalRecord data to match the frontend interface
         const transformedPetRecords = petMedicalRecords.map(record => ({
@@ -163,16 +173,18 @@ exports.getMedicalRecords = async (req, res) => {
             owner: record.owner || {
                 name: 'N/A',
                 phone: 'N/A',
-                email: 'N/A'
+                email: 'N/A',
+                address: ''
             },
             vaccinations: record.vaccinations || [],
             medicalHistory: record.medicalHistory || [],
-            visitHistory: record.visitHistory || []
+            visitHistory: record.visitHistory || [],
+            createdAt: record.createdAt,
+            updatedAt: record.updatedAt
         }));
 
         // Combine both record types
         const combinedRecords = [...transformedEmrRecords, ...transformedPetRecords];
-        console.log(`Returning ${combinedRecords.length} total medical records`);
 
         // Sort by creation date (newest first)
         combinedRecords.sort((a, b) => {

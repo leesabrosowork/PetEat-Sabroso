@@ -47,14 +47,19 @@ export function AdmitPetDialog({ open, onOpenChange, onAdmit, pets }: AdmitPetDi
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          name: quickAddOwner.name,
+          fullName: quickAddOwner.name,
+          username: quickAddOwner.email,
           email: quickAddOwner.email,
           contactNumber: quickAddOwner.contactNumber,
-          role: 'owner'
+          role: 'pet owner',
+          password: 'TempPass123!'
         })
       });
-      if (!ownerRes.ok) throw new Error('Failed to create owner');
       const ownerData = await ownerRes.json();
+      if (!ownerRes.ok) {
+        console.error('Quick Add Owner Error:', ownerData.message || ownerData.error || ownerData);
+        throw new Error(ownerData.message || ownerData.error || 'Failed to create owner');
+      }
       const ownerId = ownerData?.data?.user?._id;
       if (!ownerId) throw new Error('Owner creation failed');
 
@@ -63,9 +68,13 @@ export function AdmitPetDialog({ open, onOpenChange, onAdmit, pets }: AdmitPetDi
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          ...quickAddPet,
-          owner: ownerId,
-          age: Number(quickAddPet.age)
+          name: quickAddPet.name,
+          type: quickAddPet.species.toLowerCase(),
+          breed: quickAddPet.breed,
+          age: Number(quickAddPet.age),
+          gender: quickAddPet.gender.toLowerCase(),
+          color: quickAddPet.color,
+          owner: ownerId
         })
       });
       if (!petRes.ok) throw new Error('Failed to create pet');
@@ -184,7 +193,7 @@ export function AdmitPetDialog({ open, onOpenChange, onAdmit, pets }: AdmitPetDi
             const matchesName = pet.name?.trim().toLowerCase() === normalizedPetName;
             if (!matchesName) return false;
 
-            // If user didn’t supply owner name just rely on the pet name
+            // If user didn't supply owner name just rely on the pet name
             if (!normalizedOwnerInput) return true;
 
             // Otherwise do a *contains* match on owner name for more tolerance
