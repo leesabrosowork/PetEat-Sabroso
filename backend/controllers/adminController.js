@@ -1,6 +1,6 @@
 const User = require('../models/userModel');
 const Pet = require('../models/petModel');
-const Appointment = require('../models/appointmentModel');
+const Booking = require('../models/bookingModel');
 const Inventory = require('../models/inventoryModel');
 const Activity = require('../models/activityModel');
 const Admin = require('../models/adminModel');
@@ -405,7 +405,7 @@ exports.resetAndSeed = async (req, res) => {
             User.deleteMany({}),
             Admin.deleteMany({}),
             Pet.deleteMany({}),
-            Appointment.deleteMany({}),
+            Booking.deleteMany({}),
             Inventory.deleteMany({}),
             require('../models/prescriptionModel').deleteMany({}),
             PetMedicalRecord.deleteMany({}),

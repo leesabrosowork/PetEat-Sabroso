@@ -1,7 +1,7 @@
 const Pet = require('../models/petModel');
 const PetMedicalRecord = require('../models/petMedicalRecord');
 const EMR = require('../models/emrModel');
-const Appointment = require('../models/appointmentModel');
+const Booking = require('../models/bookingModel');
 const Prescription = require('../models/prescriptionModel');
 const Inventory = require('../models/inventoryModel');
 const User = require('../models/userModel');
@@ -30,19 +30,19 @@ exports.getDashboardData = async (req, res) => {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         
-        const upcomingAppointments = await Appointment.countDocuments({
+        const upcomingAppointments = await Booking.countDocuments({
             startTime: { $gte: today },
             type: { $ne: 'consultation' },
             status: { $in: ['pending', 'scheduled'] }
         });
         
-        const completedAppointments = await Appointment.countDocuments({
+        const completedAppointments = await Booking.countDocuments({
             startTime: { $gte: today, $lt: tomorrow },
             status: 'completed'
         });
 
         // Get video consultations (assuming they're appointments with type 'consultation')
-        const videoConsultations = await Appointment.countDocuments({
+        const videoConsultations = await Booking.countDocuments({
             type: 'consultation',
             startTime: { $gte: today },
             status: { $in: ['pending', 'scheduled'] }
@@ -198,15 +198,14 @@ exports.getMedicalRecords = async (req, res) => {
 exports.getAppointments = async (req, res) => {
     try {
         const clinicId = req.user._id;
-        const appointments = await Appointment.find()
-            .populate('pet')
-            .populate('user', 'username fullName name email')
-            .populate('doctor', 'name')
-            .select('+notes')
-            .sort({ startTime: 1 });
+        const bookings = await Booking.find({ clinic: clinicId })
+            .populate('pet', 'name type breed')
+            .populate('petOwner', 'fullName email')
+            .populate('clinic', 'clinicName email')
+            .sort({ bookingDate: 1, appointmentTime: 1 });
         res.json({
             success: true,
-            data: appointments
+            data: bookings
         });
     } catch (error) {
         res.status(500).json({
@@ -220,7 +219,7 @@ exports.getAppointments = async (req, res) => {
 exports.getVideoConsultations = async (req, res) => {
     try {
         const clinicId = req.user._id;
-        const videoConsultations = await Appointment.find({ type: 'consultation' })
+        const videoConsultations = await Booking.find({ type: 'consultation' })
             .populate('pet')
             .populate('user', 'username fullName name email')
             .populate('doctor', 'name')
@@ -629,7 +628,7 @@ exports.getAllApprovedClinics = async (req, res) => {
 exports.approveAppointment = async (req, res) => {
     try {
         const { id } = req.params;
-        const appointment = await Appointment.findById(id);
+        const appointment = await Booking.findById(id);
         if (!appointment) {
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }
@@ -650,7 +649,7 @@ exports.approveAppointment = async (req, res) => {
 exports.rejectAppointment = async (req, res) => {
     try {
         const { id } = req.params;
-        const appointment = await Appointment.findById(id);
+        const appointment = await Booking.findById(id);
         if (!appointment) {
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }

@@ -1,8 +1,8 @@
-const Appointment = require('../models/appointmentModel');
+const Booking = require('../models/bookingModel');
 const Pet = require('../models/petModel');
 const User = require('../models/userModel');
 
-// Get all appointments for a specific date and clinic
+// Get all bookings for a specific date and clinic
 const getAvailableTimeSlots = async (clinicId, date) => {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
@@ -10,8 +10,8 @@ const getAvailableTimeSlots = async (clinicId, date) => {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Get all appointments for the clinic on this date
-    const existingAppointments = await Appointment.find({
+    // Get all bookings for the clinic on this date
+    const existingBookings = await Booking.find({
         clinic: clinicId,
         startTime: { $gte: startOfDay, $lte: endOfDay },
         status: 'scheduled'
@@ -28,11 +28,11 @@ const getAvailableTimeSlots = async (clinicId, date) => {
 
     // Filter out booked slots
     return allTimeSlots.filter(slot => {
-        return !existingAppointments.some(appointment => {
-            const appointmentStart = new Date(appointment.startTime).getTime();
-            const appointmentEnd = new Date(appointment.endTime).getTime();
-            return (slot.startTime >= appointmentStart && slot.startTime < appointmentEnd) ||
-                   (slot.endTime > appointmentStart && slot.endTime <= appointmentEnd);
+        return !existingBookings.some(booking => {
+            const bookingStart = new Date(booking.startTime).getTime();
+            const bookingEnd = new Date(booking.endTime).getTime();
+            return (slot.startTime >= bookingStart && slot.startTime < bookingEnd) ||
+                   (slot.endTime > bookingStart && slot.endTime <= bookingEnd);
         });
     });
 };
@@ -91,28 +91,28 @@ exports.getAvailableTimeSlots = async (req, res) => {
         
         console.log('Generated slots:', slots);
         
-        // Double booking prevention: filter out slots that overlap with existing appointments for this clinic
+        // Double booking prevention: filter out slots that overlap with existing bookings for this clinic
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(date);
         endOfDay.setHours(23, 59, 59, 999);
         
-        const existingAppointments = await Appointment.find({
+        const existingBookings = await Booking.find({
             clinic: clinicId,
             startTime: { $gte: startOfDay, $lte: endOfDay },
             status: 'scheduled'
         });
         
-        console.log('Existing appointments:', existingAppointments);
+        console.log('Existing bookings:', existingBookings);
         
         const availableSlots = slots.filter(slot => {
-            return !existingAppointments.some(app => {
-                const appStart = new Date(app.startTime).getTime();
-                const appEnd = new Date(app.endTime).getTime();
+            return !existingBookings.some(booking => {
+                const bookingStart = new Date(booking.startTime).getTime();
+                const bookingEnd = new Date(booking.endTime).getTime();
                 return (
-                    (slot.startTime >= appStart && slot.startTime < appEnd) ||
-                    (slot.endTime > appStart && slot.endTime <= appEnd) ||
-                    (slot.startTime <= appStart && slot.endTime >= appEnd)
+                    (slot.startTime >= bookingStart && slot.startTime < bookingEnd) ||
+                    (slot.endTime > bookingStart && slot.endTime <= bookingEnd) ||
+                    (slot.startTime <= bookingStart && slot.endTime >= bookingEnd)
                 );
             });
         });
@@ -129,27 +129,14 @@ exports.getAvailableTimeSlots = async (req, res) => {
     }
 };
 
-// Create new appointment
-exports.createAppointment = async (req, res) => {
+// Create new booking
+exports.createBooking = async (req, res) => {
     try {
-        console.log('Received appointment data:', req.body);
-        const { petId, clinicId, startTime, endTime, type, notes } = req.body;
-
-        // Log the parsed values
-        console.log('Parsed values:', {
-            petId, clinicId, startTime, endTime, type, notes,
-            userId: req.user?.id
-        });
+        console.log('Received booking data:', req.body);
+        const { petId, clinicId, bookingDate, appointmentTime, reason } = req.body;
 
         // Validate required fields
-        if (!petId || !clinicId || !startTime || !endTime || !type) {
-            console.log('Missing required fields:', {
-                hasPetId: !!petId,
-                hasClinicId: !!clinicId,
-                hasStartTime: !!startTime,
-                hasEndTime: !!endTime,
-                hasType: !!type
-            });
+        if (!petId || !clinicId || !bookingDate || !appointmentTime || !reason) {
             return res.status(400).json({
                 success: false,
                 message: 'Missing required fields'
@@ -159,153 +146,124 @@ exports.createAppointment = async (req, res) => {
         // Check if pet exists and belongs to the user
         const pet = await Pet.findOne({ _id: petId, owner: req.user.id });
         if (!pet) {
-            console.log('Pet not found or does not belong to user:', {
-                petId,
-                userId: req.user.id
-            });
             return res.status(400).json({
                 success: false,
                 message: 'Pet not found or does not belong to you'
             });
         }
 
-        // Convert timestamp strings to Date objects
-        console.log('Converting timestamps:', { startTime, endTime });
-        const appointmentStartTime = new Date(parseInt(startTime));
-        const appointmentEndTime = new Date(parseInt(endTime));
-
-        // Validate that the dates are valid
-        if (isNaN(appointmentStartTime.getTime()) || isNaN(appointmentEndTime.getTime())) {
-            console.log('Invalid dates:', {
-                startTime: appointmentStartTime,
-                endTime: appointmentEndTime
-            });
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid appointment times provided'
-            });
-        }
-
-        // Create appointment
-        const appointmentData = {
-            pet: petId,
-            user: req.user.id,
+        // Create booking
+        const bookingData = {
+            petOwner: req.user.id,
             clinic: clinicId,
-            startTime: appointmentStartTime,
-            endTime: appointmentEndTime,
-            type,
-            notes: notes || ''
+            pet: petId,
+            bookingDate: new Date(bookingDate),
+            appointmentTime,
+            reason,
+            status: 'pending'
         };
 
-        console.log('Creating appointment with data:', appointmentData);
+        console.log('Creating booking with data:', bookingData);
 
-        const appointment = new Appointment(appointmentData);
-        await appointment.save();
+        const booking = new Booking(bookingData);
+        await booking.save();
 
-        // Populate the appointment with pet details
-        await appointment.populate([
+        // Populate the booking with pet and clinic details
+        await booking.populate([
             { path: 'pet', select: 'name type breed' },
-            { path: 'clinic', select: 'name email' }
+            { path: 'clinic', select: 'clinicName email' },
+            { path: 'petOwner', select: 'fullName email' }
         ]);
 
-        console.log('Appointment created successfully:', appointment);
+        console.log('Booking created successfully:', booking);
 
         res.status(201).json({
             success: true,
-            message: 'Appointment scheduled successfully',
-            data: appointment
+            message: 'Booking scheduled successfully',
+            data: booking
         });
     } catch (error) {
-        console.error('Error in createAppointment:', error);
-        console.error('Error stack:', error.stack);
-        
-        // Handle double booking error specifically
-        if (error.message === 'This time slot is already booked') {
-            return res.status(400).json({
-                success: false,
-                message: 'This time slot is already booked'
-            });
-        }
-
+        console.error('Error in createBooking:', error);
         res.status(500).json({
             success: false,
-            message: 'Error creating appointment',
+            message: 'Error creating booking',
             error: error.message
         });
     }
 };
 
-// Get user's appointments
-exports.getUserAppointments = async (req, res) => {
+// Get user's bookings
+exports.getUserBookings = async (req, res) => {
     try {
-        const appointments = await Appointment.find({ user: req.user.id })
+        const bookings = await Booking.find({ user: req.user.id })
             .populate('pet', 'name type breed')
             .populate('clinic', 'name email')
             .sort({ startTime: 'asc' });
 
         res.json({
             success: true,
-            data: appointments
+            data: bookings
         });
     } catch (error) {
-        console.error('Error in getUserAppointments:', error);
+        console.error('Error in getUserBookings:', error);
         res.status(500).json({
             success: false,
-            message: 'Error fetching appointments',
+            message: 'Error fetching bookings',
             error: error.message
         });
     }
 };
 
-// Get all appointments for the authenticated clinic
-exports.getClinicAppointments = async (req, res) => {
+// Get all bookings for the authenticated clinic
+exports.getClinicBookings = async (req, res) => {
     try {
         const clinicId = req.user.id;
-        const appointments = await Appointment.find({ clinic: clinicId })
-            .populate('pet', 'name')
-            .populate('user', 'name email');
-        res.json({ success: true, data: appointments });
+        const bookings = await Booking.find({ clinic: clinicId })
+            .populate('pet', 'name type breed')
+            .populate('petOwner', 'fullName email')
+            .populate('clinic', 'clinicName email');
+        res.json({ success: true, data: bookings });
     } catch (error) {
-        console.error('Error in getClinicAppointments:', error);
-        res.status(500).json({ success: false, message: 'Error fetching clinic appointments', error: error.message });
+        console.error('Error in getClinicBookings:', error);
+        res.status(500).json({ success: false, message: 'Error fetching clinic bookings', error: error.message });
     }
 };
 
-// Get a single appointment by ID
-exports.getAppointmentById = async (req, res) => {
+// Get a single booking by ID
+exports.getBookingById = async (req, res) => {
     try {
-        const appointment = await Appointment.findById(req.params.id)
+        const booking = await Booking.findById(req.params.id)
             .populate('pet', 'name type breed')
             .populate('clinic', 'name email')
             .populate('user', 'username email');
 
-        if (!appointment) {
+        if (!booking) {
             return res.status(404).json({
                 success: false,
-                message: 'Appointment not found'
+                message: 'Booking not found'
             });
         }
 
-        // Check if the user is authorized to view this appointment
-        const isUser = appointment.user._id.toString() === req.user.id;
-        const isClinic = appointment.clinic._id.toString() === req.user.id;
+        // Check if the user is authorized to view this booking
+        const isUser = booking.user._id.toString() === req.user.id;
+        const isClinic = booking.clinic._id.toString() === req.user.id;
 
         if (!isUser && !isClinic) {
             return res.status(403).json({
                 success: false,
-                message: 'Not authorized to view this appointment'
+                message: 'Not authorized to view this booking'
             });
         }
 
         res.json({
             success: true,
-            data: appointment
+            data: booking
         });
     } catch (error) {
-        console.error('Error in getAppointmentById:', error);
+        console.error('Error in getBookingById:', error);
         res.status(500).json({
             success: false,
-            message: 'Error fetching appointment',
+            message: 'Error fetching booking',
             error: error.message
         });
     }

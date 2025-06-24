@@ -7,7 +7,7 @@ const Admin = require('./models/adminModel');
 const Staff = require('./models/staffModel');
 const User = require('./models/userModel');
 const Pet = require('./models/petModel');
-const Appointment = require('./models/appointmentModel');
+const Booking = require('./models/bookingModel');
 const Prescription = require('./models/prescriptionModel');
 const Inventory = require('./models/inventoryModel');
 const EMR = require('./models/petMedicalRecord');
@@ -76,10 +76,10 @@ const setupChangeStreams = () => {
     io.emit('pets_updated', pets);
   });
 
-  // APPOINTMENTS
-  Appointment.watch().on('change', async (change) => {
-    const appointments = await Appointment.find();
-    io.emit('appointments_updated', appointments);
+  // BOOKINGS
+  Booking.watch().on('change', async (change) => {
+    const bookings = await Booking.find();
+    io.emit('bookings_updated', bookings);
   });
 
   // PRESCRIPTIONS

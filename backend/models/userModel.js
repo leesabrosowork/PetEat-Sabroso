@@ -108,9 +108,9 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Pet'
     }],
-    appointments: [{
+    bookings: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Appointment'
+        ref: 'Booking'
     }],
     // Authentication and verification
     isVerified: {

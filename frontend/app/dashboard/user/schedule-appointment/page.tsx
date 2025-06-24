@@ -101,7 +101,7 @@ export default function ScheduleAppointment() {
         const petsData = await petsResponse.json()
         if (petsData.success) setPets(petsData.data)
         // Fetch all doctors
-        const doctorsResponse = await fetch('http://localhost:8080/api/appointments/doctors', {
+        const doctorsResponse = await fetch('http://localhost:8080/api/bookings/doctors', {
           headers: { 'Authorization': `Bearer ${token}` }
         })
         const doctorsData = await doctorsResponse.json()
@@ -125,7 +125,7 @@ export default function ScheduleAppointment() {
       try {
         const token = localStorage.getItem('token');
         const response = await fetch(
-          `http://localhost:8080/api/appointments/available-slots?clinicId=${formData.clinicId}&date=${formData.date}`,
+          `http://localhost:8080/api/bookings/available-slots?clinicId=${formData.clinicId}&date=${formData.date}`,
           { headers: { 'Authorization': `Bearer ${token}` } }
         );
         const data = await response.json();
@@ -160,24 +160,17 @@ export default function ScheduleAppointment() {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      // Map appointmentType to backend type
-      const mappedType =
-        formData.appointmentType === "video"
-          ? "consultation"
-          : formData.appointmentType === "inperson"
-          ? "checkup"
-          : "";
+      // Compose bookingDate and appointmentTime from formData
+      const bookingDate = formData.date;
+      const appointmentTime = formData.startTime ? new Date(parseInt(formData.startTime)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
       const requestData = {
         petId: formData.petId,
-        doctorId: formData.doctorId,
         clinicId: formData.clinicId,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-        type: mappedType,
-        notes: formData.notes,
-        appointmentType: formData.appointmentType,
+        bookingDate,
+        appointmentTime,
+        reason: formData.notes,
       }
-      const response = await fetch('http://localhost:8080/api/appointments', {
+      const response = await fetch('http://localhost:8080/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(requestData)

@@ -1,6 +1,6 @@
 const User = require('../models/userModel');
 const Pet = require('../models/petModel');
-const Appointment = require('../models/appointmentModel');
+const Booking = require('../models/bookingModel');
 const Prescription = require('../models/prescriptionModel');
 const EMR = require('../models/emrModel');
 
@@ -57,7 +57,7 @@ exports.getUserDashboard = async (req, res) => {
         }
 
         const pets = await Pet.find({ owner: userId });
-        const appointments = await Appointment.find({ user: userId })
+        const bookings = await Booking.find({ user: userId })
             .sort({ startTime: 'desc' });
         const prescriptions = await Prescription.find({ user: userId })
             .populate('pet', 'name')
@@ -68,7 +68,7 @@ exports.getUserDashboard = async (req, res) => {
             success: true,
             data: {
                 pets,
-                appointments,
+                bookings,
                 prescriptions
             }
         });
@@ -172,8 +172,8 @@ exports.deleteAccount = async (req, res) => {
             // Delete all user's pets
             await Pet.deleteMany({ owner: userId }, { session });
             
-            // Delete all user's appointments
-            await Appointment.deleteMany({ user: userId }, { session });
+            // Delete all user's bookings
+            await Booking.deleteMany({ user: userId }, { session });
             
             // Delete all user's prescriptions
             await Prescription.deleteMany({ user: userId }, { session });

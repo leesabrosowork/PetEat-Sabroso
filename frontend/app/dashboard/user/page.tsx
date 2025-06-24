@@ -36,13 +36,16 @@ interface Doctor {
   email: string;
 }
 
-interface Appointment {
+interface Booking {
   _id: string;
-  startTime: string;
-  endTime: string;
+  bookingDate: string;
+  appointmentTime: string;
   status: string;
-  doctor: Doctor;
-  type: string;
+  pet: Pet;
+  clinic: any;
+  reason: string;
+  type?: string;
+  doctor?: Doctor;
 }
 
 interface Medicine {
@@ -89,7 +92,7 @@ interface PetUnderTreatment {
 
 interface DashboardData {
   pets: Pet[];
-  appointments: Appointment[];
+  bookings: Booking[];
   prescriptions: Prescription[];
   petsUnderTreatment: PetUnderTreatment[];
 }
@@ -99,7 +102,7 @@ export default function UserDashboard() {
   const [user, setUser] = useState<any>(null)
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     pets: [],
-    appointments: [],
+    bookings: [],
     prescriptions: [],
     petsUnderTreatment: []
   })
@@ -188,12 +191,12 @@ export default function UserDashboard() {
       fetchDashboardData(user._id);
     };
     socket.on("pets_updated", handleRealtimeUpdate);
-    socket.on("appointments_updated", handleRealtimeUpdate);
+    socket.on("bookings_updated", handleRealtimeUpdate);
     socket.on("prescriptions_updated", handleRealtimeUpdate);
     socket.on("pets_under_treatment_updated", handleRealtimeUpdate);
     return () => {
       socket.off("pets_updated", handleRealtimeUpdate);
-      socket.off("appointments_updated", handleRealtimeUpdate);
+      socket.off("bookings_updated", handleRealtimeUpdate);
       socket.off("prescriptions_updated", handleRealtimeUpdate);
       socket.off("pets_under_treatment_updated", handleRealtimeUpdate);
     };
@@ -702,7 +705,7 @@ export default function UserDashboard() {
   }
 
   // Filter all upcoming appointments (both in-person and video consultations)
-  const upcomingAppointments = dashboardData.appointments.filter(
+  const upcomingAppointments = dashboardData.bookings.filter(
     apt => apt.status === 'scheduled'
   )
 
@@ -715,8 +718,8 @@ export default function UserDashboard() {
     return status;
   }
 
-  const videoAppointments = dashboardData.appointments.filter(a => a.type === 'consultation');
-  const inPersonAppointments = dashboardData.appointments.filter(a => a.type !== 'consultation');
+  const videoAppointments = dashboardData.bookings.filter(a => a.type === 'consultation');
+  const inPersonAppointments = dashboardData.bookings.filter(a => a.type !== 'consultation');
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -1100,39 +1103,39 @@ export default function UserDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {dashboardData.appointments.slice(0, 3).map((appointment) => (
-                        <div key={appointment._id} className="flex items-center justify-between p-3 border rounded-lg">
+                      {dashboardData.bookings.slice(0, 3).map((booking) => (
+                        <div key={booking._id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div>
                             <p className="font-medium">
-                              {appointment.type === 'consultation' ? 'Video Consultation' : 'Appointment'}
-                              {appointment.doctor ? ` with ${appointment.doctor.name}` : ' at clinic'}
+                              {booking.type === 'consultation' ? 'Video Consultation' : 'Appointment'}
+                              {booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {new Date(appointment.startTime).toLocaleDateString()} at{" "}
-                              {new Date(appointment.startTime).toLocaleTimeString()}
+                              {new Date(booking.bookingDate).toLocaleDateString()} at{" "}
+                              {new Date(booking.bookingDate).toLocaleTimeString()}
                             </p>
                           </div>
                           <div className="flex flex-col items-end gap-2">
                             <Badge className={
-                              appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                              appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              booking.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                              booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              booking.status === 'rejected' ? 'bg-red-100 text-red-800' :
                               'bg-gray-100 text-gray-800'
                             }>
-                              {getStatusLabel(appointment.status)}
+                              {getStatusLabel(booking.status)}
                             </Badge>
-                            {appointment.type === 'consultation' && (
-                              <Link href={`/dashboard/user/video-consultation?appointment=${appointment._id}`}>
+                            {booking.type === 'consultation' && (
+                              <Link href={`/dashboard/user/video-consultation?appointment=${booking._id}`}>
                                 <Button variant="outline" size="sm">
-                                  {appointment.status === 'scheduled' ? 'Join Call' : 'View Details'}
+                                  {booking.status === 'scheduled' ? 'Join Call' : 'View Details'}
                                 </Button>
                               </Link>
                             )}
                           </div>
                         </div>
                       ))}
-                      {dashboardData.appointments.length === 0 && (
+                      {dashboardData.bookings.length === 0 && (
                         <p className="text-gray-500 text-center py-4">No appointments scheduled</p>
                       )}
                     </div>
@@ -1250,39 +1253,39 @@ export default function UserDashboard() {
                 </Link>
               </div>
               <div className="space-y-4">
-                {inPersonAppointments.map((appointment) => (
-                  <Card key={appointment._id}>
+                {inPersonAppointments.map((booking) => (
+                  <Card key={booking._id}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">Appointment{appointment.doctor ? ` with ${appointment.doctor.name}` : ' at clinic'}</h3>
+                            <h3 className="font-semibold">Appointment{booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}</h3>
                             <Badge className={
-                              appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                              appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              appointment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              booking.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                              booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              booking.status === 'rejected' ? 'bg-red-100 text-red-800' :
                               'bg-gray-100 text-gray-800'
                             }>
-                              {getStatusLabel(appointment.status)}
+                              {getStatusLabel(booking.status)}
                             </Badge>
                           </div>
-                          <p className="text-gray-600">{appointment.doctor ? appointment.doctor.email : null}</p>
+                          <p className="text-gray-600">{booking.doctor ? booking.doctor.email : null}</p>
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
-                              {new Date(appointment.startTime).toLocaleDateString()}
+                              {new Date(booking.bookingDate).toLocaleDateString()}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-4 w-4" />
-                              {new Date(appointment.startTime).toLocaleTimeString()}
+                              {new Date(booking.bookingDate).toLocaleTimeString()}
                             </span>
                           </div>
                         </div>
-                        {appointment.type === 'consultation' && (
-                          <Link href={`/dashboard/user/video-consultation?appointment=${appointment._id}`}>
+                        {booking.type === 'consultation' && (
+                          <Link href={`/dashboard/user/video-consultation?appointment=${booking._id}`}>
                             <Button variant="outline" size="sm">
-                              {appointment.status === 'scheduled' ? 'Join Call' : 'View Details'}
+                              {booking.status === 'scheduled' ? 'Join Call' : 'View Details'}
                             </Button>
                           </Link>
                         )}

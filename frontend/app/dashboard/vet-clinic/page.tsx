@@ -201,6 +201,18 @@ interface DashboardData {
   lowStockItems: number;
 }
 
+// Update Appointment and VideoConsultation interfaces to match booking schema
+interface Booking {
+  _id: string;
+  pet: Pet;
+  petOwner: any;
+  clinic: any;
+  bookingDate: string;
+  appointmentTime: string;
+  reason: string;
+  status: string;
+}
+
 function VetClinicDashboard() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
@@ -436,17 +448,15 @@ function VetClinicDashboard() {
     setAppointmentsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:8080/api/vet-clinic/appointments", {
+      const res = await fetch("http://localhost:8080/api/vet-clinic/bookings", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          // Filter to only in-person appointments (not consultations)
-          const allAppointments = data.data;
-          const inPersonAppointments = allAppointments.filter((a: Appointment) => a.type !== 'consultation');
-          setAppointments(inPersonAppointments);
+          // In-person appointments: not video
+          const inPerson = data.data.filter((b: Booking) => !b.reason?.toLowerCase().includes('video'));
+          setAppointments(inPerson);
         }
       }
     } catch (error) {
@@ -483,19 +493,15 @@ function VetClinicDashboard() {
     setVideoConsultationsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:8080/api/vet-clinic/appointments", {
+      const res = await fetch("http://localhost:8080/api/vet-clinic/bookings", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          // Filter to only consultation type appointments
-          const allAppointments = data.data;
-          const consultationAppointments = allAppointments.filter(
-            (appointment: Appointment) => appointment.type === 'consultation'
-          );
-          setVideoConsultations(consultationAppointments);
+          // Video consultations: reason contains 'video' or similar
+          const video = data.data.filter((b: Booking) => b.reason?.toLowerCase().includes('video'));
+          setVideoConsultations(video);
         }
       }
     } catch (error) {
@@ -1510,12 +1516,12 @@ function VetClinicDashboard() {
     };
     socket.on("pets_updated", handleRealtimeUpdate);
     socket.on("emrs_updated", handleRealtimeUpdate);
-    socket.on("appointments_updated", handleRealtimeUpdate);
+    socket.on("bookings_updated", handleRealtimeUpdate);
     socket.on("pets_under_treatment_updated", handleRealtimeUpdate);
     return () => {
       socket.off("pets_updated", handleRealtimeUpdate);
       socket.off("emrs_updated", handleRealtimeUpdate);
-      socket.off("appointments_updated", handleRealtimeUpdate);
+      socket.off("bookings_updated", handleRealtimeUpdate);
       socket.off("pets_under_treatment_updated", handleRealtimeUpdate);
     };
   }, [socket]);
@@ -1932,7 +1938,7 @@ function VetClinicDashboard() {
                               <div className="flex gap-2">
                                 <Button variant="default" size="sm" onClick={async () => {
                                   const token = localStorage.getItem('token');
-                                  await fetch(`http://localhost:8080/api/vet-clinic/appointments/${appointment._id}/approve`, {
+                                  await fetch(`http://localhost:8080/api/vet-clinic/bookings/${appointment._id}/approve`, {
                                     method: 'PATCH',
                                     headers: { 'Authorization': `Bearer ${token}` }
                                   });
@@ -1942,7 +1948,7 @@ function VetClinicDashboard() {
                                 }}>Approve</Button>
                                 <Button variant="destructive" size="sm" onClick={async () => {
                                   const token = localStorage.getItem('token');
-                                  await fetch(`http://localhost:8080/api/vet-clinic/appointments/${appointment._id}/reject`, {
+                                  await fetch(`http://localhost:8080/api/vet-clinic/bookings/${appointment._id}/reject`, {
                                     method: 'PATCH',
                                     headers: { 'Authorization': `Bearer ${token}` }
                                   });
@@ -2015,7 +2021,7 @@ function VetClinicDashboard() {
                               <div className="flex gap-2">
                                 <Button variant="default" size="sm" onClick={async () => {
                                   const token = localStorage.getItem('token');
-                                  await fetch(`http://localhost:8080/api/vet-clinic/appointments/${consultation._id}/approve`, {
+                                  await fetch(`http://localhost:8080/api/vet-clinic/bookings/${consultation._id}/approve`, {
                                     method: 'PATCH',
                                     headers: { 'Authorization': `Bearer ${token}` }
                                   });
@@ -2025,7 +2031,7 @@ function VetClinicDashboard() {
                                 }}>Approve</Button>
                                 <Button variant="destructive" size="sm" onClick={async () => {
                                   const token = localStorage.getItem('token');
-                                  await fetch(`http://localhost:8080/api/vet-clinic/appointments/${consultation._id}/reject`, {
+                                  await fetch(`http://localhost:8080/api/vet-clinic/bookings/${consultation._id}/reject`, {
                                     method: 'PATCH',
                                     headers: { 'Authorization': `Bearer ${token}` }
                                   });

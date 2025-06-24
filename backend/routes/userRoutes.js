@@ -3,7 +3,7 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 const User = require('../models/userModel');
 const Pet = require('../models/petModel');
-const Appointment = require('../models/appointmentModel');
+const Booking = require('../models/bookingModel');
 const Prescription = require('../models/prescriptionModel');
 const { protect } = require('../middleware/auth');
 
