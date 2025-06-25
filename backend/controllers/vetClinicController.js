@@ -11,7 +11,8 @@ const { createGoogleMeet } = require('../utils/googleMeet');
 // Get dashboard overview data
 exports.getDashboardData = async (req, res) => {
     try {
-        const clinicId = req.user._id;
+        const clinicId = req.user.id;
+        console.log('📊 Dashboard data for clinic ID:', clinicId);
         
         // Use Promise.all for parallel execution of all queries
         const [
@@ -60,6 +61,12 @@ exports.getDashboardData = async (req, res) => {
             })
         ]);
         
+        console.log('📊 Dashboard counts:', {
+            upcomingAppointments,
+            completedAppointments,
+            videoConsultations
+        });
+        
         // Count pets by health status
         const petsByStatus = {
             stable: pets.filter(pet => pet.healthStatus === 'stable').length,
@@ -92,7 +99,7 @@ exports.getDashboardData = async (req, res) => {
 // Get all pets for the clinic
 exports.getPets = async (req, res) => {
     try {
-        const clinicId = req.user._id;
+        const clinicId = req.user.id;
         
         // Get all pets (for now, get all pets since we don't have clinic-specific associations yet)
         const pets = await Pet.find().populate('owner', 'username fullName name email');
@@ -119,7 +126,7 @@ exports.getPets = async (req, res) => {
 // Get medical records for the clinic
 exports.getMedicalRecords = async (req, res) => {
     try {
-        const clinicId = req.user._id;
+        const clinicId = req.user.id;
         
         // Get all EMRs and deeply populate the petId.owner fields
         const emrRecords = await EMR.find()
@@ -215,12 +222,25 @@ exports.getMedicalRecords = async (req, res) => {
 // Get appointments for the clinic
 exports.getAppointments = async (req, res) => {
     try {
-        const clinicId = req.user._id;
+        const clinicId = req.user.id;
+        console.log('🔍 Looking for appointments for clinic ID:', clinicId);
+        console.log('🔍 Clinic ID type:', typeof clinicId);
+        
+        // First, let's see all bookings in the database
+        const allBookings = await Booking.find({});
+        console.log('📋 Total bookings in database:', allBookings.length);
+        allBookings.forEach(booking => {
+            console.log(`📋 Booking ID: ${booking._id}, Clinic: ${booking.clinic}, Status: ${booking.status}, Type: ${booking.type}`);
+        });
+        
         const bookings = await Booking.find({ clinic: clinicId })
             .populate('pet', 'name type breed')
             .populate('petOwner', 'fullName email')
             .populate('clinic', 'clinicName email')
             .sort({ bookingDate: 1, appointmentTime: 1 });
+            
+        console.log('✅ Found bookings for this clinic:', bookings.length);
+        
         const transformed = bookings.map(b => {
             const startTime = getBookingStartTime(b);
             return {
@@ -239,6 +259,7 @@ exports.getAppointments = async (req, res) => {
             data: transformed
         });
     } catch (error) {
+        console.error('❌ Error in getAppointments:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -249,14 +270,40 @@ exports.getAppointments = async (req, res) => {
 // Get video consultations for the clinic
 exports.getVideoConsultations = async (req, res) => {
     try {
-        const clinicId = req.user._id;
-        const videoConsultations = await VideoConsultation.find({ clinic: clinicId })
-            .populate('pet')
-            .populate('petOwner', 'username fullName name email')
-            .sort({ scheduledTime: 1 });
+        const clinicId = req.user.id;
+        console.log('Clinic ID:', clinicId);
+        const videoConsultations = await Booking.find({
+            clinic: clinicId,
+            type: 'online'
+        })
+        .populate('pet', 'name type breed')
+        .populate('petOwner', 'fullName name email')
+        .sort({ bookingDate: 1, appointmentTime: 1 });
+        console.log('Found video consultations:', videoConsultations);
+
+        // Transform to match frontend expectations
+        const transformed = videoConsultations.map(b => {
+            let startTime = 'N/A';
+            if (b.bookingDate && b.appointmentTime) {
+                const date = new Date(b.bookingDate);
+                const [hours, minutes] = b.appointmentTime.split(':');
+                date.setHours(Number(hours), Number(minutes), 0, 0);
+                startTime = date.toISOString();
+            }
+            return {
+                _id: b._id,
+                startTime,
+                status: b.status,
+                pet: b.pet,
+                user: b.petOwner,
+                googleMeetLink: b.googleMeetLink,
+                type: b.type
+            };
+        });
+
         res.json({
             success: true,
-            data: videoConsultations
+            data: transformed
         });
     } catch (error) {
         res.status(500).json({
@@ -266,12 +313,10 @@ exports.getVideoConsultations = async (req, res) => {
     }
 };
 
-
-
 // Get inventory for the clinic
 exports.getInventory = async (req, res) => {
     try {
-        const clinicId = req.user._id;
+        const clinicId = req.user.id;
         
         // Return all inventory items sorted by name
         const inventory = await Inventory.find().sort({ item: 1 });
@@ -510,8 +555,6 @@ exports.addPet = async (req, res) => {
     }
 };
 
-
-
 // Increment or decrement inventory stock
 exports.updateInventoryStock = async (req, res) => {
     try {
@@ -571,7 +614,11 @@ exports.getAllApprovedClinics = async (req, res) => {
 exports.approveAppointment = async (req, res) => {
     try {
         const { id } = req.params;
-        const appointment = await Booking.findById(id).populate('pet_owner clinic pet');
+        // Populate petOwner and clinic
+        const appointment = await Booking.findById(id)
+            .populate('petOwner', 'email fullName')
+            .populate('clinic', 'email googleTokens clinicName')
+            .populate('pet', 'name');
         if (!appointment) {
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }
@@ -579,18 +626,15 @@ exports.approveAppointment = async (req, res) => {
         // If appointment type is 'online', create Google Meet link
         if (appointment.type === 'online') {
             try {
-                // Get emails for attendees
-                const petOwnerEmail = appointment.pet_owner?.email;
+                const petOwnerEmail = appointment.petOwner?.email;
                 const clinicEmail = appointment.clinic?.email;
-                // Calculate start and end time
+                const googleTokens = appointment.clinic?.googleTokens;
                 const startDate = new Date(appointment.bookingDate);
                 if (appointment.appointmentTime) {
                     const [hours, minutes] = appointment.appointmentTime.split(':').map(Number);
                     startDate.setHours(hours, minutes, 0, 0);
                 }
                 const endDate = new Date(startDate.getTime() + 30 * 60000); // 30 min duration
-                // Use the clinic's Google tokens
-                const googleTokens = appointment.clinic?.googleTokens;
                 if (googleTokens && petOwnerEmail && clinicEmail) {
                     const meetResult = await createGoogleMeet({
                         summary: `Online Consultation for ${appointment.pet?.name || 'Pet'}`,

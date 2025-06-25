@@ -1693,6 +1693,38 @@ function VetClinicDashboardContent() {
     }
   }, [currentConversation, socket, user]);
 
+  // Helper function to calculate time since last visit
+  const getTimeSinceLastVisit = (visitHistory: any[]) => {
+    if (visitHistory.length === 0) return null;
+    
+    const lastVisit = visitHistory[visitHistory.length - 1];
+    const lastVisitDate = new Date(lastVisit.date);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - lastVisitDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+    return `${Math.floor(diffDays / 365)} years ago`;
+  };
+
+  // Helper function to get last visit details
+  const getLastVisitDetails = (record: MedicalRecord) => {
+    if (record.visitHistory.length === 0) {
+      return { date: null, reason: null, veterinarian: null, timeAgo: null };
+    }
+    
+    const lastVisit = record.visitHistory[record.visitHistory.length - 1];
+    return {
+      date: new Date(lastVisit.date),
+      reason: lastVisit.reason,
+      veterinarian: lastVisit.veterinarian,
+      timeAgo: getTimeSinceLastVisit(record.visitHistory)
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -2049,10 +2081,37 @@ function VetClinicDashboardContent() {
                             <TableCell className="text-gray-900 dark:text-white">{record.species}</TableCell>
                             <TableCell className="text-gray-900 dark:text-white">{record.owner?.name || 'No owner info'}</TableCell>
                             <TableCell>
-                              {record.visitHistory.length > 0 
-                                ? new Date(record.visitHistory[record.visitHistory.length - 1].date).toLocaleDateString()
-                                : 'No visits'
-                              }
+                              {(() => {
+                                const lastVisit = getLastVisitDetails(record);
+                                if (!lastVisit.date) {
+                                  return (
+                                    <div className="text-gray-500 text-sm">
+                                      <div>No visits</div>
+                                    </div>
+                                  );
+                                }
+                                
+                                return (
+                                  <div className="space-y-1">
+                                    <div className="font-medium text-sm">
+                                      {lastVisit.date.toLocaleDateString()}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {lastVisit.timeAgo}
+                                    </div>
+                                    {lastVisit.reason && (
+                                      <div className="text-xs text-gray-600 max-w-[150px] truncate" title={lastVisit.reason}>
+                                        {lastVisit.reason}
+                                      </div>
+                                    )}
+                                    {lastVisit.veterinarian && (
+                                      <div className="text-xs text-blue-600">
+                                        Dr. {lastVisit.veterinarian}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell className="text-gray-900 dark:text-white">{record.vaccinations.length} vaccines</TableCell>
                             <TableCell>
@@ -2238,6 +2297,38 @@ function VetClinicDashboardContent() {
                             <TableCell>
                               <div className="flex gap-2">
                                 <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/vet-clinic/video-consultation?appointment=${consultation._id}`}>View Details</Button>
+                                {consultation.status === 'pending' && (
+                                  <React.Fragment>
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={async () => {
+                                        const token = localStorage.getItem('token');
+                                        await fetch(`http://localhost:8080/api/vet-clinic/bookings/${consultation._id}/approve`, {
+                                          method: 'PATCH',
+                                          headers: { 'Authorization': `Bearer ${token}` }
+                                        });
+                                        await fetchVideoConsultations();
+                                      }}
+                                    >
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={async () => {
+                                        const token = localStorage.getItem('token');
+                                        await fetch(`http://localhost:8080/api/vet-clinic/bookings/${consultation._id}/reject`, {
+                                          method: 'PATCH',
+                                          headers: { 'Authorization': `Bearer ${token}` }
+                                        });
+                                        await fetchVideoConsultations();
+                                      }}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </React.Fragment>
+                                )}
                                 {consultation.type === 'online' && (consultation.status === 'confirmed' || consultation.status === 'scheduled') && consultation.googleMeetLink && (
                                   <a href={consultation.googleMeetLink} target="_blank" rel="noopener noreferrer">
                                     <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700">

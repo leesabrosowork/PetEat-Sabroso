@@ -91,6 +91,9 @@ exports.getAvailableTimeSlots = async (req, res) => {
 exports.createBooking = async (req, res) => {
   try {
     const { petId, clinicId, bookingDate, appointmentTime, reason, type } = req.body;
+    console.log('📝 Creating booking with data:', { petId, clinicId, bookingDate, appointmentTime, reason, type });
+    console.log('📝 Clinic ID type:', typeof clinicId);
+    
     if (!petId || !clinicId || !bookingDate || !appointmentTime || !reason || !type) {
       return res.status(400).json({
         success: false,
@@ -120,8 +123,13 @@ exports.createBooking = async (req, res) => {
       type,
       status: 'pending'
     };
+    console.log('📝 Booking data to save:', bookingData);
+    
     const booking = new Booking(bookingData);
     await booking.save();
+    console.log('✅ Booking saved with ID:', booking._id);
+    console.log('✅ Booking clinic field:', booking.clinic);
+    
     await booking.populate([
       { path: 'pet', select: 'name type breed' },
       { path: 'clinic', select: 'clinicName email' },
@@ -137,6 +145,7 @@ exports.createBooking = async (req, res) => {
       data: booking
     });
   } catch (error) {
+    console.error('❌ Error creating booking:', error);
     res.status(500).json({
       success: false,
       message: 'Error creating booking',

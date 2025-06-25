@@ -744,6 +744,14 @@ export default function UserDashboard() {
     return status;
   }
 
+  // Group EMRs by pet
+  const emrsByPet: { [key: string]: any[] } = (emrs || []).reduce((acc: { [key: string]: any[] }, emr: any) => {
+    const petId = emr.petId?._id || emr.petId;
+    if (!acc[petId]) acc[petId] = [];
+    acc[petId].push(emr);
+    return acc;
+  }, {});
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -1628,79 +1636,86 @@ export default function UserDashboard() {
                   <p>Loading medical records...</p>
                 ) : emrsError ? (
                   <p className="text-red-500">{emrsError}</p>
-                ) : (emrs || []).length === 0 ? (
+                ) : Object.keys(emrsByPet).length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500">No medical records found</p>
                   </div>
                 ) : (
-                  (emrs || []).map((emr) => (
-                    <Card key={emr._id}>
+                  Object.entries(emrsByPet).map(([petId, petEmrs]) => (
+                    <Card key={petId}>
                       <CardHeader>
-                        <div className="flex justify-between items-center">
-                          <CardTitle className="text-lg">
-                            {emr.petId?.name || emr.name || "Pet"} - {emr.currentVisit?.date ? new Date(emr.currentVisit.date).toLocaleDateString() : new Date(emr.createdAt).toLocaleDateString()}
-                          </CardTitle>
-                          <div className="flex items-center gap-2">
-                            {emr.recordType === 'petMedicalRecord' && (
-                              <Badge variant="outline">Clinic Record</Badge>
-                            )}
-                            <Badge
-                              variant={
-                                emr.currentVisit?.status === "active"
-                                  ? "default"
-                                  : emr.currentVisit?.status === "ongoing"
-                                  ? "secondary"
-                                  : "destructive"
-                              }
-                            >
-                              {emr.currentVisit?.status || "Not Specified"}
-                            </Badge>
-                          </div>
-                        </div>
+                        <CardTitle className="text-lg">
+                          {petEmrs[0].petId?.name || petEmrs[0].name || "Pet"}
+                        </CardTitle>
                         <CardDescription>
-                          {emr.breed || "Not provided"} • {emr.species || "Not provided"} • {emr.age || "0"} years old
+                          {petEmrs[0].breed || "Not provided"} • {petEmrs[0].species || "Not provided"}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
+                        {petEmrs.length > 1 ? (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Doctor/Vet</TableHead>
+                                <TableHead>Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {petEmrs.map((emr) => (
+                                <TableRow key={emr._id}>
+                                  <TableCell>
+                                    {emr.currentVisit?.date
+                                      ? new Date(emr.currentVisit.date).toLocaleDateString()
+                                      : new Date(emr.createdAt).toLocaleDateString()}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant={
+                                        emr.currentVisit?.status === "active"
+                                          ? "default"
+                                          : emr.currentVisit?.status === "ongoing"
+                                          ? "secondary"
+                                          : "destructive"
+                                      }
+                                    >
+                                      {emr.currentVisit?.status || "Not Specified"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    {emr.doctor?.name || "Not Assigned"}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setSelectedEMR(emr);
+                                        setIsEMRViewerOpen(true);
+                                      }}
+                                    >
+                                      View Full Details
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        ) : (
                           <div>
-                            <p className="text-sm text-gray-600 mb-2">
-                              <strong>Created:</strong> {new Date(emr.createdAt).toLocaleString()}
-                            </p>
-                            <p className="text-sm text-gray-600 mb-2">
-                              <strong>Doctor/Vet:</strong> {emr.doctor?.name || "Not Assigned"}
-                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedEMR(petEmrs[0]);
+                                setIsEMRViewerOpen(true);
+                              }}
+                            >
+                              View Full Details
+                            </Button>
                           </div>
-                          <div>
-                            {emr.currentVisit?.diagnosis && (
-                              <p className="text-sm text-gray-600 mb-2">
-                                <strong>Diagnosis:</strong> {emr.currentVisit.diagnosis}
-                              </p>
-                            )}
-                            {emr.currentVisit?.treatment && (
-                              <p className="text-sm text-gray-600 mb-2">
-                                <strong>Treatment:</strong> {emr.currentVisit.treatment}
-                              </p>
-                            )}
-                            {emr.currentVisit?.notes && (
-                              <p className="text-sm text-gray-600 mb-2">
-                                <strong>Notes:</strong> {emr.currentVisit.notes}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedEMR(emr);
-                              setIsEMRViewerOpen(true);
-                            }}
-                          >
-                            View Full Details
-                          </Button>
-                        </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))
