@@ -16,19 +16,27 @@ function fallback(value) {
 // Get dashboard overview data
 exports.getDashboardOverview = async (req, res) => {
     try {
-        const userCount = await User.countDocuments();
-        const vetClinicCount = await User.countDocuments({ role: 'clinic' });
-        const petCount = await Pet.countDocuments();
-        const inventoryCount = await Inventory.countDocuments();
-
-        const availableVetClinics = await User.countDocuments({ role: 'clinic', status: 'approved' });
-
-        const lowStockItems = await Inventory.countDocuments({
-            $or: [
-                { status: 'low-stock' },
-                { status: 'out-of-stock' }
-            ]
-        });
+        // Use Promise.all for parallel execution of all queries
+        const [
+            userCount,
+            vetClinicCount,
+            petCount,
+            inventoryCount,
+            availableVetClinics,
+            lowStockItems
+        ] = await Promise.all([
+            User.countDocuments(),
+            User.countDocuments({ role: 'clinic' }),
+            Pet.countDocuments(),
+            Inventory.countDocuments(),
+            User.countDocuments({ role: 'clinic', status: 'approved' }),
+            Inventory.countDocuments({
+                $or: [
+                    { status: 'low-stock' },
+                    { status: 'out-of-stock' }
+                ]
+            })
+        ]);
 
         res.json({
             success: true,
@@ -518,5 +526,139 @@ exports.resetAndSeed = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const fetchDashboardData = async () => {
+    try {
+        setLoading(true)
+        setError(null)
+
+        const token = localStorage.getItem("token")
+        if (!token) {
+            throw new Error("No authentication token found")
+        }
+
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+
+        // Fetch all data in parallel using Promise.all
+        const [
+            overviewRes,
+            usersRes,
+            petsRes,
+            inventoryRes,
+            activitiesRes
+        ] = await Promise.all([
+            fetch('http://localhost:8080/api/admin/dashboard/overview', { headers }),
+            fetch('http://localhost:8080/api/admin/users', { headers }),
+            fetch('http://localhost:8080/api/admin/pets', { headers }),
+            fetch('http://localhost:8080/api/admin/inventory', { headers }),
+            fetch('http://localhost:8080/api/admin/recent-activities', { headers })
+        ])
+
+        // Check if any request failed
+        if (!overviewRes.ok || !usersRes.ok || !petsRes.ok || !inventoryRes.ok || !activitiesRes.ok) {
+            throw new Error('Failed to fetch dashboard data')
+        }
+
+        // Parse all responses in parallel
+        const [
+            overviewData,
+            usersData,
+            petsData,
+            inventoryData,
+            activitiesData
+        ] = await Promise.all([
+            overviewRes.json(),
+            usersRes.json(),
+            petsRes.json(),
+            inventoryRes.json(),
+            activitiesRes.json()
+        ])
+
+        setDashboardData(overviewData.data)
+        setUsers(usersData.data)
+        setPets(petsData.data)
+        setInventory(inventoryData.data)
+        setRecentActivities(activitiesData.data)
+    } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+        setError(error.message)
+    } finally {
+        setLoading(false)
+    }
+}
+
+// Get all dashboard data in a single optimized request
+exports.getAllDashboardData = async (req, res) => {
+    try {
+        const { page = 1, limit = 20 } = req.query;
+        const skip = (page - 1) * limit;
+
+        // Use Promise.all for parallel execution of all queries
+        const [
+            overviewData,
+            users,
+            pets,
+            inventory,
+            activities
+        ] = await Promise.all([
+            // Overview data
+            Promise.all([
+                User.countDocuments(),
+                User.countDocuments({ role: 'clinic' }),
+                Pet.countDocuments(),
+                Inventory.countDocuments(),
+                User.countDocuments({ role: 'clinic', status: 'approved' }),
+                Inventory.countDocuments({
+                    $or: [
+                        { status: 'low-stock' },
+                        { status: 'out-of-stock' }
+                    ]
+                })
+            ]),
+            // Users data with pagination
+            User.find().select('-password').skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 }),
+            // Pets data with pagination
+            Pet.find().populate('owner', 'name email').skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 }),
+            // Inventory data with pagination
+            Inventory.find().skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 }),
+            // Recent activities
+            Activity.find()
+                .sort({ createdAt: -1 })
+                .limit(10)
+                .populate('user', 'name')
+                .populate('clinic', 'name')
+        ]);
+
+        const [userCount, vetClinicCount, petCount, inventoryCount, availableVetClinics, lowStockItems] = overviewData;
+
+        res.json({
+            success: true,
+            data: {
+                overview: {
+                    userCount,
+                    vetClinicCount,
+                    petCount,
+                    inventoryCount,
+                    availableVetClinics,
+                    lowStockItems
+                },
+                users,
+                pets,
+                inventory,
+                activities,
+                pagination: {
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    total: userCount
+                }
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 };

@@ -2,12 +2,14 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const adminAuth = require('../middleware/adminAuth');
+const { cacheMiddleware } = require('../middleware/cache');
 
 // Public route - Allow admin creation without authentication
 router.post('/', adminController.createAdmin);
 
 // Protected dashboard routes
-router.get('/dashboard/overview', adminAuth, adminController.getDashboardOverview);
+router.get('/dashboard/overview', adminAuth, cacheMiddleware(60000), adminController.getDashboardOverview);
+router.get('/dashboard/all-data', adminAuth, cacheMiddleware(30000), adminController.getAllDashboardData);
 router.get('/users', adminAuth, adminController.getAllUsers);
 router.get('/pets', adminAuth, adminController.getAllPets);
 router.get('/inventory', adminAuth, adminController.getInventory);

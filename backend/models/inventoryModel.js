@@ -47,5 +47,12 @@ inventorySchema.pre('save', function(next) {
     next();
 });
 
+// Add indexes for better query performance
+inventorySchema.index({ status: 1 });
+inventorySchema.index({ category: 1 });
+inventorySchema.index({ stock: 1 });
+inventorySchema.index({ createdAt: -1 });
+inventorySchema.index({ status: 1, stock: 1 });
+
 const Inventory = mongoose.model('Inventory', inventorySchema);
 module.exports = Inventory; 

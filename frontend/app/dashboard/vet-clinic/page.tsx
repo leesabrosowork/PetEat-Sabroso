@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState, useEffect, useRef, useCallback } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useSocket } from "@/app/context/SocketContext"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
@@ -51,6 +51,10 @@ import { Input } from "@/components/ui/input"
 import EMRForm from "@/components/EMRForm"
 import { useToast } from "@/components/ui/use-toast"
 import { EMRViewer } from "@/components/EMRViewer"
+import { DashboardSkeleton } from "@/components/DashboardSkeleton"
+import { ClientOnly } from "@/components/ClientOnly"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { useLocalStorageString, useLocalStorageBoolean } from "@/hooks/useLocalStorage"
 
 interface User {
   _id: string;
@@ -60,6 +64,7 @@ interface User {
   fullName: string;
   contactNumber?: string;
   address?: string;
+  clinicName?: string;
 }
 
 interface Pet {
@@ -224,66 +229,47 @@ interface Booking {
   googleMeetLink?: string;
 }
 
-function VetClinicDashboard() {
-  const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
-  const [user, setUser] = useState<any>(null);
-  const [activeTabValue, setActiveTabValue] = useState('overview');
-  const [loading, setLoading] = useState(true);
-  const prevPathRef = useRef<string | null>(null);
+export default function VetClinicDashboard() {
+  return (
+    <ErrorBoundary>
+      <ClientOnly fallback={<DashboardSkeleton />}>
+        <VetClinicDashboardContent />
+      </ClientOnly>
+    </ErrorBoundary>
+  );
+}
+
+function VetClinicDashboardContent() {
   const router = useRouter();
-  const { socket } = useSocket();
-  const { toast } = useToast();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { theme, setTheme } = useTheme();
+  const socketContext = useSocket();
+  const socket = socketContext.socket;
   
-  // Chat state
-  const [inboxTab, setInboxTab] = useState(false);
-  const [petOwners, setPetOwners] = useState<any[]>([]);
-  const [selectedOwner, setSelectedOwner] = useState<any | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [messageInput, setMessageInput] = useState("");
-  const [currentConversation, setCurrentConversation] = useState<any | null>(null);
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
-  const [typingStatus, setTypingStatus] = useState("");
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  
-  // Search state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  
+  const [activeTabValue, setActiveTabValue] = useState("overview");
+  const [user, setUser] = useState<User | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  
-  const [error, setError] = useState<string | null>(null);
-  
-  // Tab data states
   const [pets, setPets] = useState<Pet[]>([]);
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [videoConsultations, setVideoConsultations] = useState<VideoConsultation[]>([]);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [petsUnderTreatment, setPetsUnderTreatment] = useState<PetUnderTreatment[]>([]);
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  
-  // Loading states for tabs
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [activityFeed, setActivityFeed] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [petsLoading, setPetsLoading] = useState(false);
   const [medicalRecordsLoading, setMedicalRecordsLoading] = useState(false);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
   const [videoConsultationsLoading, setVideoConsultationsLoading] = useState(false);
-  const [inventoryLoading, setInventoryLoading] = useState(false);
   const [petsUnderTreatmentLoading, setPetsUnderTreatmentLoading] = useState(false);
-
-  const [activityFeed, setActivityFeed] = useState<Activity[]>([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
   const [activityLoading, setActivityLoading] = useState(false);
 
   // Dialog states
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('darkMode') === 'true';
-    }
-    return false;
-  });
+  const [isDarkMode, setIsDarkMode] = useLocalStorageBoolean('darkMode', false);
   const [petDialogOpen, setPetDialogOpen] = useState(false);
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
   const [inventoryDialogOpen, setInventoryDialogOpen] = useState(false);
@@ -308,6 +294,18 @@ function VetClinicDashboard() {
   const [chatSearchQuery, setChatSearchQuery] = useState("");
   const [filteredPetOwners, setFilteredPetOwners] = useState<any[]>([]);
   const [selectedPetOwner, setSelectedPetOwner] = useState<any | null>(null);
+  const [petOwners, setPetOwners] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [currentConversation, setCurrentConversation] = useState<any | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageInput, setMessageInput] = useState("");
+  const [typingStatus, setTypingStatus] = useState("");
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [inboxTab, setInboxTab] = useState("conversations");
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Add prescriptions state
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
 
   const [googleAuthSuccess, setGoogleAuthSuccess] = useState(false);
 
@@ -315,18 +313,13 @@ function VetClinicDashboard() {
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
-    localStorage.setItem('darkMode', String(newMode));
     document.documentElement.classList.toggle('dark', newMode);
   };
 
   // Set initial dark mode
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedMode = localStorage.getItem('darkMode') === 'true';
-      setIsDarkMode(savedMode);
-      document.documentElement.classList.toggle('dark', savedMode);
-    }
-  }, []);
+    document.documentElement.classList.toggle('dark', isDarkMode);
+  }, [isDarkMode]);
 
   // Check authentication on mount
   useEffect(() => {
@@ -359,36 +352,60 @@ function VetClinicDashboard() {
           event.error.message.includes('not a child of this node')) {
         console.warn('DOM manipulation error caught and handled:', event.error.message);
         event.preventDefault();
-        // Optionally refresh the component or show a user-friendly message
+        event.stopPropagation();
+        return false;
+      }
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (event.reason && event.reason.message && 
+          event.reason.message.includes('removeChild')) {
+        console.warn('Unhandled promise rejection for DOM manipulation:', event.reason.message);
+        event.preventDefault();
         return false;
       }
     };
 
     window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    
     return () => {
       window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, []);
 
+  // Add cleanup for socket connections and async operations
   useEffect(() => {
-    // Check if redirected from Google OAuth success
-    if (typeof window !== 'undefined' && window.location.pathname === '/api/google-meet/success') {
-      setGoogleAuthSuccess(true);
-      // Optionally, redirect to dashboard after a delay
-      setTimeout(() => {
-        window.location.href = '/dashboard/vet-clinic';
-      }, 2000);
-    }
-  }, []);
+    let isMounted = true;
+    
+    // Cleanup function to prevent state updates after unmount
+    const cleanup = () => {
+      isMounted = false;
+    };
 
-  const handleGoogleAuth = () => {
-    window.location.href = 'http://localhost:8080/api/google-meet/auth';
-  };
+    // Override setState functions to check if component is mounted
+    const safeSetState = <T,>(setter: React.Dispatch<React.SetStateAction<T>>) => {
+      return (value: React.SetStateAction<T>) => {
+        if (isMounted) {
+          setter(value);
+        }
+      };
+    };
+
+    // Create safe versions of state setters
+    const safeSetPets = safeSetState(setPets);
+    const safeSetInventory = safeSetState(setInventory);
+    const safeSetDashboardData = safeSetState(setDashboardData);
+    const safeSetMessages = safeSetState(setMessages);
+    const safeSetConversations = safeSetState(setConversations);
+    const safeSetTypingStatus = safeSetState(setTypingStatus);
+
+    return cleanup;
+  }, []);
 
   // Fetch dashboard overview data
   const fetchDashboardData = useCallback(async () => {
-    if (loading) return; // Prevent multiple simultaneous requests
-    
     setLoading(true);
     setError(null);
     try {
@@ -412,7 +429,177 @@ function VetClinicDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [loading]);
+  }, []); // Remove loading dependency to prevent infinite loops
+
+  // Improved socket cleanup
+  useEffect(() => {
+    if (!socket) return;
+
+    let isMounted = true;
+
+    const handlePetAdded = (newPet: any) => {
+      if (!isMounted) return;
+      setPets(prevPets => [newPet, ...prevPets]);
+      fetchDashboardData();
+      toast({
+        title: "New Pet Added",
+        description: `${newPet.name} has been added to the system`,
+      });
+    };
+
+    const handleInventoryAdded = (newItem: any) => {
+      if (!isMounted) return;
+      setInventory(prevInventory => [newItem, ...prevInventory]);
+      fetchDashboardData();
+      toast({
+        title: "New Inventory Item Added",
+        description: `${newItem.item} has been added to inventory`,
+      });
+    };
+
+    socket.on('pet:added', handlePetAdded);
+    socket.on('inventory:added', handleInventoryAdded);
+
+    return () => {
+      isMounted = false;
+      if (socket) {
+        socket.off('pet:added', handlePetAdded);
+        socket.off('inventory:added', handleInventoryAdded);
+      }
+    };
+  }, [socket, fetchDashboardData]);
+
+  // Improved chat socket cleanup
+  useEffect(() => {
+    if (!socket || !currentConversation) return;
+
+    let isMounted = true;
+
+    // Join the conversation room
+    socket.emit('join_conversation', currentConversation._id);
+
+    const handleReceiveMessage = (data: any) => {
+      if (!isMounted) return;
+      if (data.conversationId === currentConversation._id) {
+        setMessages(prev => [...prev, data.message]);
+      }
+      
+      setConversations(prev => 
+        prev.map(conv => 
+          conv._id === data.conversationId 
+            ? { 
+                ...conv, 
+                lastMessageText: data.message.text,
+                lastMessageDate: new Date().toISOString(),
+                unreadCount: conv.unreadCount + 1
+              } 
+            : conv
+        )
+      );
+    };
+
+    const handleUserTyping = (data: any) => {
+      if (!isMounted) return;
+      if (data.conversationId === currentConversation._id) {
+        setTypingStatus(`${data.user.fullName || data.user.username} is typing...`);
+      }
+    };
+
+    const handleUserStopTyping = (data: any) => {
+      if (!isMounted) return;
+      if (data.conversationId === currentConversation._id) {
+        setTypingStatus("");
+      }
+    };
+
+    const handleMessagesRead = (data: any) => {
+      if (!isMounted) return;
+      if (data.conversationId === currentConversation._id) {
+        setMessages(prev => 
+          prev.map(msg => ({
+            ...msg,
+            read: true
+          }))
+        );
+      }
+    };
+
+    socket.on('receive_message', handleReceiveMessage);
+    socket.on('user_typing', handleUserTyping);
+    socket.on('user_stop_typing', handleUserStopTyping);
+    socket.on('messages_read', handleMessagesRead);
+
+    return () => {
+      isMounted = false;
+      if (socket) {
+        socket.emit('leave_conversation', currentConversation._id);
+        socket.off('receive_message', handleReceiveMessage);
+        socket.off('user_typing', handleUserTyping);
+        socket.off('user_stop_typing', handleUserStopTyping);
+        socket.off('messages_read', handleMessagesRead);
+      }
+    };
+  }, [socket, currentConversation]);
+
+  // Improved realtime updates cleanup
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    let isMounted = true;
+
+    const handleRealtimeUpdate = () => {
+      if (!isMounted) return;
+      setTimeout(() => {
+        if (isMounted) {
+          try {
+            fetchDashboardData();
+          } catch (error) {
+            console.error('Error in real-time update:', error);
+          }
+        }
+      }, 100);
+    };
+
+    const events = [
+      "pets_updated",
+      "bookings_updated",
+      "prescriptions_updated",
+      "users_updated",
+      "pets_under_treatment_updated",
+      "emrs_updated",
+      "inventory_updated",
+      "admins_updated",
+      "clinical_notes_updated",
+      "video_consultations_updated"
+    ];
+
+    events.forEach(event => {
+      socket.off(event, handleRealtimeUpdate);
+      socket.on(event, handleRealtimeUpdate);
+    });
+
+    return () => {
+      isMounted = false;
+      events.forEach(event => {
+        socket.off(event, handleRealtimeUpdate);
+      });
+    };
+  }, [socket, user, fetchDashboardData]);
+
+  useEffect(() => {
+    // Check if redirected from Google OAuth success
+    if (typeof window !== 'undefined' && window.location.pathname === '/api/google-meet/success') {
+      setGoogleAuthSuccess(true);
+      // Optionally, redirect to dashboard after a delay
+      setTimeout(() => {
+        window.location.href = '/dashboard/vet-clinic';
+      }, 2000);
+    }
+  }, []);
+
+  const handleGoogleAuth = () => {
+    window.location.href = 'http://localhost:8080/api/google-meet/auth';
+  };
 
   // Fetch pets data
   const fetchPets = async () => {
@@ -703,7 +890,7 @@ function VetClinicDashboard() {
     }
     
     if (value !== 'inbox') {
-      setInboxTab(false);
+      setInboxTab("conversations");
     }
   };
 
@@ -991,106 +1178,6 @@ function VetClinicDashboard() {
     }
   };
 
-  // Socket listeners for real-time updates
-  useEffect(() => {
-    if (socket) {
-      socket.on('pet:added', (newPet) => {
-        setPets(prevPets => [newPet, ...prevPets]);
-        fetchDashboardData(); // Refresh dashboard stats
-        toast({
-          title: "New Pet Added",
-          description: `${newPet.name} has been added to the system`,
-        });
-      });
-
-      socket.on('inventory:added', (newItem) => {
-        setInventory(prevInventory => [newItem, ...prevInventory]);
-        fetchDashboardData(); // Refresh dashboard stats
-        toast({
-          title: "New Inventory Item Added",
-          description: `${newItem.item} has been added to inventory`,
-        });
-      });
-
-      return () => {
-        socket.off('pet:added');
-        socket.off('inventory:added');
-      };
-    }
-  }, [socket]);
-
-  // Add or subtract stock
-  const handleChangeStock = async (id: string, amount: number) => {
-    try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`http://localhost:8080/api/vet-clinic/inventory/${id}/stock`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ amount }),
-      })
-      const data = await response.json()
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: `Stock ${amount > 0 ? "increased" : "decreased"} successfully`,
-        })
-        fetchInventory() // Refresh inventory data
-      } else {
-        toast({
-          title: "Error",
-          description: data.message,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update stock",
-        variant: "destructive",
-      })
-    }
-  }
-
-  // Delete inventory item
-  const handleDeleteInventoryItem = async (itemId: string) => {
-    if (!confirm("Are you sure you want to delete this inventory item?")) return
-
-    try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`http://localhost:8080/api/vet-clinic/inventory/${itemId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Inventory item deleted successfully",
-        })
-        fetchInventory() // Refresh inventory data
-      } else {
-        toast({
-          title: "Error",
-          description: data.message,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete inventory item",
-        variant: "destructive",
-      })
-    }
-  }
-
   // Handle admitting a pet for treatment
   const handleAdmitPet = async (petId: string, data: { room: string, diagnosis: string, clinicalNotes: string }) => {
     try {
@@ -1273,119 +1360,6 @@ function VetClinicDashboard() {
     
     setFilteredPetOwners(filtered);
   }, [chatSearchQuery, petOwners]);
-  
-  // Socket.IO event handlers for chat
-  useEffect(() => {
-    if (!socket || !currentConversation) return;
-    
-    // Join the conversation room
-    socket.emit('join_conversation', currentConversation._id);
-    
-    // Listen for new messages
-    const handleReceiveMessage = (data: any) => {
-      if (data.conversationId === currentConversation._id) {
-        setMessages(prev => [...prev, data.message]);
-      }
-      
-      // Update conversations list with new message
-      setConversations(prev => 
-        prev.map(conv => 
-          conv._id === data.conversationId 
-            ? { 
-                ...conv, 
-                lastMessageText: data.message.text,
-                lastMessageDate: new Date().toISOString(),
-                unreadCount: conv.unreadCount + 1
-              } 
-            : conv
-        )
-      );
-    };
-    
-    // Listen for typing indicators
-    const handleUserTyping = (data: any) => {
-      if (data.conversationId === currentConversation._id) {
-        setTypingStatus(`${data.user.fullName || data.user.username} is typing...`);
-      }
-    };
-    
-    const handleUserStopTyping = (data: any) => {
-      if (data.conversationId === currentConversation._id) {
-        setTypingStatus("");
-      }
-    };
-    
-    // Listen for read receipts
-    const handleMessagesRead = (data: any) => {
-      if (data.conversationId === currentConversation._id) {
-        // Update read status of messages
-        setMessages(prev => 
-          prev.map(msg => ({
-            ...msg,
-            read: true
-          }))
-        );
-      }
-    };
-    
-    socket.on('receive_message', handleReceiveMessage);
-    socket.on('user_typing', handleUserTyping);
-    socket.on('user_stop_typing', handleUserStopTyping);
-    socket.on('messages_read', handleMessagesRead);
-    
-    return () => {
-      // Leave the conversation room when component unmounts or conversation changes
-      socket.emit('leave_conversation', currentConversation._id);
-      socket.off('receive_message', handleReceiveMessage);
-      socket.off('user_typing', handleUserTyping);
-      socket.off('user_stop_typing', handleUserStopTyping);
-      socket.off('messages_read', handleMessagesRead);
-    };
-  }, [socket, currentConversation]);
-  
-  // Scroll chat to bottom when messages change
-  useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
-  
-  // Fetch messages when a conversation is selected
-  useEffect(() => {
-    if (!currentConversation) return;
-    
-    const fetchMessages = async () => {
-      setIsLoadingChat(true);
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`http://localhost:8080/api/chat/conversations/${currentConversation._id}/messages`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Failed to fetch messages");
-        const data = await res.json();
-        setMessages(data.data || []);
-      } catch (e) {
-        console.error("Error fetching messages:", e);
-        toast({
-          title: "Error",
-          description: "Failed to load messages. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoadingChat(false);
-      }
-    };
-    
-    fetchMessages();
-    
-    // Mark messages as read via Socket.IO
-    if (socket && currentConversation.unreadCount > 0 && user && user._id) {
-      socket.emit('mark_read', {
-        conversationId: currentConversation._id,
-        userId: user._id
-      });
-    }
-  }, [currentConversation, socket, user]);
   
   // Handle selecting a pet owner for chat
   const handleSelectPetOwner = async (owner: any) => {
@@ -1586,56 +1560,9 @@ function VetClinicDashboard() {
       
       fetchPetOwners();
       fetchConversations();
-      setInboxTab(true);
+      setInboxTab("conversations");
     }
   }, [activeTabValue, user]);
-
-  // Realtime dashboard updates
-  useEffect(() => {
-    if (!socket || !user) return;
-    
-    const handleRealtimeUpdate = () => {
-      // Add a small delay to prevent rapid re-renders
-      setTimeout(() => {
-        try {
-          fetchDashboardData();
-        } catch (error) {
-          console.error('Error in real-time update:', error);
-          // Don't let socket errors crash the component
-        }
-      }, 100);
-    };
-
-    const events = [
-      "pets_updated",
-      "bookings_updated",
-      "prescriptions_updated",
-      "users_updated",
-      "pets_under_treatment_updated",
-      "emrs_updated",
-      "inventory_updated",
-      "admins_updated",
-      "clinical_notes_updated",
-      "video_consultations_updated"
-    ];
-
-    // Remove any existing listeners first
-    events.forEach(event => {
-      socket.off(event, handleRealtimeUpdate);
-    });
-
-    // Add new listeners
-    events.forEach(event => {
-      socket.on(event, handleRealtimeUpdate);
-    });
-
-    // Cleanup function
-    return () => {
-      events.forEach(event => {
-        socket.off(event, handleRealtimeUpdate);
-      });
-    };
-  }, [socket, user, fetchDashboardData]);
 
   const [showArchived, setShowArchived] = useState(false);
 
@@ -1647,17 +1574,132 @@ function VetClinicDashboard() {
 
   // Handle viewing a prescription
   const handleViewPrescription = (prescription: Prescription) => {
-    // Implementation for viewing prescription details
-    console.log("Viewing prescription details:", prescription);
-    // You can add a dialog or modal to show prescription details
+    console.log("Viewing prescription:", prescription);
   };
+
+  // Add or subtract stock
+  const handleChangeStock = async (id: string, amount: number) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`http://localhost:8080/api/vet-clinic/inventory/${id}/stock`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ amount }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: `Stock ${amount > 0 ? "increased" : "decreased"} successfully`,
+        })
+        fetchInventory() // Refresh inventory data
+      } else {
+        toast({
+          title: "Error",
+          description: data.message,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update stock",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Delete inventory item
+  const handleDeleteInventoryItem = async (itemId: string) => {
+    if (!confirm("Are you sure you want to delete this inventory item?")) return
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`http://localhost:8080/api/vet-clinic/inventory/${itemId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Inventory item deleted successfully",
+        })
+        fetchInventory() // Refresh inventory data
+      } else {
+        toast({
+          title: "Error",
+          description: data.message,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete inventory item",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Scroll chat to bottom when messages change
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+    
+  // Fetch messages when a conversation is selected
+  useEffect(() => {
+    if (!currentConversation) return;
+    
+    const fetchMessages = async () => {
+      setIsLoadingChat(true);
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`http://localhost:8080/api/chat/conversations/${currentConversation._id}/messages`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch messages");
+        const data = await res.json();
+        setMessages(data.data || []);
+      } catch (e) {
+        console.error("Error fetching messages:", e);
+        toast({
+          title: "Error",
+          description: "Failed to load messages. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingChat(false);
+      }
+    };
+    
+    fetchMessages();
+    
+    // Mark messages as read via Socket.IO
+    if (socket && currentConversation.unreadCount > 0 && user && user._id) {
+      socket.emit('mark_read', {
+        conversationId: currentConversation._id,
+        userId: user._id
+      });
+    }
+  }, [currentConversation, socket, user]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <DashboardSkeleton />
+          </div>
         </div>
       </div>
     );
@@ -1717,7 +1759,7 @@ function VetClinicDashboard() {
                 onClick={() => {
                   console.log("Chat button clicked - direct approach");
                   setActiveTabValue('inbox');
-                  setInboxTab(true);
+                  setInboxTab("conversations");
                 }}
                 className="flex items-center gap-2"
               >
@@ -2809,5 +2851,4 @@ function VetClinicDashboard() {
     </div>
   );
 }
-
-export default VetClinicDashboard;
+  

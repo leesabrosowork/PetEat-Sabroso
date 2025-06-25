@@ -21,6 +21,8 @@ router.put('/bookings/:id/approve', vetClinicController.approveAppointment);
 router.put('/bookings/:id/reject', vetClinicController.rejectAppointment);
 router.patch('/bookings/:id/approve', vetClinicController.approveAppointment);
 router.patch('/bookings/:id/reject', vetClinicController.rejectAppointment);
+// Video consultations
+router.get('/video-consultations', vetClinicController.getVideoConsultations);
 // Inventory
 router.get('/inventory', vetClinicController.getInventory);
 router.post('/inventory', vetClinicController.addInventoryItem || ((req, res) => res.status(501).json({ success: false, message: 'Not implemented' })));

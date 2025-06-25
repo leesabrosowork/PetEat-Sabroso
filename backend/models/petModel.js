@@ -88,5 +88,12 @@ const petSchema = new mongoose.Schema({
     timestamps: true
 });
 
+// Add indexes for better query performance
+petSchema.index({ owner: 1 });
+petSchema.index({ healthStatus: 1 });
+petSchema.index({ type: 1 });
+petSchema.index({ createdAt: -1 });
+petSchema.index({ owner: 1, healthStatus: 1 });
+
 const Pet = mongoose.model('Pet', petSchema);
 module.exports = Pet; 

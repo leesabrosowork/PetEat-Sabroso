@@ -96,11 +96,16 @@ exports.getUserDashboard = async (req, res) => {
                 message: 'You are not authorized to view this dashboard'
             });
         }
-        const pets = await Pet.find({ owner: userId });
-        const bookings = await Booking.find({ petOwner: userId })
-            .populate('pet', 'name type breed')
-            .populate('clinic', 'clinicName email')
-            .sort({ bookingDate: -1, appointmentTime: -1 });
+
+        // Use Promise.all for parallel execution
+        const [pets, bookings] = await Promise.all([
+            Pet.find({ owner: userId }),
+            Booking.find({ petOwner: userId })
+                .populate('pet', 'name type breed')
+                .populate('clinic', 'clinicName email')
+                .sort({ bookingDate: -1, appointmentTime: -1 })
+        ]);
+
         const transformedBookings = bookings.map(b => {
             const startTime = getBookingStartTime(b);
             return {
@@ -113,6 +118,7 @@ exports.getUserDashboard = async (req, res) => {
                 type: b.type
             };
         });
+
         res.json({
             success: true,
             data: {

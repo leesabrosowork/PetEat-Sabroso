@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +25,7 @@ interface Appointment {
   googleMeetLink?: string;
 }
 
-export default function VetClinicVideoConsultation() {
+function VideoConsultationContent() {
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isAudioOn, setIsAudioOn] = useState(true);
   const [isCallActive, setIsCallActive] = useState(false);
@@ -302,5 +302,13 @@ export default function VetClinicVideoConsultation() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function VetClinicVideoConsultation() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <VideoConsultationContent />
+    </Suspense>
   );
 } 

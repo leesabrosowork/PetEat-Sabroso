@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +16,8 @@ import { EditPetDialog } from "@/components/EditPetDialog"
 import { UserPermissionsDialog } from "@/components/UserPermissionsDialog"
 import { EditInventoryItemDialog } from "@/components/EditInventoryItemDialog"
 import { toast } from "@/components/ui/use-toast"
+import React from "react"
+import { DashboardSkeleton } from "@/components/DashboardSkeleton"
 
 interface DashboardData {
   totalUsers: number;
@@ -83,7 +85,67 @@ export default function AdminDashboard() {
   const [isUserPermissionsDialogOpen, setIsUserPermissionsDialogOpen] = useState(false)
   const [isEditInventoryItemDialogOpen, setIsEditInventoryItemDialogOpen] = useState(false)
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null)
+  const [isUpdatingStock, setIsUpdatingStock] = useState<Record<string, boolean>>({})
   
+  const router = useRouter()
+
+  // Memoize expensive calculations
+  const lowStockItems = useMemo(() => {
+    return inventory.filter(item => item.status === 'low-stock' || item.stock <= item.minStock);
+  }, [inventory]);
+
+  const recentUsers = useMemo(() => {
+    return users.slice(0, 5); // Show only 5 most recent users
+  }, [users]);
+
+  const recentPets = useMemo(() => {
+    return pets.slice(0, 5); // Show only 5 most recent pets
+  }, [pets]);
+
+  // Memoize callback functions
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
+    router.push("/login")
+  }, [router]);
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const token = localStorage.getItem("token")
+      if (!token) {
+        throw new Error("No authentication token found")
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+
+      // Use the new optimized endpoint that returns all data in one request
+      const response = await fetch('http://localhost:8080/api/admin/dashboard/all-data', { headers })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard data')
+      }
+
+      const data = await response.json()
+
+      setDashboardData(data.data.overview)
+      setUsers(data.data.users)
+      setPets(data.data.pets)
+      setInventory(data.data.inventory)
+      setRecentActivities(data.data.activities)
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+      setError(error instanceof Error ? error.message : 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }, []);
+
   const handleAddNewItem = () => {
     // Create a new empty item
     const newItem: Partial<InventoryItem> = {
@@ -98,9 +160,6 @@ export default function AdminDashboard() {
     setSelectedInventoryItem(newItem as InventoryItem);
     setIsEditInventoryItemDialogOpen(true);
   };
-  const [isUpdatingStock, setIsUpdatingStock] = useState<Record<string, boolean>>({})
-  
-  const router = useRouter()
 
   const updateStock = async (itemId: string, change: number) => {
     try {
@@ -149,78 +208,7 @@ export default function AdminDashboard() {
     } else {
       router.push("/login")
     }
-  }, [router])
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const token = localStorage.getItem("token")
-      if (!token) {
-        throw new Error("No authentication token found")
-      }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-
-      // Fetch all data in parallel
-      const [
-        overviewRes,
-        usersRes,
-        petsRes,
-        inventoryRes,
-        activitiesRes
-      ] = await Promise.all([
-        fetch('http://localhost:8080/api/admin/dashboard/overview', { headers }),
-        fetch('http://localhost:8080/api/admin/users', { headers }),
-        fetch('http://localhost:8080/api/admin/pets', { headers }),
-        fetch('http://localhost:8080/api/admin/inventory', { headers }),
-        fetch('http://localhost:8080/api/admin/recent-activities', { headers })
-      ])
-
-      // Check if any request failed
-      if (!overviewRes.ok || !usersRes.ok || !petsRes.ok || !inventoryRes.ok || !activitiesRes.ok) {
-        throw new Error('Failed to fetch dashboard data')
-      }
-
-      // Parse all responses
-      const [
-        overviewData,
-        usersData,
-        petsData,
-        inventoryData,
-        activitiesData
-      ] = await Promise.all([
-        overviewRes.json(),
-        usersRes.json(),
-        petsRes.json(),
-        inventoryRes.json(),
-        activitiesRes.json()
-      ])
-
-      // Update state with fetched data
-      setDashboardData(overviewData.data)
-      setUsers(usersData.data)
-      setPets(petsData.data)
-      setInventory(inventoryData.data)
-      setRecentActivities(activitiesData.data)
-
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
-      console.error('Error fetching dashboard data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem("user")
-    localStorage.removeItem("token")
-    router.push("/login")
-  }
+  }, [router, fetchDashboardData])
 
   const handleAddItem = async (newItem: any) => {
     try {
@@ -519,10 +507,11 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard data...</p>
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <DashboardSkeleton />
+          </div>
         </div>
       </div>
     )

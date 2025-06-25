@@ -175,6 +175,13 @@ userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ username: 1 }, { unique: true });
 userSchema.index({ contactNumber: 1 }, { unique: true, sparse: true });
 
+// Add indexes for better query performance
+userSchema.index({ role: 1 });
+userSchema.index({ status: 1 });
+userSchema.index({ email: 1 });
+userSchema.index({ createdAt: -1 });
+userSchema.index({ role: 1, status: 1 });
+
 // Hash password before saving
 userSchema.pre('save', async function(next) {
     if (!this.isModified('password') || !this.password) return next();

@@ -13,8 +13,52 @@ exports.getDashboardData = async (req, res) => {
     try {
         const clinicId = req.user._id;
         
-        // Get all pets (for now, get all pets since we don't have clinic-specific associations yet)
-        const pets = await Pet.find().populate('owner', 'username fullName name email');
+        // Use Promise.all for parallel execution of all queries
+        const [
+            pets,
+            medicalRecords,
+            upcomingAppointments,
+            completedAppointments,
+            videoConsultations,
+            inventoryItems,
+            lowStockItems
+        ] = await Promise.all([
+            // Get all pets
+            Pet.find().populate('owner', 'username fullName name email'),
+            // Get medical records count
+            EMR.countDocuments(),
+            // Get upcoming appointments
+            Booking.countDocuments({
+                clinic: clinicId,
+                bookingDate: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+                status: { $in: ['pending', 'confirmed'] }
+            }),
+            // Get completed appointments for today
+            Booking.countDocuments({
+                clinic: clinicId,
+                bookingDate: { 
+                    $gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                    $lt: new Date(new Date().setDate(new Date().getDate() + 1))
+                },
+                status: 'completed'
+            }),
+            // Get video consultations
+            Booking.countDocuments({
+                clinic: clinicId,
+                bookingDate: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+                type: 'online',
+                status: { $in: ['pending', 'confirmed'] }
+            }),
+            // Get inventory count
+            Inventory.countDocuments(),
+            // Get low stock items
+            Inventory.countDocuments({ 
+                $or: [
+                    { quantity: { $lte: 10 } },
+                    { status: 'low-stock' }
+                ]
+            })
+        ]);
         
         // Count pets by health status
         const petsByStatus = {
@@ -23,50 +67,12 @@ exports.getDashboardData = async (req, res) => {
             critical: pets.filter(pet => pet.healthStatus === 'critical').length
         };
 
-        // Get medical records count
-        const medicalRecords = await EMR.find();
-        
-        // Get appointments data
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        
-        const upcomingAppointments = await Booking.countDocuments({
-            clinic: clinicId,
-            bookingDate: { $gte: today },
-            status: { $in: ['pending', 'confirmed'] }
-        });
-        
-        const completedAppointments = await Booking.countDocuments({
-            clinic: clinicId,
-            bookingDate: { $gte: today, $lt: tomorrow },
-            status: 'completed'
-        });
-
-        // Get video consultations (appointments with type 'online')
-        const videoConsultations = await Booking.countDocuments({
-            clinic: clinicId,
-            bookingDate: { $gte: today },
-            type: 'online',
-            status: { $in: ['pending', 'confirmed'] }
-        });
-
-        // Get inventory data
-        const inventoryItems = await Inventory.countDocuments();
-        const lowStockItems = await Inventory.countDocuments({ 
-            $or: [
-                { quantity: { $lte: 10 } },
-                { status: 'low-stock' }
-            ]
-        });
-
         res.json({
             success: true,
             data: {
                 totalPets: pets.length,
                 petsByStatus,
-                totalMedicalRecords: medicalRecords.length,
+                totalMedicalRecords: medicalRecords,
                 upcomingAppointments,
                 completedAppointments,
                 videoConsultations,
