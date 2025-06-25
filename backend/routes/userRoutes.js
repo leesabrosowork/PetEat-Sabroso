@@ -12,6 +12,9 @@ router.post('/', userController.createUser);
 // Get all users
 router.get('/', userController.getAllUsers);
 
+// Get approved clinics (public endpoint)
+router.get('/approved-clinics', userController.getApprovedClinics);
+
 // Search users by name or email
 router.get('/search', protect, userController.searchUsers);
 

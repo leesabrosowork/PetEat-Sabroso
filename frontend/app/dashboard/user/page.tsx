@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2, Settings, Moon, Sun, Laptop, MessageSquare, Edit } from "lucide-react"
+import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2, Settings, Moon, Sun, Laptop, MessageSquare, Edit, Search, Filter } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { EMRViewer } from "@/components/EMRViewer"
@@ -20,6 +20,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
 import { getUserPreferences, saveUserPreferences } from "@/lib/storage"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Pet {
   _id: string;
@@ -49,6 +51,7 @@ interface Booking {
   doctor?: Doctor;
   startTime?: string;
   googleMeetLink?: string;
+  notes?: string;
 }
 
 interface PetUnderTreatment {
@@ -115,6 +118,8 @@ export default function UserDashboard() {
   const [inboxTab, setInboxTab] = useState(false);
   const [clinics, setClinics] = useState<any[]>([]);
   const [selectedClinic, setSelectedClinic] = useState<any | null>(null);
+  const [clinicProfiles, setClinicProfiles] = useState<any[]>([]);
+  const [clinicProfilesLoading, setClinicProfilesLoading] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [messageInput, setMessageInput] = useState("");
   const [currentConversation, setCurrentConversation] = useState<any | null>(null);
@@ -159,6 +164,7 @@ export default function UserDashboard() {
         setUser(parsedUser);
         fetchDashboardData(parsedUser._id)
         fetchEMRs()
+        fetchClinicProfiles()
       } catch (e) {
         console.error('Error parsing user data:', e)
         router.push("/login")
@@ -273,6 +279,25 @@ export default function UserDashboard() {
       setEmrsError(e.message || "Failed to fetch EMRs");
     } finally {
       setEmrsLoading(false);
+    }
+  };
+
+  const fetchClinicProfiles = async () => {
+    setClinicProfilesLoading(true);
+    try {
+      const url = `http://localhost:8080/api/users/approved-clinics`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch clinic profiles");
+      const data = await res.json();
+      if (data.success) {
+        setClinicProfiles(data.data);
+      } else {
+        console.error("Failed to fetch clinic profiles:", data.message);
+      }
+    } catch (error) {
+      console.error("Error fetching clinic profiles:", error);
+    } finally {
+      setClinicProfilesLoading(false);
     }
   };
 
@@ -956,6 +981,7 @@ export default function UserDashboard() {
                     <TabsTrigger value="in-person" className="flex-shrink-0">In Person Appointments</TabsTrigger>
                     <TabsTrigger value="hospitalizations" className="flex-shrink-0">Hospitalizations</TabsTrigger>
                     <TabsTrigger value="medical-records" className="flex-shrink-0">Medical Records</TabsTrigger>
+                    <TabsTrigger value="clinic-profiles" className="flex-shrink-0">Clinic Profiles</TabsTrigger>
                   </>
                 ) : (
                   <TabsTrigger value="inbox" className="flex-shrink-0">Inbox</TabsTrigger>
@@ -1539,6 +1565,9 @@ export default function UserDashboard() {
                               })()}
                             </span>
                           </div>
+                          <div className="text-sm text-gray-600">
+                            <span className="font-medium">Reason:</span> {booking.reason || booking.notes || 'No reason provided'}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -1633,94 +1662,293 @@ export default function UserDashboard() {
               </div>
               <div className="space-y-4">
                 {emrsLoading ? (
-                  <p>Loading medical records...</p>
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Loading medical records...</p>
+                  </div>
                 ) : emrsError ? (
+                  <div className="text-center py-8">
                   <p className="text-red-500">{emrsError}</p>
-                ) : Object.keys(emrsByPet).length === 0 ? (
+                  </div>
+                ) : emrs.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500">No medical records found</p>
+                    <p className="text-sm text-gray-400 mt-2">Medical records will be created when your pets visit veterinarians</p>
                   </div>
                 ) : (
-                  Object.entries(emrsByPet).map(([petId, petEmrs]) => (
-                    <Card key={petId}>
+                  <div className="space-y-4">
+                    {/* Summary Card */}
+                    <Card>
                       <CardHeader>
-                        <CardTitle className="text-lg">
-                          {petEmrs[0].petId?.name || petEmrs[0].name || "Pet"}
-                        </CardTitle>
+                        <CardTitle className="flex items-center gap-2">
+                          <FileText className="h-5 w-5" />
+                          Medical Records Summary
+                          </CardTitle>
                         <CardDescription>
-                          {petEmrs[0].breed || "Not provided"} • {petEmrs[0].species || "Not provided"}
+                          You have {emrs.length} medical record{emrs.length !== 1 ? 's' : ''} across {Object.keys(emrsByPet).length} pet{Object.keys(emrsByPet).length !== 1 ? 's' : ''}
                         </CardDescription>
                       </CardHeader>
-                      <CardContent>
-                        {petEmrs.length > 1 ? (
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Doctor/Vet</TableHead>
-                                <TableHead>Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {petEmrs.map((emr) => (
-                                <TableRow key={emr._id}>
-                                  <TableCell>
-                                    {emr.currentVisit?.date
-                                      ? new Date(emr.currentVisit.date).toLocaleDateString()
-                                      : new Date(emr.createdAt).toLocaleDateString()}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge
-                                      variant={
-                                        emr.currentVisit?.status === "active"
-                                          ? "default"
-                                          : emr.currentVisit?.status === "ongoing"
-                                          ? "secondary"
-                                          : "destructive"
-                                      }
-                                    >
-                                      {emr.currentVisit?.status || "Not Specified"}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    {emr.doctor?.name || "Not Assigned"}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => {
-                                        setSelectedEMR(emr);
-                                        setIsEMRViewerOpen(true);
-                                      }}
-                                    >
-                                      View Full Details
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        ) : (
-                          <div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedEMR(petEmrs[0]);
-                                setIsEMRViewerOpen(true);
-                              }}
+                    </Card>
+
+                    {/* EMRs List */}
+                    <div className="space-y-4">
+                      {emrs.map((emr) => (
+                        <Card key={emr._id} className="hover:shadow-md transition-shadow">
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                  <span>{emr.petId?.name || emr.name || "Pet"}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {emr.petId?.type || emr.species || "Unknown"}
+                                  </Badge>
+                                </CardTitle>
+                                <CardDescription className="flex items-center gap-4 mt-2">
+                                  <span>Breed: {emr.breed || "Not provided"}</span>
+                                  <span>Age: {emr.age || "Not provided"}</span>
+                                  <span>Sex: {emr.sex || "Not provided"}</span>
+                                </CardDescription>
+                              </div>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={
+                                emr.currentVisit?.status === "active"
+                                  ? "default"
+                                  : emr.currentVisit?.status === "ongoing"
+                                  ? "secondary"
+                                  : "destructive"
+                              }
                             >
-                              View Full Details
-                            </Button>
+                              {emr.currentVisit?.status || "Not Specified"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                          <div>
+                                <p className="text-sm font-medium text-gray-500">Visit Date</p>
+                                <p className="text-sm">
+                                  {emr.currentVisit?.date
+                                    ? new Date(emr.currentVisit.date).toLocaleDateString()
+                                    : new Date(emr.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div>
+                                <p className="text-sm font-medium text-gray-500">Doctor/Vet</p>
+                                {emr.doctor?.name && (
+                                  <p className="text-sm">{emr.doctor.name}</p>
+                                )}
+                          </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-500">Created</p>
+                                <p className="text-sm">{new Date(emr.createdAt).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                            
+                            {/* Quick Info */}
+                            <div className="space-y-2">
+                              {emr.medicalHistory && emr.medicalHistory.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-medium text-gray-500">Recent Medical History</p>
+                                  <p className="text-sm text-gray-600">
+                                    {emr.medicalHistory[emr.medicalHistory.length - 1]?.condition || "No recent conditions"}
+                                  </p>
+                                </div>
+                              )}
+                              
+                              {emr.vaccinations && emr.vaccinations.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-medium text-gray-500">Latest Vaccination</p>
+                                  <p className="text-sm text-gray-600">
+                                    {emr.vaccinations[emr.vaccinations.length - 1]?.name || "No vaccinations recorded"}
+                                  </p>
+                                </div>
+                            )}
+                          </div>
+
+                            <div className="flex justify-end mt-4">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedEMR(emr);
+                              setIsEMRViewerOpen(true);
+                            }}
+                                className="flex items-center gap-2"
+                          >
+                                <FileText className="h-4 w-4" />
+                            View Full Details
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="clinic-profiles" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Clinic Profiles</h2>
+                <Button onClick={fetchClinicProfiles} variant="outline" size="sm">
+                  Refresh
+                </Button>
+              </div>
+              
+              {clinicProfilesLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Loading clinic profiles...</p>
+                </div>
+              ) : clinicProfiles.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No approved clinics found</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {clinicProfiles.map((clinic) => (
+                    <Card key={clinic._id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-center space-x-3">
+                          {clinic.profilePicture ? (
+                            <Image
+                              src={clinic.profilePicture}
+                              alt={clinic.name}
+                              width={48}
+                              height={48}
+                              className="rounded-full"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                              <span className="text-gray-500 font-semibold">
+                                {clinic.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div>
+                            <CardTitle className="text-lg">{clinic.name}</CardTitle>
+                            <CardDescription className="text-sm">
+                              {clinic.description}
+                            </CardDescription>
+                            {clinic.userType && (
+                              <span className="inline-block mt-1 px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-semibold">
+                                {clinic.userType.charAt(0).toUpperCase() + clinic.userType.slice(1)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Address */}
+                        <div>
+                          <h4 className="font-semibold text-sm mb-2">Address</h4>
+                          <p className="text-sm text-gray-600">
+                            {clinic.address}<br />
+                            {clinic.city}, {clinic.province} {clinic.zipCode}
+                          </p>
+                        </div>
+
+                        {/* Contact Information */}
+                        <div>
+                          <h4 className="font-semibold text-sm mb-2">Contact</h4>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <p>📞 {clinic.contactNumber}</p>
+                            {clinic.landline && <p>☎️ {clinic.landline}</p>}
+                            {clinic.website && (
+                              <p>
+                                🌐 <a 
+                                  href={clinic.website} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  Visit Website
+                                </a>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Pets They Cater */}
+                        <div>
+                          <h4 className="font-semibold text-sm mb-2">Pets They Cater</h4>
+                          <div className="flex flex-wrap gap-1">
+                            {clinic.petsManaged.length > 0 ? (
+                              clinic.petsManaged.map((petType: string, index: number) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {petType}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-sm text-gray-500">Information not provided</span>
+                )}
+              </div>
+                        </div>
+
+                        {/* Operating Hours */}
+                        {clinic.operatingHours && (
+                          <div>
+                            <h4 className="font-semibold text-sm mb-2">Operating Hours</h4>
+                            <div className="space-y-1 text-sm text-gray-600">
+                              {clinic.operatingHours.mondayToFriday && (
+                                <p>Mon-Fri: {clinic.operatingHours.mondayToFriday}</p>
+                              )}
+                              {clinic.operatingHours.saturday && (
+                                <p>Sat: {clinic.operatingHours.saturday}</p>
+                              )}
+                              {clinic.operatingHours.sunday && (
+                                <p>Sun: {clinic.operatingHours.sunday}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Social Media */}
+                        {clinic.socialMedia && Object.keys(clinic.socialMedia).length > 0 && (
+                          <div>
+                            <h4 className="font-semibold text-sm mb-2">Social Media</h4>
+                            <div className="flex space-x-2">
+                              {clinic.socialMedia.facebook && (
+                                <a 
+                                  href={clinic.socialMedia.facebook} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline text-sm"
+                                >
+                                  Facebook
+                                </a>
+                              )}
+                              {clinic.socialMedia.instagram && (
+                                <a 
+                                  href={clinic.socialMedia.instagram} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-pink-600 hover:underline text-sm"
+                                >
+                                  Instagram
+                                </a>
+                              )}
+                              {clinic.socialMedia.twitter && (
+                                <a 
+                                  href={clinic.socialMedia.twitter} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:underline text-sm"
+                                >
+                                  Twitter
+                                </a>
+                              )}
+                            </div>
                           </div>
                         )}
                       </CardContent>
                     </Card>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </main>

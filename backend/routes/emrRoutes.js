@@ -32,13 +32,17 @@ router.get('/user/pets', protect, async (req, res) => {
         // Get user's pets
         const pets = await Pet.find({ owner: req.user._id });
         const petIds = pets.map(pet => pet._id);
+        console.log('[EMR DEBUG] User:', req.user._id);
+        console.log('[EMR DEBUG] Found pets:', pets);
+        console.log('[EMR DEBUG] Pet IDs:', petIds);
         
         // Get EMRs from the EMR collection
         const emrs = await EMR.find({ petId: { $in: petIds } })
-            .populate('clinic', 'clinicName email')
+            .populate('doctor', 'name email')
             .populate('petId', 'name type breed')
             .sort('-createdAt');
-            
+        console.log('[EMR DEBUG] Found EMRs:', emrs);
+        
         // Get medical records from the PetMedicalRecord collection
         const petMedicalRecords = await PetMedicalRecord.find({ 
             petId: { $in: petIds.map(id => id.toString()) } 

@@ -140,6 +140,7 @@ interface VideoConsultation {
   };
   googleMeetLink?: string;
   type: string; // Add this line
+  reason?: string; // Add this line
 }
 
 interface Prescription {
@@ -670,25 +671,17 @@ function VetClinicDashboardContent() {
     setAppointmentsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:8080/api/vet-clinic/bookings", {
+      const res = await fetch("http://localhost:8080/api/vet-clinic/in-person-appointments", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          // In-person appointments: type is 'in person'
-          const inPerson = data.data.filter((b: Booking) => 
-            b.type === 'in person'
-          );
+          console.log("In-person appointments received:", data.data);
           
           // Map the bookings to the Appointment interface
-          const mappedAppointments = inPerson.map((booking: Booking) => {
-            const startTime = booking.bookingDate ? new Date(booking.bookingDate) : new Date();
-            if (booking.appointmentTime) {
-              const [hours, minutes] = booking.appointmentTime.split(':').map(Number);
-              startTime.setHours(hours, minutes, 0, 0);
-            }
-            
+          const mappedAppointments = data.data.map((booking: any) => {
+            const startTime = booking.startTime ? new Date(booking.startTime) : new Date();
             const endTime = new Date(startTime);
             endTime.setMinutes(endTime.getMinutes() + 30); // Assume 30 min appointments
             
@@ -699,18 +692,19 @@ function VetClinicDashboardContent() {
               type: booking.type || 'in person',
               status: booking.status || 'scheduled',
               pet: booking.pet,
-              user: booking.petOwner,
+              user: booking.user,
               doctor: { name: 'Doctor' }, // Placeholder
-              notes: booking.reason,
+              notes: booking.notes,
               googleMeetLink: booking.googleMeetLink
             };
           });
           
+          console.log("Mapped in-person appointments:", mappedAppointments);
           setAppointments(mappedAppointments);
         }
       }
     } catch (error) {
-      console.error("Error fetching appointments:", error);
+      console.error("Error fetching in-person appointments:", error);
     } finally {
       setAppointmentsLoading(false);
     }
@@ -2265,6 +2259,7 @@ function VetClinicDashboardContent() {
                         <TableHead>Pet</TableHead>
                         <TableHead>Owner</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Reason</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -2293,6 +2288,9 @@ function VetClinicDashboardContent() {
                               }>
                                 {consultation.status === 'pending' ? 'Pending' : consultation.status}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {consultation.reason || 'No reason provided'}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-2">

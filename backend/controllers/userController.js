@@ -296,3 +296,59 @@ exports.searchUsers = async (req, res) => {
         });
     }
 };
+
+// Get all approved clinics with their profiles
+exports.getApprovedClinics = async (req, res) => {
+    try {
+        // Find all approved and verified clinics (support both status and isApproved fields)
+        const clinics = await User.find({
+            role: 'clinic',
+            isVerified: true,
+            $or: [
+                { status: 'approved' },
+                { isApproved: true }
+            ]
+        }).select('-password -otp -otpExpires');
+
+        if (!clinics || clinics.length === 0) {
+            return res.status(200).json({
+                success: true,
+                data: [],
+                message: "No approved clinics found"
+            });
+        }
+
+        // Transform clinic data to match frontend expectations
+        const clinicsWithFormattedData = clinics.map(clinic => ({
+            _id: clinic._id,
+            name: clinic.clinicName || clinic.fullName,
+            description: clinic.description || 'No description available',
+            address: clinic.address || clinic.location?.address || 'Address not provided',
+            city: clinic.location?.city || 'City not provided',
+            province: clinic.location?.province || 'Province not provided',
+            zipCode: clinic.zipCode || clinic.location?.zipCode || 'Zip code not provided',
+            contactNumber: clinic.contactNumber || 'Contact number not provided',
+            landline: clinic.landline || 'Landline not provided',
+            website: clinic.website || null,
+            socialMedia: clinic.socialMedia || {},
+            operatingHours: clinic.operatingHours || {},
+            petsManaged: clinic.petsManaged || [],
+            profilePicture: clinic.profilePicture || null,
+            email: clinic.email,
+            userType: clinic.userType || clinic.role
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: clinicsWithFormattedData,
+            message: "Clinics retrieved successfully"
+        });
+    } catch (error) {
+        console.error("Error fetching approved clinics:", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};

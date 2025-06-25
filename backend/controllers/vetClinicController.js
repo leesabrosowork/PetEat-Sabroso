@@ -219,6 +219,60 @@ exports.getMedicalRecords = async (req, res) => {
     }
 };
 
+// Get in-person appointments for the clinic
+exports.getInPersonAppointments = async (req, res) => {
+    try {
+        const clinicId = req.user.id;
+        console.log('🔍 Looking for in-person appointments for clinic ID:', clinicId);
+        
+        // Get all bookings for this clinic
+        const allBookings = await Booking.find({ clinic: clinicId })
+            .populate('pet', 'name type breed')
+            .populate('petOwner', 'fullName email')
+            .populate('clinic', 'clinicName email')
+            .sort({ bookingDate: 1, appointmentTime: 1 });
+            
+        console.log('📋 Total bookings for clinic:', allBookings.length);
+        allBookings.forEach(booking => {
+            console.log(`📋 Booking ID: ${booking._id}, Type: ${booking.type}, Status: ${booking.status}`);
+        });
+        
+        // Filter for in-person appointments (not online/video)
+        const inPersonBookings = allBookings.filter(b => {
+            const isInPerson = b.type !== 'online' && b.type !== 'video';
+            console.log(`Booking ${b._id}: type="${b.type}" -> inPerson=${isInPerson}`);
+            return isInPerson;
+        });
+        
+        console.log('✅ Found in-person bookings:', inPersonBookings.length);
+        
+        const transformed = inPersonBookings.map(b => {
+            const startTime = getBookingStartTime(b);
+            return {
+                _id: b._id,
+                pet: b.pet,
+                user: b.petOwner,
+                startTime,
+                status: b.status || 'pending',
+                notes: b.reason || 'No reason provided',
+                type: b.type || 'in person',
+                googleMeetLink: b.googleMeetLink
+            };
+        });
+        
+        res.json({
+            success: true,
+            data: transformed
+        });
+    } catch (error) {
+        console.error('❌ Error in getInPersonAppointments:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 // Get appointments for the clinic
 exports.getAppointments = async (req, res) => {
     try {
@@ -297,7 +351,8 @@ exports.getVideoConsultations = async (req, res) => {
                 pet: b.pet,
                 user: b.petOwner,
                 googleMeetLink: b.googleMeetLink,
-                type: b.type
+                type: b.type,
+                reason: b.reason || 'No reason provided'
             };
         });
 

@@ -17,6 +17,7 @@ router.use(protect, authorize('clinic'));
 router.get('/dashboard', vetClinicController.getDashboardData);
 // Appointments
 router.get('/bookings', vetClinicController.getAppointments);
+router.get('/in-person-appointments', vetClinicController.getInPersonAppointments);
 router.put('/bookings/:id/approve', vetClinicController.approveAppointment);
 router.put('/bookings/:id/reject', vetClinicController.rejectAppointment);
 router.patch('/bookings/:id/approve', vetClinicController.approveAppointment);

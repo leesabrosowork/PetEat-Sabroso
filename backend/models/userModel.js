@@ -164,6 +164,13 @@ const userSchema = new mongoose.Schema({
     googleTokens: {
         type: Object,
         default: null
+    },
+    userType: {
+        type: String,
+        enum: ['pet owner', 'clinic', 'admin', 'super admin'],
+        default: function() {
+            return this.role;
+        }
     }
 }, {
     timestamps: true
