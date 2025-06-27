@@ -18,6 +18,9 @@ async function createGoogleMeet({ summary, description, startTime, endTime, toke
     conferenceData: {
       createRequest: { requestId: Math.random().toString(36).substring(2) },
     },
+    visibility: 'public',
+    guestsCanInviteOthers: true,
+    guestsCanSeeOtherGuests: true,
   };
   const response = await calendar.events.insert({
     calendarId: 'primary',

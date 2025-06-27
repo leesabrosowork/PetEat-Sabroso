@@ -7,6 +7,7 @@ const Inventory = require('../models/inventoryModel');
 const User = require('../models/userModel');
 const { createZoomMeeting } = require('../utils/zoom');
 const { createGoogleMeet } = require('../utils/googleMeet');
+const { sendBookingApprovalEmails } = require('../utils/emailService');
 
 // Get dashboard overview data
 exports.getDashboardData = async (req, res) => {
@@ -642,7 +643,7 @@ exports.approveAppointment = async (req, res) => {
         // Populate petOwner and clinic
         const appointment = await Booking.findById(id)
             .populate('petOwner', 'email fullName')
-            .populate('clinic', 'email googleTokens clinicName')
+            .populate('clinic', 'email googleTokens clinicName address')
             .populate('pet', 'name');
             
         if (!appointment) {
@@ -709,6 +710,30 @@ exports.approveAppointment = async (req, res) => {
         
         await appointment.save();
         console.log(`✅ Appointment ${id} approved successfully`);
+        
+        // Send email notifications to both user and clinic
+        try {
+            console.log(`📧 Sending approval emails...`);
+            const emailData = {
+                petOwnerEmail: appointment.petOwner?.email,
+                petOwnerName: appointment.petOwner?.fullName || appointment.petOwner?.name,
+                clinicEmail: appointment.clinic?.email,
+                clinicName: appointment.clinic?.clinicName || appointment.clinic?.name,
+                petName: appointment.pet?.name,
+                bookingDate: new Date(appointment.bookingDate).toLocaleDateString(),
+                appointmentTime: appointment.appointmentTime,
+                type: appointment.type,
+                reason: appointment.reason,
+                googleMeetLink: appointment.googleMeetLink,
+                clinicAddress: appointment.clinic?.address
+            };
+            
+            const emailResults = await sendBookingApprovalEmails(emailData);
+            console.log(`📧 Email results:`, emailResults);
+        } catch (emailErr) {
+            console.error('❌ Failed to send approval emails:', emailErr);
+            // Don't fail the approval just because email sending failed
+        }
         
         // Emit socket event for real-time update
         if (req.app && req.app.get('io')) {

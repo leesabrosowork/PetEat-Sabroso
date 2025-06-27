@@ -1744,6 +1744,15 @@ function VetClinicDashboardContent() {
     };
   };
 
+  const handleConnectGoogle = () => {
+    if (!user?._id) {
+      alert('User not loaded. Please try again.');
+      return;
+    }
+    // Redirect to backend endpoint for Google OAuth, including clinicId
+    window.location.href = `http://localhost:8080/api/google-meet/auth?clinicId=${user._id}`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -1833,7 +1842,16 @@ function VetClinicDashboardContent() {
         </div>
       </header>
 
-
+      {/* Connect Google Button for Clinic Admins */}
+      <div style={{ marginBottom: 24, padding: 16, background: '#f8f9fa', borderRadius: 8 }}>
+        <p style={{ marginBottom: 8 }}>
+          <strong>Connect your Google account</strong> to enable Google Meet links for online consultations.
+        </p>
+        <Button onClick={handleConnectGoogle} variant="outline" style={{ background: '#fff', color: '#4285F4', border: '1px solid #4285F4' }}>
+          <svg style={{ marginRight: 8 }} width="20" height="20" viewBox="0 0 48 48"><g><path fill="#4285F4" d="M43.6 20.5H42V20H24v8h11.3C34.7 32.1 30.1 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.9 0 5.5 1 7.6 2.7l6.4-6.4C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 19.5-7.6 20.8-17.5.1-.8.2-1.5.2-2.5 0-1.3-.1-2.2-.2-3z"/><path fill="#34A853" d="M6.3 14.7l6.6 4.8C14.5 16.1 18.8 13 24 13c2.9 0 5.5 1 7.6 2.7l6.4-6.4C34.5 5.1 29.5 3 24 3c-7.2 0-13.5 3.1-17.7 8z"/><path fill="#FBBC05" d="M24 45c5.5 0 10.5-1.8 14.4-4.9l-6.7-5.5C29.5 36.9 26.9 38 24 38c-6.1 0-10.7-3-13.3-7.3l-6.6 5.1C7.5 41.9 15.2 45 24 45z"/><path fill="#EA4335" d="M43.6 20.5H42V20H24v8h11.3c-1.2 3.2-4.3 5.5-7.3 6.5l6.7 5.5C38.7 41.2 43.6 34.9 43.6 27.5c0-1.3-.1-2.2-.2-3z"/></g></svg>
+          Connect Google
+        </Button>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Overview Cards */}
@@ -2235,16 +2253,6 @@ function VetClinicDashboardContent() {
                                 <Button variant="outline" size="sm" onClick={() => { setSelectedAppointment(appointment); setDetailsOpen(true); }}>
                                   View Details
                                 </Button>
-                                {appointment.type === 'online' && appointment.status === 'confirmed' && !appointment.googleMeetLink && (
-                                  <Button 
-                                    size="sm" 
-                                    className="bg-blue-600 hover:bg-blue-700"
-                                    onClick={() => handleCreateGoogleMeet(appointment)}
-                                  >
-                                    <Video className="w-4 h-4 mr-2" />
-                                    Create Meet Link
-                                  </Button>
-                                )}
                                 {appointment.type === 'online' && appointment.status === 'confirmed' && appointment.googleMeetLink && (
                                   <a 
                                     href={appointment.googleMeetLink} 
@@ -2253,7 +2261,7 @@ function VetClinicDashboardContent() {
                                   >
                                     <Button className="bg-green-600 hover:bg-green-700">
                                       <Video className="w-4 h-4 mr-2" />
-                                      Start Call
+                                      Join Call
                                     </Button>
                                   </a>
                                 )}
@@ -2322,16 +2330,6 @@ function VetClinicDashboardContent() {
                             <TableCell>
                               <div className="flex gap-2">
                                 <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/vet-clinic/video-consultation?appointment=${consultation._id}`}>View Details</Button>
-                                {!consultation.googleMeetLink && (
-                                  <Button 
-                                    size="sm" 
-                                    className="bg-blue-600 hover:bg-blue-700"
-                                    onClick={() => handleCreateGoogleMeet(consultation)}
-                                  >
-                                    <Video className="w-4 h-4 mr-2" />
-                                    Create Meet Link
-                                  </Button>
-                                )}
                                 {consultation.googleMeetLink && (
                                   <a href={consultation.googleMeetLink} target="_blank" rel="noopener noreferrer">
                                     <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700">

@@ -48,52 +48,32 @@ export default function VideoConsultation() {
   const router = useRouter()
 
   useEffect(() => {
-    // Fetch appointment from backend
-    if (appointmentId) {
-      fetch(`http://localhost:8080/api/bookings/${appointmentId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.data) {
-            setAppointment(data.data);
-            setMeetLink(data.data.googleMeetLink || null);
-          } else {
-            setError('Appointment not found');
-          }
-          setLoading(false);
-        })
-        .catch(() => {
-          setError('Failed to fetch appointment');
-          setLoading(false);
-        });
-    } else {
+    // Remove mock data: Only fetch real appointment from backend if appointmentId exists
+    if (!appointmentId) {
+      setError('No appointment ID provided');
       setLoading(false);
+      return;
     }
-  }, [appointmentId]);
-
-  useEffect(() => {
-    // Mock data for testing instead of API calls
-    setTimeout(() => {
-      setUserName("John Smith")
-      setAppointment({
-        _id: appointmentId || "mock123",
-        startTime: new Date().toISOString(),
-        endTime: new Date(Date.now() + 3600000).toISOString(),
-        status: "scheduled",
-        doctor: {
-          _id: "doctor123",
-          name: "Dr. Williams",
-          email: "dr.williams@petcare.com",
-          vetClinic: {
-            name: "Happy Paws Veterinary Clinic"
-          }
-        },
-        pet: {
-          _id: "pet123",
-          name: "Max"
+    setLoading(true);
+    fetch(`http://localhost:8080/api/bookings/${appointmentId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.data) {
+          setAppointment(data.data);
+          setMeetLink(data.data.googleMeetLink || null);
+        } else {
+          setError('Appointment not found');
         }
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('Failed to fetch appointment');
+        setLoading(false);
       });
-      setLoading(false)
-    }, 1500); // Small delay to show loading state
   }, [appointmentId]);
 
   useEffect(() => {

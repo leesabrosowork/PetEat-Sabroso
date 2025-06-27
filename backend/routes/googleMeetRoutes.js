@@ -4,6 +4,7 @@ const { google } = require('googleapis');
 const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } = require('../config/config');
 const { createGoogleMeet } = require('../utils/googleMeet');
 const { sendMeetLinkEmail, generateMeetEmailTemplate } = require('../utils/emailService');
+const User = require('../models/userModel');
 
 // Direct authentication redirect (what frontend expects)
 router.get('/auth', (req, res) => {
@@ -18,10 +19,13 @@ router.get('/auth', (req, res) => {
         'https://www.googleapis.com/auth/calendar.events'
     ];
 
+    // Pass clinicId as state
+    const { clinicId } = req.query;
     const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: scopes,
-        include_granted_scopes: true
+        include_granted_scopes: true,
+        state: clinicId || ''
     });
 
     // Redirect user directly to Google OAuth
@@ -52,7 +56,8 @@ router.get('/auth-url', (req, res) => {
 
 // Handle OAuth2 callback (Google redirects here)
 router.get('/callback', async (req, res) => {
-    const { code } = req.query;
+    const { code, state } = req.query;
+    const clinicId = state; // state contains clinicId
     const oauth2Client = new google.auth.OAuth2(
         GOOGLE_CLIENT_ID,
         GOOGLE_CLIENT_SECRET,
@@ -61,7 +66,21 @@ router.get('/callback', async (req, res) => {
 
     try {
         const { tokens } = await oauth2Client.getToken(code);
-        
+
+        // Save tokens to the clinic document if clinicId is present
+        if (clinicId) {
+            const clinic = await User.findById(clinicId);
+            if (clinic && clinic.role === 'clinic') {
+                clinic.googleTokens = tokens;
+                await clinic.save();
+                console.log(`✅ Saved Google tokens for clinic ${clinic.clinicName || clinic.email}`);
+            } else {
+                console.warn('⚠️ Clinic not found or not a clinic user');
+            }
+        } else {
+            console.warn('⚠️ No clinicId provided in OAuth state');
+        }
+
         // For popup authentication, send a simple HTML page that communicates back to parent
         const html = `
         <!DOCTYPE html>
@@ -99,43 +118,14 @@ router.get('/callback', async (req, res) => {
             <div class="success">✅ Google Authentication Successful!</div>
             <div class="spinner"></div>
             <p>Returning to application...</p>
-            
             <script>
-                try {
-                    // Store tokens in localStorage for the main window to access
-                    localStorage.setItem('google_oauth_tokens', '${JSON.stringify(tokens).replace(/'/g, "\\'")}');
-                    
-                                         // Send message to parent window
-                     if (window.opener) {
-                         window.opener.postMessage({
-                             type: 'google-auth-success',
-                             tokens: ${JSON.stringify(tokens)}
-                         }, 'http://localhost:3000');
-                     }
-                    
-                    // Close popup after a short delay
-                    setTimeout(() => {
-                        window.close();
-                    }, 1500);
-                } catch (error) {
-                    console.error('Error in OAuth callback:', error);
-                                         if (window.opener) {
-                         window.opener.postMessage({
-                             type: 'google-auth-error',
-                             error: 'Failed to process authentication'
-                         }, 'http://localhost:3000');
-                     }
-                    window.close();
-                }
+                setTimeout(() => { window.close(); }, 1500);
             </script>
         </body>
         </html>`;
-        
         res.send(html);
-        
     } catch (error) {
         console.error('OAuth2 callback error:', error);
-        
         // Send error page for popup
         const errorHtml = `
         <!DOCTYPE html>
@@ -160,26 +150,11 @@ router.get('/callback', async (req, res) => {
             <div class="error">❌ Authentication Failed</div>
             <p>${error.message}</p>
             <p>This window will close automatically...</p>
-            
             <script>
-                try {
-                                         if (window.opener) {
-                         window.opener.postMessage({
-                             type: 'google-auth-error',
-                             error: '${error.message.replace(/'/g, "\\'")}'
-                         }, 'http://localhost:3000');
-                     }
-                    
-                    setTimeout(() => {
-                        window.close();
-                    }, 3000);
-                } catch (e) {
-                    window.close();
-                }
+                setTimeout(() => { window.close(); }, 3000);
             </script>
         </body>
         </html>`;
-        
         res.send(errorHtml);
     }
 });

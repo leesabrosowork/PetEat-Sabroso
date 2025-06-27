@@ -1369,13 +1369,11 @@ export default function UserDashboard() {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          {booking.type === 'online' && (
-                            <Link href={`/dashboard/user/video-consultation?appointment=${booking._id}`}>
-                              <Button variant="outline" size="sm" className="bg-blue-100 hover:bg-blue-200 text-blue-800">
-                                <Video className="h-4 w-4 mr-1" />
-                                View Online Consultation
-                              </Button>
-                            </Link>
+                          {booking.status === 'confirmed' && (
+                            <Button variant="outline" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              View Details
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -1447,7 +1445,7 @@ export default function UserDashboard() {
                           <TableCell>
                             <div className="flex gap-2">
                               <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/user/video-consultation?appointment=${consultation._id}`}>View Details</Button>
-                              {consultation.type === 'online' && (consultation.status === 'confirmed' || consultation.status === 'scheduled') && consultation.googleMeetLink && (
+                              {consultation.type === 'online' && consultation.status === 'confirmed' && consultation.googleMeetLink && (
                                 <a href={consultation.googleMeetLink} target="_blank" rel="noopener noreferrer">
                                   <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700">
                                     <Video className="w-4 h-4 mr-2" />
@@ -1539,6 +1537,14 @@ export default function UserDashboard() {
                               })()}
                             </span>
                           </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {booking.status === 'confirmed' && (
+                            <Button variant="outline" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              View Details
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
