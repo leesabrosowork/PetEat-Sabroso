@@ -17,6 +17,7 @@ interface InventoryItem {
   category: string;
   status: 'in-stock' | 'low-stock' | 'out-of-stock';
   lastUpdated: string;
+  expirationDate?: string;
 }
 
 interface InventoryDialogProps {
@@ -33,6 +34,7 @@ export function InventoryDialog({ item, open, onOpenChange, onUpdate }: Inventor
     minStock: 0,
     category: '',
     status: 'in-stock' as 'in-stock' | 'low-stock' | 'out-of-stock',
+    expirationDate: '',
   })
   const [isUpdating, setIsUpdating] = useState(false)
   const [customCategory, setCustomCategory] = useState('');
@@ -53,6 +55,7 @@ export function InventoryDialog({ item, open, onOpenChange, onUpdate }: Inventor
         minStock: item.minStock,
         category: item.category,
         status: item.status,
+        expirationDate: item.expirationDate || '',
       })
     }
   }, [item])
@@ -185,6 +188,16 @@ export function InventoryDialog({ item, open, onOpenChange, onUpdate }: Inventor
                 {formData.status.replace('-', ' ')}
               </Badge>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="expirationDate">Expiration Date</Label>
+            <Input
+              id="expirationDate"
+              type="date"
+              value={formData.expirationDate ? formData.expirationDate.split('T')[0] : ''}
+              onChange={e => setFormData({ ...formData, expirationDate: e.target.value })}
+            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

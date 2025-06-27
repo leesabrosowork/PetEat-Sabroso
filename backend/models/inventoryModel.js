@@ -29,7 +29,23 @@ const inventorySchema = new mongoose.Schema({
     lastUpdated: {
         type: Date,
         default: Date.now
-    }
+    },
+    expirationDate: {
+        type: Date,
+        required: false
+    },
+    clinic: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    subtractionHistory: [
+        {
+            amount: { type: Number, required: true }, // always negative
+            date: { type: Date, default: Date.now },
+            user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } // optional: who subtracted
+        }
+    ]
 }, {
     timestamps: true
 });

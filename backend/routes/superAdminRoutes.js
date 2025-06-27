@@ -37,4 +37,7 @@ router.get('/pending-vet-clinics', protect, authorize('super admin'), superAdmin
 router.put('/vet-clinics/:id/approve', protect, authorize('super admin'), superAdminController.approveVetClinic);
 router.put('/vet-clinics/:id/reject', protect, authorize('super admin'), superAdminController.rejectVetClinic);
 
+// Dashboard overview analytics
+router.get('/dashboard/overview', protect, authorize('super admin'), superAdminController.getDashboardOverview);
+
 module.exports = router; 

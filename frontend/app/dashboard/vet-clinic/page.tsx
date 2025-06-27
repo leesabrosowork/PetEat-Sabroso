@@ -56,6 +56,7 @@ import { ClientOnly } from "@/components/ClientOnly"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { useLocalStorageString, useLocalStorageBoolean } from "@/hooks/useLocalStorage"
 import GoogleMeetDialog from "@/components/GoogleMeetDialog"
+import DashboardAnalytics from "@/components/DashboardAnalytics"
 
 interface User {
   _id: string;
@@ -163,6 +164,7 @@ interface InventoryItem {
   category: string;
   status: 'in-stock' | 'low-stock' | 'out-of-stock';
   lastUpdated: string;
+  expirationDate?: string;
 }
 
 interface Activity {
@@ -313,9 +315,11 @@ function VetClinicDashboardContent() {
   const [googleMeetDialogOpen, setGoogleMeetDialogOpen] = useState(false);
   const [selectedAppointmentForMeet, setSelectedAppointmentForMeet] = useState<VideoConsultation | null>(null);
 
-
-
-
+  // Add state for inventory search/filter
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [inventoryCategory, setInventoryCategory] = useState('');
+  const [inventoryStatus, setInventoryStatus] = useState('');
+  const [inventoryExpiration, setInventoryExpiration] = useState('all'); // 'all', 'soon', 'expired'
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -1854,89 +1858,8 @@ function VetClinicDashboardContent() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Pets Overview */}
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => document.getElementById('pets-tab')?.click()}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Total Pets</CardTitle>
-              <Heart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{dashboardData?.totalPets}</div>
-              <div className="flex space-x-2 mt-2">
-                <Badge variant="outline" className="text-xs">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  {dashboardData?.petsByStatus.stable} Stable
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  <ClockIcon className="w-3 h-3 mr-1" />
-                  {dashboardData?.petsByStatus.checkup} Checkup
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {dashboardData?.petsByStatus.critical} Critical
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Medical Records Overview */}
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => document.getElementById('medical-records-tab')?.click()}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Medical Records</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{dashboardData?.totalMedicalRecords}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Total records maintained
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Appointments Overview */}
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => document.getElementById('appointments-tab')?.click()}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Appointments</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{dashboardData?.upcomingAppointments}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Pending & scheduled in-person visits
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Video Consultations Overview */}
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => document.getElementById('video-consultations-tab')?.click()}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Online Consultations</CardTitle>
-              <Video className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{dashboardData?.videoConsultations || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                Pending & scheduled online consultations
-              </p>
-            </CardContent>
-          </Card>
-          
-          {/* Pets Under Treatment Overview */}
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => document.getElementById('pets-under-treatment-tab')?.click()}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Pets Under Treatment</CardTitle>
-              <Hospital className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{petsUnderTreatment.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Currently in care
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Overview Analytics */}
+        <DashboardAnalytics data={dashboardData as any} />
 
         {/* Tabs */}
         <Tabs value={activeTabValue} defaultValue="overview" className="space-y-6" onValueChange={handleTabChange}>
@@ -2530,92 +2453,89 @@ function VetClinicDashboardContent() {
           <TabsContent value="inventory">
             <Card>
               <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="text-gray-900 dark:text-white">Inventory Management</CardTitle>
-                    <CardDescription>Clinic supplies and medications</CardDescription>
-                  </div>
-                  <Button onClick={() => setAddInventoryDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Item
-                  </Button>
+                <CardTitle className="text-gray-900 dark:text-white">Inventory Management</CardTitle>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <Input
+                    placeholder="Search by name..."
+                    value={inventorySearch}
+                    onChange={e => setInventorySearch(e.target.value)}
+                    className="w-48"
+                  />
+                  <select value={inventoryCategory} onChange={e => setInventoryCategory(e.target.value)} className="border rounded px-2 py-1">
+                    <option value="">All Categories</option>
+                    <option value="Medication">Medication</option>
+                    <option value="Supplies">Supplies</option>
+                    <option value="Equipment">Equipment</option>
+                    <option value="Food">Food</option>
+                    <option value="Vaccine">Vaccine</option>
+                  </select>
+                  <select value={inventoryStatus} onChange={e => setInventoryStatus(e.target.value)} className="border rounded px-2 py-1">
+                    <option value="">All Status</option>
+                    <option value="in-stock">In Stock</option>
+                    <option value="low-stock">Low Stock</option>
+                    <option value="out-of-stock">Out of Stock</option>
+                  </select>
+                  <select value={inventoryExpiration} onChange={e => setInventoryExpiration(e.target.value)} className="border rounded px-2 py-1">
+                    <option value="all">All Expiration</option>
+                    <option value="soon">Expiring Soon</option>
+                    <option value="expired">Expired</option>
+                  </select>
                 </div>
               </CardHeader>
               <CardContent>
-                {inventoryLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-2 text-gray-600">Loading inventory...</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-gray-900 dark:text-white">Item Name</TableHead>
-                        <TableHead className="text-gray-900 dark:text-white">Category</TableHead>
-                        <TableHead className="text-gray-900 dark:text-white">Quantity</TableHead>
-                        <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
-                        <TableHead className="text-gray-900 dark:text-white">Min Stock</TableHead>
-                        <TableHead className="text-gray-900 dark:text-white">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {inventory.map((item) => (
-                        <TableRow key={item._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
-                          <TableCell className="font-medium text-blue-600 dark:text-blue-400">{item.item}</TableCell>
-                          <TableCell className="text-blue-600 dark:text-blue-400">{item.category}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => handleChangeStock(item._id, -1)}
-                                disabled={item.stock <= 0}
-                                aria-label="Decrease stock"
-                              >
-                                −
-                              </Button>
-                              <span className="w-8 text-center">{item.stock}</span>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => handleChangeStock(item._id, 1)}
-                                aria-label="Increase stock"
-                              >
-                                +
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={
-                              item.status === 'in-stock' ? 'bg-green-100 text-green-800' :
-                              item.status === 'low-stock' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }>
-                              {item.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{item.minStock}</TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button variant="outline" size="sm" onClick={() => handleUpdateInventory(item)}>
-                                Update Stock
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => handleDeleteInventoryItem(item._id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead>Min Stock</TableHead>
+                      <TableHead>Expiration Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inventory
+                      .filter(item => item.item.toLowerCase().includes(inventorySearch.toLowerCase()))
+                      .filter(item => !inventoryCategory || item.category === inventoryCategory)
+                      .filter(item => !inventoryStatus || item.status === inventoryStatus)
+                      .filter(item => {
+                        if (inventoryExpiration === 'soon') {
+                          if (!item.expirationDate) return false;
+                          const days = (Number(new Date(item.expirationDate ?? '')) - Number(new Date())) / (1000*60*60*24);
+                          return days >= 0 && days <= 7;
+                        }
+                        if (inventoryExpiration === 'expired') {
+                          if (!item.expirationDate) return false;
+                          return Number(new Date(item.expirationDate ?? '')) < Number(new Date());
+                        }
+                        return true;
+                      })
+                      .map(item => {
+                        let expClass = '';
+                        if (item.expirationDate) {
+                          const days = (Number(new Date(item.expirationDate ?? '')) - Number(new Date())) / (1000*60*60*24);
+                          if (days >= 0 && days <= 7) expClass = 'bg-yellow-100 text-yellow-800';
+                          if (days < 0) expClass = 'bg-red-100 text-red-800';
+                        }
+                        return (
+                          <TableRow key={item._id} className={expClass}>
+                            <TableCell>{item.item}</TableCell>
+                            <TableCell>{item.category}</TableCell>
+                            <TableCell>{item.status}</TableCell>
+                            <TableCell>{item.stock}</TableCell>
+                            <TableCell>{item.minStock}</TableCell>
+                            <TableCell>{item.expirationDate ? new Date(item.expirationDate).toLocaleDateString() : '-'}</TableCell>
+                            <TableCell>
+                              <Button variant="outline" size="sm" onClick={() => handleUpdateInventory(item)}>Edit</Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleDeleteInventoryItem(item._id)} className="ml-2">Delete</Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Package, LogOut, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
 import Image from "next/image"
 import { useToast } from "@/components/ui/use-toast"
+import { DashboardAnalytics } from "@/components/DashboardAnalytics"
 
 interface InventoryItem {
   _id: string
@@ -19,6 +20,7 @@ interface InventoryItem {
   stock: number
   minStock: number
   status: string
+  expirationDate?: string
 }
 
 export default function StaffDashboard() {
@@ -28,6 +30,10 @@ export default function StaffDashboard() {
   const [user, setUser] = useState<any>(null)
   const { toast } = useToast()
   const router = useRouter()
+  const [inventorySearch, setInventorySearch] = useState('')
+  const [inventoryCategory, setInventoryCategory] = useState('')
+  const [inventoryStatus, setInventoryStatus] = useState('')
+  const [inventoryExpiration, setInventoryExpiration] = useState('all') // 'all', 'soon', 'expired'
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -187,54 +193,43 @@ export default function StaffDashboard() {
         </div>
 
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Items</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{inventory.length}</div>
-              <p className="text-xs text-muted-foreground">In inventory</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{lowStockItems}</div>
-              <p className="text-xs text-muted-foreground">Need attention</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
-              <XCircle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{outOfStockItems}</div>
-              <p className="text-xs text-muted-foreground">Need restocking</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Stock</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {inventory.length - lowStockItems - outOfStockItems}
-              </div>
-              <p className="text-xs text-muted-foreground">Well stocked</p>
-            </CardContent>
-          </Card>
+          <DashboardAnalytics data={{
+            inventoryItems: inventory.length,
+            lowStockItems: lowStockItems,
+          }} />
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle>Inventory Management</CardTitle>
             <CardDescription>View and manage your inventory items</CardDescription>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Input
+                placeholder="Search by name..."
+                value={inventorySearch}
+                onChange={e => setInventorySearch(e.target.value)}
+                className="w-48"
+              />
+              <select value={inventoryCategory} onChange={e => setInventoryCategory(e.target.value)} className="border rounded px-2 py-1">
+                <option value="">All Categories</option>
+                <option value="Medication">Medication</option>
+                <option value="Supplies">Supplies</option>
+                <option value="Equipment">Equipment</option>
+                <option value="Food">Food</option>
+                <option value="Vaccine">Vaccine</option>
+              </select>
+              <select value={inventoryStatus} onChange={e => setInventoryStatus(e.target.value)} className="border rounded px-2 py-1">
+                <option value="">All Status</option>
+                <option value="in-stock">In Stock</option>
+                <option value="low-stock">Low Stock</option>
+                <option value="out-of-stock">Out of Stock</option>
+              </select>
+              <select value={inventoryExpiration} onChange={e => setInventoryExpiration(e.target.value)} className="border rounded px-2 py-1">
+                <option value="all">All Expiration</option>
+                <option value="soon">Expiring Soon</option>
+                <option value="expired">Expired</option>
+              </select>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -245,70 +240,52 @@ export default function StaffDashboard() {
                   <TableRow>
                     <TableHead>Item</TableHead>
                     <TableHead>Category</TableHead>
-                    <TableHead>Current Stock</TableHead>
-                    <TableHead>Min Stock</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Min Stock</TableHead>
+                    <TableHead>Expiration Date</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(inventory || []).map(item => (
-                    <TableRow key={item._id}>
-                      <TableCell className="font-medium">{item.item}</TableCell>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleChangeStock(item._id, -1)}
-                            disabled={item.stock <= 0}
-                            aria-label="Decrease stock"
-                          >
-                            −
-                          </Button>
-                          <span className="w-8 text-center">{item.stock}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleChangeStock(item._id, 1)}
-                            aria-label="Increase stock"
-                          >
-                            +
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>{item.minStock}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            item.status === "in-stock"
-                              ? "default"
-                              : item.status === "low-stock"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                        >
-                          {item.status.replace("-", " ")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2 items-center">
-                          <Input
-                            type="number"
-                            min={1}
-                            value={quantities[item._id] || ""}
-                            onChange={e => setQuantities(prev => ({ ...prev, [item._id]: parseInt(e.target.value) }))}
-                            placeholder="Qty to subtract"
-                            className="w-32"
-                          />
-                          <Button onClick={() => handleSubtract(item._id)} variant="secondary">
-                            Subtract
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {inventory
+                    .filter(item => item.item.toLowerCase().includes(inventorySearch.toLowerCase()))
+                    .filter(item => !inventoryCategory || item.category === inventoryCategory)
+                    .filter(item => !inventoryStatus || item.status === inventoryStatus)
+                    .filter(item => {
+                      if (inventoryExpiration === 'soon') {
+                        if (!item.expirationDate) return false;
+                        const days = (Number(new Date(item.expirationDate)) - Number(new Date())) / (1000*60*60*24);
+                        return days >= 0 && days <= 7;
+                      }
+                      if (inventoryExpiration === 'expired') {
+                        if (!item.expirationDate) return false;
+                        return Number(new Date(item.expirationDate)) < Number(new Date());
+                      }
+                      return true;
+                    })
+                    .map(item => {
+                      let expClass = '';
+                      if (item.expirationDate) {
+                        const days = (Number(new Date(item.expirationDate)) - Number(new Date())) / (1000*60*60*24);
+                        if (days >= 0 && days <= 7) expClass = 'bg-yellow-100 text-yellow-800';
+                        if (days < 0) expClass = 'bg-red-100 text-red-800';
+                      }
+                      return (
+                        <TableRow key={item._id} className={expClass}>
+                          <TableCell>{item.item}</TableCell>
+                          <TableCell>{item.category}</TableCell>
+                          <TableCell>{item.status}</TableCell>
+                          <TableCell>{item.stock}</TableCell>
+                          <TableCell>{item.minStock}</TableCell>
+                          <TableCell>{item.expirationDate ? new Date(item.expirationDate).toLocaleDateString() : '-'}</TableCell>
+                          <TableCell>
+                            <Button variant="outline" size="sm" onClick={() => handleChangeStock(item._id, 1)}>+1</Button>
+                            <Button variant="outline" size="sm" onClick={() => handleChangeStock(item._id, -1)} className="ml-2">-1</Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                 </TableBody>
               </Table>
             )}

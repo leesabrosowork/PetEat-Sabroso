@@ -160,7 +160,7 @@ exports.createAdmin = async (req, res) => {
 // Create a new inventory item
 exports.createInventoryItem = async (req, res) => {
     try {
-        const { item, category, stock, minStock } = req.body;
+        const { item, category, stock, minStock, clinic } = req.body;
 
         // Create new inventory item
         const newItem = await Inventory.create({
@@ -168,7 +168,8 @@ exports.createInventoryItem = async (req, res) => {
             category,
             stock,
             minStock,
-            status: stock > minStock ? 'in-stock' : 'low-stock'
+            status: stock > minStock ? 'in-stock' : 'low-stock',
+            clinic
         });
 
         if (req.app && req.app.get('io')) {

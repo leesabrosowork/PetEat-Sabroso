@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Plus, Trash2, Minus } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { format, differenceInDays } from 'date-fns';
 
 interface InventoryItem {
   _id: string
@@ -31,6 +32,7 @@ interface InventoryItem {
   status: string
   lastUpdated: string
   createdAt: string
+  expirationDate?: string
 }
 
 interface InventoryManagementProps {
@@ -49,8 +51,13 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
     minStock: 5,
     category: "Supplies",
     status: "in-stock",
+    expirationDate: ""
   })
   const { toast } = useToast()
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [search, setSearch] = useState('');
+  const [inventoryExpiration, setInventoryExpiration] = useState('all');
 
   const handleCreateItem = async () => {
     try {
@@ -78,6 +85,7 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
           minStock: 5,
           category: "Supplies",
           status: "in-stock",
+          expirationDate: ""
         })
         onInventoryUpdated()
       } else {
@@ -249,12 +257,67 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
     }
   }
 
+  // Filtering logic
+  const filteredInventory = inventory.filter(item => {
+    const matchesCategory = !filterCategory || item.category === filterCategory;
+    const matchesStatus = !filterStatus || item.status === filterStatus;
+    const matchesSearch = !search || item.item.toLowerCase().includes(search.toLowerCase());
+    return matchesCategory && matchesStatus && matchesSearch;
+  });
+
+  const filteredExpirationInventory = filteredInventory.filter(item => {
+    if (inventoryExpiration === 'soon') {
+      if (!item.expirationDate) return false;
+      const days = (Number(new Date(item.expirationDate)) - Number(new Date())) / (1000*60*60*24);
+      return days >= 0 && days <= 7;
+    }
+    if (inventoryExpiration === 'expired') {
+      if (!item.expirationDate) return false;
+      return Number(new Date(item.expirationDate)) < Number(new Date());
+    }
+    return true;
+  });
+
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Inventory Management</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">Manage your clinic's inventory items and stock levels</p>
+        </div>
+        <div className="flex flex-wrap gap-2 items-end">
+          <div>
+            <Label>Category</Label>
+            <select className="border rounded px-2 py-1" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+              <option value="">All</option>
+              <option value="Medication">Medication</option>
+              <option value="Supplies">Supplies</option>
+              <option value="Equipment">Equipment</option>
+              <option value="Food">Food</option>
+              <option value="Vaccine">Vaccine</option>
+            </select>
+          </div>
+          <div>
+            <Label>Status</Label>
+            <select className="border rounded px-2 py-1" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+              <option value="">All</option>
+              <option value="in-stock">In Stock</option>
+              <option value="low-stock">Low Stock</option>
+              <option value="out-of-stock">Out of Stock</option>
+            </select>
+          </div>
+          <div>
+            <Label>Expiration</Label>
+            <select className="border rounded px-2 py-1" value={inventoryExpiration} onChange={e => setInventoryExpiration(e.target.value)}>
+              <option value="all">All</option>
+              <option value="soon">Soon</option>
+              <option value="expired">Expired</option>
+            </select>
+          </div>
+          <div>
+            <Label>Search</Label>
+            <Input placeholder="Search item..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
         </div>
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
@@ -270,87 +333,105 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
             <TableHead className="text-gray-900 dark:text-white">Min Stock</TableHead>
             <TableHead className="text-gray-900 dark:text-white">Category</TableHead>
             <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
+            <TableHead className="text-gray-900 dark:text-white">Expiration Date</TableHead>
             <TableHead className="text-gray-900 dark:text-white">Last Updated</TableHead>
             <TableHead className="text-right text-gray-900 dark:text-white">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {inventory.filter(item => item).map((item) => (
-            <TableRow key={item._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-              <TableCell className="font-medium text-gray-900 dark:text-white">{item.item}</TableCell>
-              <TableCell>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleChangeStock(item._id, -1)}
-                    disabled={isUpdatingStock[item._id] || item.stock <= 0}
-                    className="h-8 w-8 p-0"
-                    aria-label="Decrease stock"
+          {filteredExpirationInventory.map((item) => {
+            let expDate = item.expirationDate ? new Date(item.expirationDate) : null;
+            let expSoon = expDate && differenceInDays(expDate, new Date()) <= 7 && differenceInDays(expDate, new Date()) >= 0;
+            let expClass = '';
+            if (expSoon) expClass = 'bg-red-50 dark:bg-red-900';
+            if (expDate && expDate < new Date()) expClass = 'bg-red-100 text-red-800';
+            return (
+              <TableRow key={item._id} className={expClass}>
+                <TableCell className="font-medium text-gray-900 dark:text-white">{item.item}</TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleChangeStock(item._id, -1)}
+                      disabled={isUpdatingStock[item._id] || item.stock <= 0}
+                      className="h-8 w-8 p-0"
+                      aria-label="Decrease stock"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className={`w-8 text-center font-medium ${
+                      item.stock < item.minStock
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-gray-900 dark:text-white'
+                    }`}>
+                      {item.stock}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleChangeStock(item._id, 1)}
+                      disabled={isUpdatingStock[item._id]}
+                      className="h-8 w-8 p-0"
+                      aria-label="Increase stock"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    {isUpdatingStock[item._id] && (
+                      <div className="ml-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-gray-100" />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>{item.minStock}</TableCell>
+                <TableCell>{item.category}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      item.status === "in-stock"
+                        ? "default"
+                        : item.status === "low-stock"
+                        ? "secondary"
+                        : "destructive"
+                    }
                   >
-                    <Minus className="h-3 w-3" />
-                  </Button>
-                  <span className={`w-8 text-center font-medium ${
-                    item.stock < item.minStock
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-gray-900 dark:text-white'
-                  }`}>
-                    {item.stock}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleChangeStock(item._id, 1)}
-                    disabled={isUpdatingStock[item._id]}
-                    className="h-8 w-8 p-0"
-                    aria-label="Increase stock"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                  {isUpdatingStock[item._id] && (
-                    <div className="ml-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-gray-100" />
+                    {item.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {expDate ? (
+                    <span className={expSoon ? 'text-red-600 font-bold' : ''}>
+                      {format(expDate, 'yyyy-MM-dd')}
+                      {expSoon && <span className="ml-2 text-xs">(Expiring soon)</span>}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">N/A</span>
                   )}
-                </div>
-              </TableCell>
-              <TableCell>{item.minStock}</TableCell>
-              <TableCell>{item.category}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    item.status === "in-stock"
-                      ? "default"
-                      : item.status === "low-stock"
-                      ? "secondary"
-                      : "destructive"
-                  }
-                >
-                  {item.status}
-                </Badge>
-              </TableCell>
-              <TableCell>{new Date(item.lastUpdated).toLocaleDateString()}</TableCell>
-              <TableCell>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      setSelectedItem(item)
-                      setIsEditDialogOpen(true)
-                    }}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleDeleteItem(item._id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell>{new Date(item.lastUpdated).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        setSelectedItem(item)
+                        setIsEditDialogOpen(true)
+                      }}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleDeleteItem(item._id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
 
@@ -404,6 +485,15 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
                 <option value="Food">Food</option>
                 <option value="Vaccine">Vaccine</option>
               </select>
+            </div>
+            <div>
+              <Label htmlFor="expirationDate">Expiration Date</Label>
+              <Input
+                id="expirationDate"
+                type="date"
+                value={newItem.expirationDate}
+                onChange={(e) => setNewItem({ ...newItem, expirationDate: e.target.value })}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -474,6 +564,17 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
                   <option value="Food">Food</option>
                   <option value="Vaccine">Vaccine</option>
                 </select>
+              </div>
+              <div>
+                <Label htmlFor="expirationDate">Expiration Date</Label>
+                <Input
+                  id="expirationDate"
+                  type="date"
+                  value={selectedItem.expirationDate}
+                  onChange={(e) =>
+                    setSelectedItem({ ...selectedItem, expirationDate: e.target.value })
+                  }
+                />
               </div>
             </div>
           )}

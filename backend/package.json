@@ -22,7 +22,8 @@
     "multer": "^2.0.1",
     "nodemailer": "^7.0.3",
     "pet-website": "file:..",
-    "socket.io": "^4.7.4"
+    "socket.io": "^4.7.4",
+    "node-cron": "^3.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

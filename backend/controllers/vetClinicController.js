@@ -75,6 +75,57 @@ exports.getDashboardData = async (req, res) => {
             critical: pets.filter(pet => pet.healthStatus === 'critical').length
         };
 
+        // Inventory analytics: find the category with the most subtracted
+        const inventoryDocs = await Inventory.find();
+        const subtractedByCategory = {};
+        for (const inv of inventoryDocs) {
+            if (!inv.category) continue;
+            const totalSub = (inv.subtractionHistory || [])
+                .filter(h => h.amount < 0)
+                .reduce((sum, h) => sum + Math.abs(h.amount), 0);
+            if (!subtractedByCategory[inv.category]) subtractedByCategory[inv.category] = 0;
+            subtractedByCategory[inv.category] += totalSub;
+        }
+        let mostSubtractedCategory = null;
+        let mostSubtractedAmount = 0;
+        for (const [cat, amt] of Object.entries(subtractedByCategory)) {
+            if (amt > mostSubtractedAmount) {
+                mostSubtractedCategory = cat;
+                mostSubtractedAmount = amt;
+            }
+        }
+
+        // Weekly and monthly appointments with reasons
+        const now = new Date();
+        const weekAgo = new Date(now);
+        weekAgo.setDate(now.getDate() - 7);
+        const monthAgo = new Date(now);
+        monthAgo.setMonth(now.getMonth() - 1);
+
+        // Only count appointments with pet owners (type: in person or online, status: confirmed/completed)
+        const weeklyBookings = await Booking.find({
+            clinic: clinicId,
+            bookingDate: { $gte: weekAgo },
+            status: { $in: ['confirmed', 'completed'] }
+        });
+        const monthlyBookings = await Booking.find({
+            clinic: clinicId,
+            bookingDate: { $gte: monthAgo },
+            status: { $in: ['confirmed', 'completed'] }
+        });
+
+        // Group by reason
+        function groupByReason(bookings) {
+            const map = {};
+            for (const b of bookings) {
+                if (!b.reason) continue;
+                map[b.reason] = (map[b.reason] || 0) + 1;
+            }
+            return map;
+        }
+        const weeklyAppointmentsByReason = groupByReason(weeklyBookings);
+        const monthlyAppointmentsByReason = groupByReason(monthlyBookings);
+
         res.json({
             success: true,
             data: {
@@ -85,7 +136,11 @@ exports.getDashboardData = async (req, res) => {
                 completedAppointments,
                 videoConsultations,
                 inventoryItems,
-                lowStockItems
+                lowStockItems,
+                mostSubtractedCategory,
+                mostSubtractedAmount,
+                weeklyAppointmentsByReason,
+                monthlyAppointmentsByReason
             }
         });
     } catch (error) {
@@ -468,7 +523,7 @@ exports.updateMedicalRecord = async (req, res) => {
 exports.updateInventoryItem = async (req, res) => {
     try {
         const { id } = req.params;
-        const { item, stock, minStock, category, status } = req.body;
+        const { item, stock, minStock, category, status, expirationDate } = req.body;
 
         const inventoryItem = await Inventory.findById(id);
         if (!inventoryItem) {
@@ -483,8 +538,9 @@ exports.updateInventoryItem = async (req, res) => {
         if (stock !== undefined) inventoryItem.stock = stock;
         if (minStock !== undefined) inventoryItem.minStock = minStock;
         if (category) inventoryItem.category = category;
-        // Don't override status - let middleware handle it based on stock levels
-        // if (status) inventoryItem.status = status;
+        if (status) inventoryItem.status = status;
+        if (expirationDate) inventoryItem.expirationDate = expirationDate;
+        if (!inventoryItem.clinic) inventoryItem.clinic = req.user.id;
 
         await inventoryItem.save(); // This will trigger the middleware
 
@@ -509,7 +565,10 @@ exports.updateInventoryItem = async (req, res) => {
 // Add inventory item
 exports.addInventoryItem = async (req, res) => {
     try {
-        const inventoryItem = new Inventory(req.body);
+        const inventoryItem = new Inventory({
+            ...req.body,
+            clinic: req.user.id
+        });
         await inventoryItem.save();
         // Emit socket event for real-time update
         if (req.app.get('io')) {
@@ -599,6 +658,15 @@ exports.updateInventoryStock = async (req, res) => {
         }
         item.stock += amount;
         if (item.stock < 0) item.stock = 0;
+        // Log subtraction if amount is negative
+        if (amount < 0) {
+            item.subtractionHistory = item.subtractionHistory || [];
+            item.subtractionHistory.push({
+                amount,
+                date: new Date(),
+                user: req.user ? req.user._id : undefined
+            });
+        }
         await item.save();
         // Emit socket event for real-time update
         if (req.app.get('io')) {

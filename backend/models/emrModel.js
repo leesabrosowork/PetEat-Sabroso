@@ -113,6 +113,12 @@ const emrSchema = new mongoose.Schema({
         type: String, // URLs to stored files
         description: String
     }],
+    // Clinic reference
+    clinic: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'VetClinic', // Change to your actual clinic model name if different
+        required: false
+    },
     archived: {
         type: Boolean,
         default: false

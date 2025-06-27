@@ -20,6 +20,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
 import { getUserPreferences, saveUserPreferences } from "@/lib/storage"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DashboardAnalytics } from "@/components/DashboardAnalytics"
 
 interface Pet {
   _id: string;
@@ -1093,30 +1094,10 @@ export default function UserDashboard() {
             )}
             
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid md:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">My Pets</CardTitle>
-                    <Image src="/peteat-logo.png" alt="PetEat Logo" width={16} height={16} />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{(dashboardData.pets || []).length}</div>
-                    <p className="text-xs text-gray-600 dark:text-gray-300">Registered pets</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-900 dark:text-white">Upcoming Appointments</CardTitle>
-                    <Calendar className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{(upcomingAppointments || []).length}</div>
-                    <p className="text-xs text-gray-600 dark:text-gray-300">
-                      {(inPersonAppointments || []).filter(apt => apt.status === 'scheduled').length} in-person • {(videoAppointments || []).filter(apt => apt.status === 'scheduled').length} video
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
+              <DashboardAnalytics data={{
+                totalPets: dashboardData.pets.length,
+                upcomingAppointments: upcomingAppointments.length,
+              }} />
 
               <div className="grid md:grid-cols-2 gap-6">
                 <Card>
@@ -1642,89 +1623,66 @@ export default function UserDashboard() {
                   <p>Loading medical records...</p>
                 ) : emrsError ? (
                   <p className="text-red-500">{emrsError}</p>
-                ) : Object.keys(emrsByPet).length === 0 ? (
+                ) : (emrs || []).length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500">No medical records found</p>
                   </div>
                 ) : (
-                  Object.entries(emrsByPet).map(([petId, petEmrs]) => (
-                    <Card key={petId}>
-                      <CardHeader>
-                        <CardTitle className="text-lg">
-                          {petEmrs[0].petId?.name || petEmrs[0].name || "Pet"}
-                        </CardTitle>
-                        <CardDescription>
-                          {petEmrs[0].breed || "Not provided"} • {petEmrs[0].species || "Not provided"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {petEmrs.length > 1 ? (
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Doctor/Vet</TableHead>
-                                <TableHead>Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {petEmrs.map((emr) => (
-                                <TableRow key={emr._id}>
-                                  <TableCell>
-                                    {emr.currentVisit?.date
-                                      ? new Date(emr.currentVisit.date).toLocaleDateString()
-                                      : new Date(emr.createdAt).toLocaleDateString()}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge
-                                      variant={
-                                        emr.currentVisit?.status === "active"
-                                          ? "default"
-                                          : emr.currentVisit?.status === "ongoing"
-                                          ? "secondary"
-                                          : "destructive"
-                                      }
-                                    >
-                                      {emr.currentVisit?.status || "Not Specified"}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    {emr.doctor?.name || "Not Assigned"}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => {
-                                        setSelectedEMR(emr);
-                                        setIsEMRViewerOpen(true);
-                                      }}
-                                    >
-                                      View Full Details
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        ) : (
-                          <div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedEMR(petEmrs[0]);
-                                setIsEMRViewerOpen(true);
-                              }}
-                            >
-                              View Full Details
-                            </Button>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Pet</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Doctor/Vet</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...emrs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((emr) => (
+                          <TableRow key={emr._id} className="hover:bg-blue-50 transition-colors">
+                            <TableCell>
+                              {emr.petId?.name || emr.name || "Pet"}
+                            </TableCell>
+                            <TableCell>
+                              {emr.currentVisit?.date
+                                ? new Date(emr.currentVisit.date).toLocaleDateString()
+                                : new Date(emr.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  emr.currentVisit?.status === "active"
+                                    ? "default"
+                                    : emr.currentVisit?.status === "ongoing"
+                                    ? "secondary"
+                                    : "destructive"
+                                }
+                              >
+                                {emr.currentVisit?.status || "Not Specified"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {emr.doctor?.name || emr.clinic?.name || "Not Assigned"}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedEMR(emr);
+                                  setIsEMRViewerOpen(true);
+                                }}
+                              >
+                                View Full Details
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </div>
             </TabsContent>

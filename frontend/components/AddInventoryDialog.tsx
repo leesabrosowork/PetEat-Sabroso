@@ -21,6 +21,7 @@ export function AddInventoryDialog({ open, onOpenChange, onAdded }: AddInventory
     minStock: 5,
     category: '',
     status: 'in-stock' as 'in-stock' | 'low-stock' | 'out-of-stock',
+    expirationDate: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
@@ -151,6 +152,15 @@ export function AddInventoryDialog({ open, onOpenChange, onAdded }: AddInventory
                 <SelectItem value="out-of-stock">Out of Stock</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label htmlFor="expirationDate">Expiration Date</Label>
+            <Input
+              id="expirationDate"
+              type="date"
+              value={formData.expirationDate || ''}
+              onChange={e => setFormData({ ...formData, expirationDate: e.target.value })}
+            />
           </div>
           <div className="flex justify-end space-x-2 pt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>

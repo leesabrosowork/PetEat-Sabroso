@@ -482,7 +482,7 @@ exports.getInventoryItemById = async (req, res) => {
 
 exports.createInventoryItem = async (req, res) => {
     try {
-        const { item, stock, minStock, category, status } = req.body;
+        const { item, stock, minStock, category, status, clinic } = req.body;
 
         // Create new inventory item
         const newItem = await Inventory.create({
@@ -490,7 +490,8 @@ exports.createInventoryItem = async (req, res) => {
             stock,
             minStock,
             category,
-            status: status || (stock > minStock ? 'in-stock' : 'low-stock')
+            status: status || (stock > minStock ? 'in-stock' : 'low-stock'),
+            clinic
         });
 
         if (req.app && req.app.get('io')) {
@@ -720,5 +721,67 @@ exports.rejectVetClinic = async (req, res) => {
             success: false,
             message: error.message
         });
+    }
+};
+
+// Dashboard overview for super admin
+exports.getDashboardOverview = async (req, res) => {
+    try {
+        const [
+            userCount,
+            adminCount,
+            vetClinicCount,
+            petCount,
+            inventoryCount,
+            lowStockItems
+        ] = await Promise.all([
+            User.countDocuments(),
+            Admin.countDocuments(),
+            User.countDocuments({ role: 'clinic' }),
+            Pet.countDocuments(),
+            Inventory.countDocuments(),
+            Inventory.countDocuments({
+                $or: [
+                    { status: 'low-stock' },
+                    { status: 'out-of-stock' }
+                ]
+            })
+        ]);
+
+        // Inventory analytics: find the category with the most subtracted
+        const inventoryDocs = await Inventory.find();
+        const subtractedByCategory = {};
+        for (const inv of inventoryDocs) {
+            if (!inv.category) continue;
+            const totalSub = (inv.subtractionHistory || [])
+                .filter(h => h.amount < 0)
+                .reduce((sum, h) => sum + Math.abs(h.amount), 0);
+            if (!subtractedByCategory[inv.category]) subtractedByCategory[inv.category] = 0;
+            subtractedByCategory[inv.category] += totalSub;
+        }
+        let mostSubtractedCategory = null;
+        let mostSubtractedAmount = 0;
+        for (const [cat, amt] of Object.entries(subtractedByCategory)) {
+            if (amt > mostSubtractedAmount) {
+                mostSubtractedCategory = cat;
+                mostSubtractedAmount = amt;
+            }
+        }
+
+        res.json({
+            success: true,
+            data: {
+                userCount,
+                adminCount,
+                vetClinicCount,
+                petCount,
+                inventoryCount,
+                lowStockItems,
+                mostSubtractedCategory,
+                mostSubtractedAmount
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 }; 

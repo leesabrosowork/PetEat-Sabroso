@@ -12,6 +12,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
 import VetClinicApproval from '@/components/super-admin/VetClinicApproval'
+import { DashboardAnalytics } from '@/components/DashboardAnalytics'
 
 export default function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState('admins')
@@ -19,6 +20,7 @@ export default function SuperAdminDashboard() {
   const [users, setUsers] = useState([])
   const [pets, setPets] = useState([])
   const [inventory, setInventory] = useState([])
+  const [dashboardData, setDashboardData] = useState<any>(null)
   const router = useRouter()
   const { toast } = useToast()
   const [darkMode, setDarkMode] = useState(false)
@@ -123,11 +125,27 @@ export default function SuperAdminDashboard() {
     }
   }
 
+  const fetchDashboardOverview = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://localhost:8080/api/super-admin/dashboard/overview', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        setDashboardData(data.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard analytics:', error)
+    }
+  }
+
   useEffect(() => {
     fetchAdmins()
     fetchUsers()
     fetchPets()
     fetchInventory()
+    fetchDashboardOverview()
   }, [])
 
   return (
@@ -162,6 +180,14 @@ export default function SuperAdminDashboard() {
           </div>
 
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+            {dashboardData && <DashboardAnalytics data={{
+              totalUsers: dashboardData.userCount,
+              totalPets: dashboardData.petCount,
+              inventoryItems: dashboardData.inventoryCount,
+              lowStockItems: dashboardData.lowStockItems,
+              mostSubtractedCategory: dashboardData.mostSubtractedCategory,
+              mostSubtractedAmount: dashboardData.mostSubtractedAmount,
+            }} />}
             <div className="border-b border-gray-200">
               <nav className="flex -mb-px">
                 <button

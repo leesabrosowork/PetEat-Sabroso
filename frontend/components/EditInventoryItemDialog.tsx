@@ -26,6 +26,7 @@ export function EditInventoryItemDialog({ isOpen, onClose, onUpdateInventoryItem
   const [category, setCategory] = useState("")
   const [stock, setStock] = useState("")
   const [minStock, setMinStock] = useState("")
+  const [expirationDate, setExpirationDate] = useState("")
 
   useEffect(() => {
     if (item) {
@@ -33,6 +34,7 @@ export function EditInventoryItemDialog({ isOpen, onClose, onUpdateInventoryItem
       setCategory(item.category)
       setStock(item.stock)
       setMinStock(item.minStock)
+      setExpirationDate(item.expirationDate ? item.expirationDate.split('T')[0] : '')
     }
   }, [item])
 
@@ -48,6 +50,7 @@ export function EditInventoryItemDialog({ isOpen, onClose, onUpdateInventoryItem
       category,
       stock: parseInt(stock, 10) || 0,
       minStock: parseInt(minStock, 10) || 0,
+      expirationDate,
     });
     onClose();
   }
@@ -95,6 +98,15 @@ export function EditInventoryItemDialog({ isOpen, onClose, onUpdateInventoryItem
               Min. Stock
             </Label>
             <Input id="minStock" type="number" value={minStock} onChange={(e) => setMinStock(e.target.value)} className="col-span-3" />
+          </div>
+          <div>
+            <Label htmlFor="expirationDate">Expiration Date</Label>
+            <Input
+              id="expirationDate"
+              type="date"
+              value={expirationDate}
+              onChange={e => setExpirationDate(e.target.value)}
+            />
           </div>
         </div>
         <DialogFooter>
