@@ -233,7 +233,10 @@ export function MedicalRecordDialog({ record, open, onOpenChange, onDelete, onAr
                 <Button 
                   variant="outline" 
                   className={record.archived ? "bg-blue-100 hover:bg-blue-200" : ""}
-                  onClick={() => onArchive(record._id, !record.archived)}
+                  onClick={() => {
+                    console.log('[MedicalRecordDialog] Archive button clicked', { id: record._id, willArchive: !record.archived });
+                    onArchive(record._id, !record.archived);
+                  }}
                 >
                   {record.archived ? "Unarchive" : "Archive"}
                 </Button>

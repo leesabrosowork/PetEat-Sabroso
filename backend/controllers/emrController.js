@@ -364,9 +364,11 @@ exports.getUserPetsEMRs = async (req, res) => {
 // Archive or unarchive an EMR
 exports.archiveEMR = async (req, res) => {
     try {
+        console.log('[archiveEMR] Called with params:', req.params, 'body:', req.body);
         const { id } = req.params;
         const { archived } = req.body;
         const emr = await EMR.findByIdAndUpdate(id, { archived: !!archived }, { new: true });
+        console.log('[archiveEMR] Update result:', emr);
         if (!emr) {
             return res.status(404).json({ success: false, message: 'EMR not found' });
         }

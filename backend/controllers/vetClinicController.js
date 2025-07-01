@@ -290,7 +290,11 @@ exports.getAppointments = async (req, res) => {
         });
         
         const bookings = await Booking.find({ clinic: clinicId })
-            .populate('pet', 'name type breed')
+            .populate({
+                path: 'pet',
+                select: 'name type breed owner',
+                populate: { path: 'owner', select: 'fullName name email' }
+            })
             .populate('petOwner', 'fullName email')
             .populate('clinic', 'clinicName email')
             .sort({ bookingDate: 1, appointmentTime: 1 });
@@ -305,7 +309,7 @@ exports.getAppointments = async (req, res) => {
                 user: b.petOwner,
                 startTime,
                 status: b.status || 'N/A',
-                notes: b.reason || 'N/A',
+                notes: b.reason || b.notes || 'N/A',
                 type: b.type || 'in person',
                 googleMeetLink: b.googleMeetLink
             };

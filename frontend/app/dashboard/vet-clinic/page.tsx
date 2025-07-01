@@ -701,24 +701,15 @@ function VetClinicDashboardContent() {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          // Appointments tab: Show only PENDING appointments (both in-person and online)
-          const pendingAppointments = data.data.filter((b: Booking) => 
-            b.status === 'pending'
-          );
-          
-          console.log(`📋 Found ${pendingAppointments.length} pending appointments for approval`);
-          
-          // Map the bookings to the Appointment interface
-          const mappedAppointments = pendingAppointments.map((booking: Booking) => {
+          // Show all appointments (no status filter)
+          const mappedAppointments = data.data.map((booking: Booking) => {
             const startTime = booking.bookingDate ? new Date(booking.bookingDate) : new Date();
             if (booking.appointmentTime) {
               const [hours, minutes] = booking.appointmentTime.split(':').map(Number);
               startTime.setHours(hours, minutes, 0, 0);
             }
-            
             const endTime = new Date(startTime);
             endTime.setMinutes(endTime.getMinutes() + 30); // Assume 30 min appointments
-            
             return {
               _id: booking._id,
               startTime: startTime.toISOString(),
@@ -728,11 +719,10 @@ function VetClinicDashboardContent() {
               pet: booking.pet,
               user: booking.petOwner,
               doctor: { name: 'Doctor' }, // Placeholder
-              notes: booking.reason,
+              notes: booking.reason || (booking as any).notes,
               googleMeetLink: booking.googleMeetLink
             };
           });
-          
           setAppointments(mappedAppointments);
         }
       }
@@ -979,6 +969,7 @@ function VetClinicDashboardContent() {
 
   // Handle archiving a medical record
   const handleArchiveMedicalRecord = async (recordId: string, archived: boolean) => {
+    console.log('[VetClinicDashboard] handleArchiveMedicalRecord called', { recordId, archived });
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -2173,7 +2164,9 @@ function VetClinicDashboardContent() {
                             )}
                           </TableCell>
                           <TableCell className="font-medium text-gray-900 dark:text-white">{appointment.pet?.name || 'Pet'}</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{appointment.user?.fullName || 'Owner'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">
+                            {appointment.pet?.owner?.fullName || appointment.user?.fullName || appointment.user?.name || 'Owner'}
+                          </TableCell>
                           <TableCell><span className="text-gray-900 dark:text-white">{appointment.notes || 'No reason provided'}</span></TableCell>
                           <TableCell>
                             <Badge className={
@@ -2807,6 +2800,11 @@ function VetClinicDashboardContent() {
         onOpenChange={setAdmitPetDialogOpen}
         onAdmit={handleAdmitPet}
         pets={pets}
+        onQuickAdmitSuccess={() => {
+          setAdmitPetDialogOpen(false);
+          fetchPetsUnderTreatment();
+          fetchActivityFeed();
+        }}
       />
 
       {/* Update Treatment Dialog */}

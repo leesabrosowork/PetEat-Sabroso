@@ -18,8 +18,7 @@ const petsUnderTreatmentSchema = new mongoose.Schema({
     },
     room: {
         type: String,
-        required: true,
-        enum: ['Room 1', 'Room 2', 'Room 3', 'Room 4', 'Room 5', 'ICU', 'Recovery', 'Surgery', 'Isolation']
+        required: true
     },
     admissionDate: {
         type: Date,
