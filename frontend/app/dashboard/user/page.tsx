@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useSocket } from "@/app/context/SocketContext"
@@ -30,6 +30,8 @@ interface Pet {
   weight: number;
   color: string;
   profilePicture?: string;
+  category?: string;
+  species?: string;
 }
 
 interface Doctor {
@@ -123,6 +125,11 @@ export default function UserDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [typingStatus, setTypingStatus] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [appointmentTypeFilter, setAppointmentTypeFilter] = useState('all');
+  const filteredAppointments = useMemo(() => {
+    if (appointmentTypeFilter === 'all') return dashboardData.bookings || [];
+    return (dashboardData.bookings || []).filter(b => b.type === appointmentTypeFilter);
+  }, [dashboardData.bookings, appointmentTypeFilter]);
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -953,8 +960,6 @@ export default function UserDashboard() {
                     <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
                     <TabsTrigger value="pets" className="flex-shrink-0">My Pets</TabsTrigger>
                     <TabsTrigger value="appointments" className="flex-shrink-0">Appointments</TabsTrigger>
-                    <TabsTrigger value="video-consultations" className="flex-shrink-0">Online Consultations</TabsTrigger>
-                    <TabsTrigger value="in-person" className="flex-shrink-0">In Person Appointments</TabsTrigger>
                     <TabsTrigger value="hospitalizations" className="flex-shrink-0">Hospitalizations</TabsTrigger>
                     <TabsTrigger value="medical-records" className="flex-shrink-0">Medical Records</TabsTrigger>
                   </>
@@ -1234,7 +1239,10 @@ export default function UserDashboard() {
                         </div>
                         <div>
                           <h3 className="text-xl font-semibold">{pet.name}</h3>
-                          <p className="text-gray-500">{pet.breed}</p>
+                          <p className="text-gray-500">
+                            {pet.category && <>{pet.category} &bull; </>}
+                            {pet.breed}
+                          </p>
                           <p className="text-sm text-gray-500">Age: {pet.age} years</p>
                           <p className="text-sm text-gray-500">Weight: {pet.weight} kg</p>
                         </div>
@@ -1273,16 +1281,27 @@ export default function UserDashboard() {
 
             <TabsContent value="appointments" className="space-y-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">All Appointments</h2>
-                <Link href="/dashboard/user/schedule-appointment">
-                  <Button>
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Schedule New
-                  </Button>
-                </Link>
+                <h2 className="text-2xl font-bold">Appointments</h2>
+                <div className="flex gap-2 items-center">
+                  <select
+                    className="border rounded px-2 py-1"
+                    value={appointmentTypeFilter}
+                    onChange={e => setAppointmentTypeFilter(e.target.value)}
+                  >
+                    <option value="all">All</option>
+                    <option value="in person">In Person</option>
+                    <option value="online">Online</option>
+                  </select>
+                  <Link href="/dashboard/user/schedule-appointment">
+                    <Button>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Schedule New
+                    </Button>
+                  </Link>
+                </div>
               </div>
               <div className="space-y-4">
-                {(dashboardData.bookings || []).length === 0 && (
+                {filteredAppointments.length === 0 && (
                   <div className="text-center py-8">
                     <p className="text-gray-500 mb-4">No appointments scheduled</p>
                     <Link href="/dashboard/user/schedule-appointment">
@@ -1293,7 +1312,7 @@ export default function UserDashboard() {
                     </Link>
                   </div>
                 )}
-                {(dashboardData.bookings || []).map((booking) => (
+                {filteredAppointments.map((booking) => (
                   <Card key={booking._id}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
@@ -1317,205 +1336,11 @@ export default function UserDashboard() {
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
-                              {(() => {
-                                let dateString = "No date specified";
-                                if (
-                                  booking.startTime &&
-                                  booking.startTime !== "No date specified"
-                                ) {
-                                  const date = new Date(booking.startTime);
-                                  if (!isNaN(date.getTime())) {
-                                    dateString = date.toLocaleDateString();
-                                  }
-                                }
-                                return dateString;
-                              })()}
+                              {booking.startTime ? new Date(booking.startTime).toLocaleDateString() : 'No date specified'}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-4 w-4" />
-                              {(() => {
-                                let timeString = "No time specified";
-                                if (
-                                  booking.startTime &&
-                                  booking.startTime !== "No date specified"
-                                ) {
-                                  const date = new Date(booking.startTime);
-                                  if (!isNaN(date.getTime())) {
-                                    timeString = date.toLocaleTimeString();
-                                  }
-                                }
-                                return timeString;
-                              })()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {booking.status === 'confirmed' && (
-                            <Button variant="outline" size="sm">
-                              <FileText className="h-4 w-4 mr-2" />
-                              View Details
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="video-consultations" className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">Online Consultations</h2>
-              </div>
-              <div className="space-y-4">
-                {videoAppointments.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">No online consultations scheduled</p>
-                    <Link href="/dashboard/user/schedule-appointment">
-                      <Button>
-                        <Calendar className="h-4 w-4 mr-2" />
-                        Schedule Online Consultation
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Pet</TableHead>
-                      <TableHead>Clinic</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(videoAppointments || []).map((consultation) => {
-                      const consultationDate = new Date(consultation.startTime || new Date());
-                      const isToday = consultationDate.toDateString() === new Date().toDateString();
-                      const isPast = consultationDate < new Date();
-                      
-                      return (
-                        <TableRow key={consultation._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
-                          <TableCell>
-                            {consultationDate.toLocaleDateString()} <br />
-                            {consultationDate.toLocaleTimeString()}
-                          </TableCell>
-                          <TableCell className="font-medium text-gray-900 dark:text-white">
-                            {consultation.pet?.name || JSON.stringify(consultation.pet) || 'Pet'}
-                          </TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">
-                            {consultation.clinic?.clinicName || consultation.clinic?.name || JSON.stringify(consultation.clinic) || 'Clinic'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={
-                              consultation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              consultation.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                              consultation.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              consultation.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }>
-                              {consultation.status === 'pending' ? 'Pending' : consultation.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {consultation.reason || '-'}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/user/video-consultation?appointment=${consultation._id}`}>View Details</Button>
-                              {consultation.type === 'online' && consultation.status === 'confirmed' && consultation.googleMeetLink && (
-                                <a href={consultation.googleMeetLink} target="_blank" rel="noopener noreferrer">
-                                  <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700">
-                                    <Video className="w-4 h-4 mr-2" />
-                                    Join Call
-                                  </Button>
-                                </a>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="in-person" className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">In Person Appointments</h2>
-                <Link href="/dashboard/user/schedule-appointment">
-                  <Button>
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Schedule In Person
-                  </Button>
-                </Link>
-              </div>
-              <div className="space-y-4">
-                {inPersonAppointments.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">No in-person appointments scheduled</p>
-                    <Link href="/dashboard/user/schedule-appointment">
-                      <Button>
-                        <Calendar className="h-4 w-4 mr-2" />
-                        Schedule Your First Appointment
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-                {(inPersonAppointments || []).map((booking) => (
-                  <Card key={booking._id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">In Person Appointment{booking.doctor ? ` with ${booking.doctor.name}` : ' at clinic'}</h3>
-                            <Badge className={
-                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              booking.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                              booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              booking.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }>
-                              {getStatusLabel(booking.status)}
-                            </Badge>
-                          </div>
-                          <p className="text-gray-600">{booking.doctor ? booking.doctor.email : null}</p>
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              {(() => {
-                                let dateString = "No date specified";
-                                if (
-                                  booking.startTime &&
-                                  booking.startTime !== "No date specified"
-                                ) {
-                                  const date = new Date(booking.startTime);
-                                  if (!isNaN(date.getTime())) {
-                                    dateString = date.toLocaleDateString();
-                                  }
-                                }
-                                return dateString;
-                              })()}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              {(() => {
-                                let timeString = "No time specified";
-                                if (
-                                  booking.startTime &&
-                                  booking.startTime !== "No date specified"
-                                ) {
-                                  const date = new Date(booking.startTime);
-                                  if (!isNaN(date.getTime())) {
-                                    timeString = date.toLocaleTimeString();
-                                  }
-                                }
-                                return timeString;
-                              })()}
+                              {booking.startTime ? new Date(booking.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'No time specified'}
                             </span>
                           </div>
                         </div>

@@ -21,7 +21,7 @@ const seedPets = async () => {
         const samplePets = [
             {
                 name: "Max",
-                type: "dog",
+                category: "Mammals",
                 breed: "Golden Retriever",
                 age: 3,
                 weight: 30,
@@ -31,8 +31,9 @@ const seedPets = async () => {
             },
             {
                 name: "Luna",
-                type: "cat",
-                breed: "Siamese Cat",
+                category: "Mammals",
+                species: "Cat",
+                breed: "Siamese",
                 age: 2,
                 weight: 4,
                 color: "Cream",
@@ -41,7 +42,8 @@ const seedPets = async () => {
             },
             {
                 name: "Rocky",
-                type: "dog",
+                category: "Mammals",
+                species: "Dog",
                 breed: "German Shepherd",
                 age: 4,
                 weight: 35,
@@ -51,8 +53,9 @@ const seedPets = async () => {
             },
             {
                 name: "Bella",
-                type: "dog",
-                breed: "Labrador",
+                category: "Mammals",
+                species: "Dog",
+                breed: "Labrador Retriever",
                 age: 1,
                 weight: 25,
                 color: "Chocolate",
@@ -61,7 +64,8 @@ const seedPets = async () => {
             },
             {
                 name: "Charlie",
-                type: "dog",
+                category: "Mammals",
+                species: "Dog",
                 breed: "French Bulldog",
                 age: 2,
                 weight: 12,
@@ -71,8 +75,9 @@ const seedPets = async () => {
             },
             {
                 name: "Milo",
-                type: "cat",
-                breed: "Persian Cat",
+                category: "Mammals",
+                species: "Cat",
+                breed: "Persian",
                 age: 3,
                 weight: 5,
                 color: "White",

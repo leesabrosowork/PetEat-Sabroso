@@ -195,8 +195,43 @@ export const DashboardAnalytics: React.FC<DashboardAnalyticsProps> = ({ data }) 
         </Card>
       )}
 
-      {/* Weekly appointments by reason */}
-      {weeklyReasonData.length > 0 && (
+      {/* Weekly and Monthly appointments by reason side by side */}
+      {weeklyReasonData.length > 0 && monthlyReasonData.length > 0 && (
+        <div className="md:col-span-3 flex flex-col md:flex-row gap-6">
+          <Card className="flex-1">
+            <CardHeader>
+              <CardTitle>Weekly Appointments by Reason</CardTitle>
+            </CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weeklyReasonData}>
+                  <XAxis dataKey="reason" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#6366f1" isAnimationActive radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card className="flex-1">
+            <CardHeader>
+              <CardTitle>Monthly Appointments by Reason</CardTitle>
+            </CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyReasonData}>
+                  <XAxis dataKey="reason" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#f59e0b" isAnimationActive radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      {/* If only one of the charts has data, show it full width */}
+      {weeklyReasonData.length > 0 && monthlyReasonData.length === 0 && (
         <Card className="md:col-span-3">
           <CardHeader>
             <CardTitle>Weekly Appointments by Reason</CardTitle>
@@ -213,9 +248,7 @@ export const DashboardAnalytics: React.FC<DashboardAnalyticsProps> = ({ data }) 
           </CardContent>
         </Card>
       )}
-
-      {/* Monthly appointments by reason */}
-      {monthlyReasonData.length > 0 && (
+      {monthlyReasonData.length > 0 && weeklyReasonData.length === 0 && (
         <Card className="md:col-span-3">
           <CardHeader>
             <CardTitle>Monthly Appointments by Reason</CardTitle>

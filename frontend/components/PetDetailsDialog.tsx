@@ -11,6 +11,8 @@ import { toast } from "@/components/ui/use-toast"
 interface Pet {
   _id: string;
   name: string;
+  category?: string;
+  species?: string;
   breed: string;
   age: number;
   gender: string;
@@ -108,6 +110,10 @@ export function PetDetailsDialog({ pet, open, onOpenChange, onUpdate }: PetDetai
             <div>
               <label className="text-sm font-medium text-gray-700">Name</label>
               <p className="text-sm text-gray-900">{pet.name}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Category</label>
+              <p className="text-sm text-gray-900">{pet.category}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">Breed</label>

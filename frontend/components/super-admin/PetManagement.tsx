@@ -24,7 +24,8 @@ import { useToast } from "@/components/ui/use-toast"
 interface Pet {
   _id: string
   name: string
-  type: string
+  category?: string
+  species: string
   breed: string
   age: number
   profilePicture?: string
@@ -46,7 +47,7 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null)
   const [newPet, setNewPet] = useState({
     name: "",
-    type: "",
+    species: "",
     breed: "",
     age: 0,
     owner: "",
@@ -75,7 +76,7 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
         setIsCreateDialogOpen(false)
         setNewPet({
           name: "",
-          type: "",
+          species: "",
           breed: "",
           age: 0,
           owner: "",
@@ -110,7 +111,7 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
         },
         body: JSON.stringify({
           name: selectedPet.name,
-          type: selectedPet.type,
+          species: selectedPet.species,
           breed: selectedPet.breed,
           age: selectedPet.age,
         }),
@@ -193,7 +194,8 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
           <TableRow>
             <TableHead>Picture</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead>Type</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Species</TableHead>
             <TableHead>Breed</TableHead>
             <TableHead>Age</TableHead>
             <TableHead>Owner</TableHead>
@@ -218,7 +220,8 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
                 )}
               </TableCell>
               <TableCell>{pet.name}</TableCell>
-              <TableCell>{pet.type}</TableCell>
+              <TableCell>{pet.category || 'N/A'}</TableCell>
+              <TableCell>{pet.species}</TableCell>
               <TableCell>{pet.breed}</TableCell>
               <TableCell>{pet.age}</TableCell>
               <TableCell>
@@ -273,11 +276,11 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
               />
             </div>
             <div>
-              <Label htmlFor="type">Type</Label>
+              <Label htmlFor="species">Species</Label>
               <Input
-                id="type"
-                value={newPet.type}
-                onChange={(e) => setNewPet({ ...newPet, type: e.target.value })}
+                id="species"
+                value={newPet.species}
+                onChange={(e) => setNewPet({ ...newPet, species: e.target.value })}
               />
             </div>
             <div>
@@ -337,12 +340,12 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
                 />
               </div>
               <div>
-                <Label htmlFor="edit-type">Type</Label>
+                <Label htmlFor="edit-species">Species</Label>
                 <Input
-                  id="edit-type"
-                  value={selectedPet.type}
+                  id="edit-species"
+                  value={selectedPet.species}
                   onChange={(e) =>
-                    setSelectedPet({ ...selectedPet, type: e.target.value })
+                    setSelectedPet({ ...selectedPet, species: e.target.value })
                   }
                 />
               </div>

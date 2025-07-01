@@ -5,10 +5,10 @@ const petSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    type: {
+    category: {
         type: String,
         required: true,
-        enum: ['dog', 'cat', 'bird', 'rabbit', 'hamster', 'other']
+        enum: ['Mammals', 'Birds', 'Fish', 'Reptiles', 'Amphibians']
     },
     breed: {
         type: String,
@@ -91,7 +91,6 @@ const petSchema = new mongoose.Schema({
 // Add indexes for better query performance
 petSchema.index({ owner: 1 });
 petSchema.index({ healthStatus: 1 });
-petSchema.index({ type: 1 });
 petSchema.index({ createdAt: -1 });
 petSchema.index({ owner: 1, healthStatus: 1 });
 

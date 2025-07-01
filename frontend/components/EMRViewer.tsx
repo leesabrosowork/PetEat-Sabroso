@@ -127,8 +127,8 @@ export function EMRViewer({ emrId, isOpen, onClose, onEdit, isDoctor, handleDele
                                     <p>{emr.name}</p>
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-medium text-gray-500">Species</h4>
-                                    <p>{emr.species}</p>
+                                    <h4 className="text-sm font-medium text-gray-500">Category</h4>
+                                    <p>{emr.category}</p>
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-medium text-gray-500">Breed</h4>

@@ -21,6 +21,9 @@ interface Appointment {
   pet: {
     _id: string;
     name: string;
+    category?: string;
+    species?: string;
+    breed?: string;
   };
   googleMeetLink?: string;
 }
@@ -177,7 +180,15 @@ function VideoConsultationContent() {
           <CardHeader className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg text-gray-900 dark:text-white">Video Consultation for {appointment.pet.name}</CardTitle>
+                <CardTitle className="text-lg text-gray-900 dark:text-white">
+                  Video Consultation for {appointment.pet.name}
+                  {appointment.pet.category || appointment.pet.breed ? (
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 font-normal mt-1">
+                      {appointment.pet.category}
+                      {appointment.pet.breed ? ` • ${appointment.pet.breed}` : ''}
+                    </span>
+                  ) : null}
+                </CardTitle>
                 <p className="text-sm text-gray-500 dark:text-gray-400">with {appointment.user.name}</p>
               </div>
               <div className="flex items-center gap-4">

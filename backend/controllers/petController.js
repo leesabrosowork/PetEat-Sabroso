@@ -78,6 +78,14 @@ exports.createPet = async (req, res) => {
                     vaccinations: []
                 };
 
+                // Validation for required fields
+                if (!petData.category || !petData.breed) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Category and breed are required.'
+                    });
+                }
+
                 // Convert string values to appropriate types
                 if (petData.age) petData.age = Number(petData.age);
                 if (petData.weight) petData.weight = Number(petData.weight);
@@ -190,6 +198,14 @@ exports.updatePet = async (req, res) => {
 
             try {
                 const updateData = { ...req.body };
+
+                // Validation for required fields
+                if (!updateData.category || !updateData.breed) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Category and breed are required.'
+                    });
+                }
 
                 // Upload to Cloudinary if file was uploaded
                 if (req.file) {

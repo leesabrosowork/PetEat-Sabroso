@@ -79,6 +79,8 @@ interface Pet {
   healthStatus: 'stable' | 'checkup' | 'critical';
   profilePicture?: string;
   owner: User;
+  category?: string;
+  type?: string;
 }
 
 interface MedicalRecord {
@@ -1757,6 +1759,12 @@ function VetClinicDashboardContent() {
     window.location.href = `http://localhost:8080/api/google-meet/auth?clinicId=${user._id}`;
   };
 
+  const [appointmentTypeFilter, setAppointmentTypeFilter] = useState('all');
+  const filteredAppointments = useMemo(() => {
+    if (appointmentTypeFilter === 'all') return appointments || [];
+    return (appointments || []).filter((a: any) => a.type === appointmentTypeFilter);
+  }, [appointments, appointmentTypeFilter]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -1858,9 +1866,6 @@ function VetClinicDashboardContent() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Overview Analytics */}
-        <DashboardAnalytics data={dashboardData as any} />
-
         {/* Tabs */}
         <Tabs value={activeTabValue} defaultValue="overview" className="space-y-6" onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-7">
@@ -1868,7 +1873,6 @@ function VetClinicDashboardContent() {
             <TabsTrigger value="pets" className="dark:text-white flex-shrink-0">Pets</TabsTrigger>
             <TabsTrigger value="medical-records" className="dark:text-white flex-shrink-0">Medical Records</TabsTrigger>
             <TabsTrigger value="appointments" className="dark:text-white flex-shrink-0">Appointments</TabsTrigger>
-            <TabsTrigger value="video-consultations" className="dark:text-white flex-shrink-0">Video Consultations</TabsTrigger>
             <TabsTrigger value="pets-under-treatment" className="dark:text-white flex-shrink-0">Pets Under Treatment</TabsTrigger>
             <TabsTrigger value="inventory" className="dark:text-white flex-shrink-0">Inventory</TabsTrigger>
             <TabsTrigger value="inbox" className="dark:text-white flex-shrink-0">Inbox</TabsTrigger>
@@ -1876,6 +1880,7 @@ function VetClinicDashboardContent() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            <DashboardAnalytics data={dashboardData as any} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Activity Feed */}
               <Card>
@@ -1938,6 +1943,8 @@ function VetClinicDashboardContent() {
                       <TableRow>
                         <TableHead className="text-gray-900 dark:text-white">Picture</TableHead>
                         <TableHead className="text-gray-900 dark:text-white">Name</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Category</TableHead>
+                        <TableHead className="text-gray-900 dark:text-white">Type</TableHead>
                         <TableHead className="text-gray-900 dark:text-white">Breed</TableHead>
                         <TableHead className="text-gray-900 dark:text-white">Age</TableHead>
                         <TableHead>Owner</TableHead>
@@ -1962,6 +1969,8 @@ function VetClinicDashboardContent() {
                             )}
                           </TableCell>
                           <TableCell className="font-medium text-gray-900 dark:text-white">{pet.name}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{pet.category || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{pet.species || 'N/A'}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{pet.breed}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{pet.age} years</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{pet.owner?.name || 'No owner'}</TableCell>
@@ -2105,8 +2114,21 @@ function VetClinicDashboardContent() {
           <TabsContent value="appointments">
             <Card>
               <CardHeader>
-                                    <CardTitle className="text-gray-900 dark:text-white">Pending Appointments</CardTitle>
-                    <CardDescription>All pending appointments awaiting approval (in-person and online)</CardDescription>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-gray-900 dark:text-white">Appointments</CardTitle>
+                    <CardDescription>All appointments (in-person and online)</CardDescription>
+                  </div>
+                  <select
+                    className="border rounded px-2 py-1"
+                    value={appointmentTypeFilter}
+                    onChange={e => setAppointmentTypeFilter(e.target.value)}
+                  >
+                    <option value="all">All</option>
+                    <option value="in person">In Person</option>
+                    <option value="online">Online</option>
+                  </select>
+                </div>
               </CardHeader>
               <CardContent>
                 {appointmentsLoading ? (
@@ -2127,11 +2149,17 @@ function VetClinicDashboardContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {appointments.map((appointment) => (
+                      {filteredAppointments.map((appointment: any) => (
                         <TableRow key={appointment._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                           <TableCell>
-                            {new Date(appointment.startTime).toLocaleDateString()} <br />
-                            {new Date(appointment.startTime).toLocaleTimeString()}
+                            {appointment.startTime ? (
+                              <>
+                                {new Date(appointment.startTime).toLocaleDateString()} <br />
+                                {new Date(appointment.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </>
+                            ) : (
+                              'No date/time'
+                            )}
                           </TableCell>
                           <TableCell className="font-medium text-gray-900 dark:text-white">{appointment.pet?.name || 'Pet'}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{appointment.user?.fullName || 'Owner'}</TableCell>
@@ -2156,7 +2184,6 @@ function VetClinicDashboardContent() {
                                     method: 'PATCH',
                                     headers: { 'Authorization': `Bearer ${token}` }
                                   });
-                                  // Refresh all appointment data
                                   await fetchAppointments();
                                   await fetchVideoConsultations();
                                 }}>Approve</Button>
@@ -2166,7 +2193,6 @@ function VetClinicDashboardContent() {
                                     method: 'PATCH',
                                     headers: { 'Authorization': `Bearer ${token}` }
                                   });
-                                  // Refresh all appointment data
                                   await fetchAppointments();
                                   await fetchVideoConsultations();
                                 }}>Reject</Button>
@@ -2193,79 +2219,6 @@ function VetClinicDashboardContent() {
                           </TableCell>
                         </TableRow>
                       ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Video Consultations Tab */}
-          <TabsContent value="video-consultations">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-gray-900 dark:text-white">Video Consultations</CardTitle>
-                <CardDescription>Confirmed online consultations - ready for Google Meet links</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {videoConsultationsLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-2 text-gray-600">Loading online consultations...</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date & Time</TableHead>
-                        <TableHead>Pet</TableHead>
-                        <TableHead>Owner</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {videoConsultations.map((consultation) => {
-                        console.log('Consultation:', consultation);
-                        return (
-                          <TableRow key={consultation._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
-                            <TableCell>
-                              {new Date(consultation.startTime).toLocaleDateString()} <br />
-                              {new Date(consultation.startTime).toLocaleTimeString()}
-                            </TableCell>
-                            <TableCell className="font-medium text-gray-900 dark:text-white">
-                              {consultation.pet?.name || JSON.stringify(consultation.pet) || 'Pet'}
-                            </TableCell>
-                            <TableCell className="text-gray-900 dark:text-white">
-                              {consultation.user?.fullName || consultation.user?.name || consultation.user?.email || JSON.stringify(consultation.user) || 'Owner'}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={
-                                consultation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                consultation.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                                consultation.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                consultation.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                              }>
-                                {consultation.status === 'pending' ? 'Pending' : consultation.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/vet-clinic/video-consultation?appointment=${consultation._id}`}>View Details</Button>
-                                {consultation.googleMeetLink && (
-                                  <a href={consultation.googleMeetLink} target="_blank" rel="noopener noreferrer">
-                                    <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700">
-                                      <Video className="w-4 h-4 mr-2" />
-                                      Join Call
-                                    </Button>
-                                  </a>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
                     </TableBody>
                   </Table>
                 )}
@@ -2313,7 +2266,7 @@ function VetClinicDashboardContent() {
                           <TableCell>
                             <div>
                               <p className="font-medium text-gray-900 dark:text-white">{treatment.pet.name}</p>
-                              <p className="text-sm text-gray-500">{treatment.pet.breed} • {treatment.pet.age} years</p>
+                              <p className="text-sm text-gray-500">{treatment.pet.category} &bull; {treatment.pet.breed} &bull; {treatment.pet.age} years</p>
                               <p className="text-sm text-gray-500">
                                 Owner: {treatment.pet.owner ? treatment.pet.owner.fullName : 'Pet Owner'}
                               </p>

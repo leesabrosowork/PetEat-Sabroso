@@ -2,6 +2,7 @@ const User = require('../models/userModel');
 const Admin = require('../models/adminModel');
 const Staff = require('../models/staffModel');
 const SuperAdmin = require('../models/superAdminModel');
+const Pet = require('../models/petModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
@@ -60,7 +61,29 @@ async function uploadFileToCloudinary(file, folder) {
 
 exports.signup = async (req, res) => {
     try {
-        const { username, email, password, contactNumber, fullName, address } = req.body;
+        // Support both JSON and multipart/form-data (FormData)
+        let username = req.body.username;
+        let email = req.body.email;
+        let password = req.body.password;
+        let contactNumber = req.body.contactNumber;
+        let fullName = req.body.fullName;
+        let address = req.body.address;
+
+        // Fallback: If fields are undefined, try to extract from req.fields (multer)
+        if (!username && req.fields) username = req.fields.username;
+        if (!email && req.fields) email = req.fields.email;
+        if (!password && req.fields) password = req.fields.password;
+        if (!contactNumber && req.fields) contactNumber = req.fields.contactNumber;
+        if (!fullName && req.fields) fullName = req.fields.fullName;
+        if (!address && req.fields) address = req.fields.address;
+
+        if (!username || typeof username !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'Username is required.'
+            });
+        }
+        username = username.trim().toLowerCase();
 
         console.log("User Signup - Contact Number:", contactNumber);
 
@@ -128,6 +151,51 @@ exports.signup = async (req, res) => {
             otpExpires,
             needsOnboarding: true
         });
+
+        // Handle first pet creation if provided
+        let firstPetData = {};
+        // Try to get pet fields from req.body (FormData fields like firstPet[name], etc.)
+        Object.keys(req.body).forEach(key => {
+            const match = key.match(/^firstPet\[(.+)\]$/);
+            if (match) {
+                firstPetData[match[1]] = req.body[key];
+            }
+        });
+
+        // Parse age and other types
+        if (firstPetData.age) firstPetData.age = Number(firstPetData.age);
+
+        // Handle profile picture upload if present
+        let profilePictureUrl = null;
+        const profilePicFile = req.files && req.files.find(f => f.fieldname === 'firstPetProfilePicture');
+        if (profilePicFile) {
+            // Save to temp, upload to cloudinary, get URL
+            const tempPath = profilePicFile.path || profilePicFile.buffer;
+            // Use uploadFileToCloudinary helper if file is saved to disk, otherwise upload from buffer
+            if (profilePicFile.path) {
+                profilePictureUrl = await uploadFileToCloudinary(profilePicFile, 'pet-pictures');
+            } else if (profilePicFile.buffer) {
+                // If multer is configured for memory storage
+                const result = await cloudinary.uploader.upload_stream({ folder: 'pet-pictures', resource_type: 'auto' }, (error, result) => {
+                    if (error) throw error;
+                    return result.secure_url;
+                });
+                profilePictureUrl = result.secure_url;
+            }
+        }
+        if (profilePictureUrl) firstPetData.profilePicture = profilePictureUrl;
+
+        // Only create pet if required fields are present
+        if (firstPetData.name && firstPetData.category && firstPetData.breed && firstPetData.age && firstPetData.gender && firstPetData.color) {
+            const pet = await Pet.create({
+                ...firstPetData,
+                owner: newUser._id
+            });
+            // Add pet to user's pets array
+            newUser.pets = newUser.pets || [];
+            newUser.pets.push(pet._id);
+            await newUser.save();
+        }
 
         // Send OTP email
         const transporter = nodemailer.createTransport({
