@@ -755,7 +755,11 @@ exports.approveAppointment = async (req, res) => {
                         description: `Online consultation for ${appointment.pet?.name || 'Pet'}`,
                         startTime: startDate.toISOString(),
                         endTime: endDate.toISOString(),
-                        tokens: googleTokens
+                        tokens: googleTokens,
+                        attendees: [
+                            { email: petOwnerEmail },
+                            { email: clinicEmail }
+                        ]
                     });
                     
                     if (meetResult && meetResult.meetLink) {

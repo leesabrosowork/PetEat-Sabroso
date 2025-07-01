@@ -2,7 +2,7 @@ const { google } = require('googleapis');
 const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } = require('../config/config');
 
 // This function expects a valid OAuth2 token for the user (doctor/clinic)
-async function createGoogleMeet({ summary, description, startTime, endTime, tokens }) {
+async function createGoogleMeet({ summary, description, startTime, endTime, tokens, attendees }) {
   const oauth2Client = new google.auth.OAuth2(
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
@@ -21,6 +21,7 @@ async function createGoogleMeet({ summary, description, startTime, endTime, toke
     visibility: 'public',
     guestsCanInviteOthers: true,
     guestsCanSeeOtherGuests: true,
+    attendees: attendees || [],
   };
   const response = await calendar.events.insert({
     calendarId: 'primary',
