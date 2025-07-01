@@ -22,7 +22,7 @@ export default function SuperAdminDashboard() {
   const [inventory, setInventory] = useState([])
   const [dashboardData, setDashboardData] = useState<any>(null)
   const router = useRouter()
-  const { toast } = useToast()
+  const { toast, dismiss } = useToast()
   const [darkMode, setDarkMode] = useState(false)
 
   // Toggle dark mode
@@ -147,6 +147,12 @@ export default function SuperAdminDashboard() {
     fetchInventory()
     fetchDashboardOverview()
   }, [])
+
+  useEffect(() => {
+    return () => {
+      dismiss();
+    };
+  }, [dismiss]);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">

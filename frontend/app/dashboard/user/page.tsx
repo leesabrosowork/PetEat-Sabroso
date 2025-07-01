@@ -14,7 +14,7 @@ import { Calendar, Heart, Video, FileText, Clock, User, LogOut, Plus, Trash2, Se
 import Link from "next/link"
 import Image from "next/image"
 import { EMRViewer } from "@/components/EMRViewer"
-import { toast } from "@/components/ui/use-toast"
+import { toast, useToast } from "@/components/ui/use-toast"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
@@ -130,6 +130,12 @@ export default function UserDashboard() {
     if (appointmentTypeFilter === 'all') return dashboardData.bookings || [];
     return (dashboardData.bookings || []).filter(b => b.type === appointmentTypeFilter);
   }, [dashboardData.bookings, appointmentTypeFilter]);
+
+  const { dismiss } = useToast();
+
+  // Calculate upcoming and completed appointments in real time
+  const upcomingAppointments = useMemo(() => (dashboardData.bookings || []).filter(b => b.status === 'confirmed' || b.status === 'scheduled'), [dashboardData.bookings]);
+  const completedAppointments = useMemo(() => (dashboardData.bookings || []).filter(b => b.status === 'completed'), [dashboardData.bookings]);
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -702,6 +708,12 @@ export default function UserDashboard() {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      dismiss();
+    };
+  }, [dismiss]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -727,11 +739,6 @@ export default function UserDashboard() {
       </div>
     )
   }
-
-  // Filter all upcoming appointments (both in-person and video consultations)
-  const upcomingAppointments = dashboardData.bookings.filter(
-    apt => apt.status === 'scheduled'
-  )
 
   // Update the booking type display
   const getBookingTypeDisplay = (type: string | undefined) => {
@@ -1102,6 +1109,7 @@ export default function UserDashboard() {
               <DashboardAnalytics data={{
                 totalPets: dashboardData.pets.length,
                 upcomingAppointments: upcomingAppointments.length,
+                completedAppointments: completedAppointments.length,
               }} />
 
               <div className="grid md:grid-cols-2 gap-6">

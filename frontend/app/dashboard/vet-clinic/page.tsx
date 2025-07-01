@@ -219,6 +219,8 @@ interface DashboardData {
   videoConsultations: number;
   inventoryItems: number;
   lowStockItems: number;
+  weeklyAppointmentsByReason?: Record<string, number>;
+  monthlyAppointmentsByReason?: Record<string, number>;
 }
 
 // Update Appointment and VideoConsultation interfaces to match booking schema
@@ -1764,6 +1766,15 @@ function VetClinicDashboardContent() {
     if (appointmentTypeFilter === 'all') return appointments || [];
     return (appointments || []).filter((a: any) => a.type === appointmentTypeFilter);
   }, [appointments, appointmentTypeFilter]);
+
+  const { dismiss } = useToast();
+
+  // Cleanup all toasts on unmount to prevent DOM errors
+  useEffect(() => {
+    return () => {
+      dismiss(); // Dismiss all toasts
+    };
+  }, [dismiss]);
 
   if (loading) {
     return (

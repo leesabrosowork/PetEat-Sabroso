@@ -15,7 +15,7 @@ import { EditUserDialog } from "@/components/EditUserDialog"
 import { EditPetDialog } from "@/components/EditPetDialog"
 import { UserPermissionsDialog } from "@/components/UserPermissionsDialog"
 import { EditInventoryItemDialog } from "@/components/EditInventoryItemDialog"
-import { toast } from "@/components/ui/use-toast"
+import { toast, useToast } from "@/components/ui/use-toast"
 import React from "react"
 import { DashboardSkeleton } from "@/components/DashboardSkeleton"
 import { DashboardAnalytics } from "@/components/DashboardAnalytics"
@@ -95,6 +95,7 @@ export default function AdminDashboard() {
   const [inventoryExpiration, setInventoryExpiration] = useState('all'); // 'all', 'soon', 'expired'
   
   const router = useRouter()
+  const { dismiss } = useToast();
 
   // Memoize expensive calculations
   const lowStockItems = useMemo(() => {
@@ -511,6 +512,12 @@ export default function AdminDashboard() {
       });
     }
   }
+
+  useEffect(() => {
+    return () => {
+      dismiss();
+    };
+  }, [dismiss]);
 
   if (loading) {
     return (

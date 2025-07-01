@@ -90,7 +90,7 @@ export default function DoctorVideoConsultation() {
   const searchParams = useSearchParams()
   const appointmentId = searchParams.get("appointment")
   const router = useRouter()
-  const { toast } = useToast()
+  const { toast, dismiss } = useToast()
 
   useEffect(() => {
     // Check user role for proper dashboard redirection
@@ -105,8 +105,6 @@ export default function DoctorVideoConsultation() {
         setDashboardPath("/dashboard/doctor")
       }
     }
-
-
 
     // Fetch real appointment data from backend
     if (appointmentId) {
@@ -262,7 +260,11 @@ export default function DoctorVideoConsultation() {
     }
   }
 
-
+  useEffect(() => {
+    return () => {
+      dismiss();
+    };
+  }, [dismiss]);
 
   if (loading) {
     return (

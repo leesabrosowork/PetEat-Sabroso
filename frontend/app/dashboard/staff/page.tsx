@@ -28,7 +28,7 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(true)
   const [quantities, setQuantities] = useState<{ [id: string]: string | number }>({})
   const [user, setUser] = useState<any>(null)
-  const { toast } = useToast()
+  const { toast, dismiss } = useToast()
   const router = useRouter()
   const [inventorySearch, setInventorySearch] = useState('')
   const [inventoryCategory, setInventoryCategory] = useState('')
@@ -47,6 +47,12 @@ export default function StaffDashboard() {
 
     fetchInventory()
   }, [router])
+
+  useEffect(() => {
+    return () => {
+      dismiss();
+    };
+  }, [dismiss]);
 
   const fetchInventory = async () => {
     setLoading(true)
