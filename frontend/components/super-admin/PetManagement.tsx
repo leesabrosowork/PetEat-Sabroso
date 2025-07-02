@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label"
 import { Edit, Plus, Trash2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
-interface Pet {
+export interface Pet {
   _id: string
   name: string
   category?: string
@@ -32,6 +32,7 @@ interface Pet {
   owner: {
     username: string
     email: string
+    fullName?: string
   }
   createdAt: string
 }
@@ -226,8 +227,8 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
               <TableCell>{pet.age}</TableCell>
               <TableCell>
                 <div>
-                  <div>{pet.owner?.username || 'N/A'}</div>
-                  <div className="text-sm text-gray-500">{pet.owner?.email || 'N/A'}</div>
+                  <div>{pet.owner?.fullName || pet.owner?.username || pet.owner?.email || 'N/A'}</div>
+                  <div className="text-sm text-gray-500">{pet.owner?.email || ''}</div>
                 </div>
               </TableCell>
               <TableCell>{new Date(pet.createdAt).toLocaleDateString()}</TableCell>

@@ -69,6 +69,7 @@ interface User {
   contactNumber?: string;
   address?: string;
   clinicName?: string;
+  username?: string;
 }
 
 interface Pet {
@@ -1759,10 +1760,20 @@ function VetClinicDashboardContent() {
   };
 
   const [appointmentTypeFilter, setAppointmentTypeFilter] = useState('all');
+  const [bookingCategoryFilter, setBookingCategoryFilter] = useState('all');
+  const bookingCategories = useMemo(() => {
+    const cats = new Set<string>();
+    (appointments || []).forEach(b => {
+      if (b.pet && b.pet.category) cats.add(b.pet.category);
+    });
+    return Array.from(cats);
+  }, [appointments]);
   const filteredAppointments = useMemo(() => {
-    if (appointmentTypeFilter === 'all') return appointments || [];
-    return (appointments || []).filter((a: any) => a.type === appointmentTypeFilter);
-  }, [appointments, appointmentTypeFilter]);
+    let appts = appointments || [];
+    if (appointmentTypeFilter !== 'all') appts = appts.filter(a => a.type === appointmentTypeFilter);
+    if (bookingCategoryFilter !== 'all') appts = appts.filter(b => b.pet && b.pet.category === bookingCategoryFilter);
+    return appts;
+  }, [appointments, appointmentTypeFilter, bookingCategoryFilter]);
 
   const { dismiss } = useToast();
 
@@ -2049,11 +2060,11 @@ function VetClinicDashboardContent() {
                             )}
                           </TableCell>
                           <TableCell className="font-medium text-gray-900 dark:text-white">{pet.name}</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{pet.category || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{pet.category || pet.species || pet.type || 'N/A'}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{pet.species || 'N/A'}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{pet.breed}</TableCell>
                           <TableCell className="text-gray-900 dark:text-white">{pet.age} years</TableCell>
-                          <TableCell className="text-gray-900 dark:text-white">{pet.owner?.name || 'No owner'}</TableCell>
+                          <TableCell className="text-gray-900 dark:text-white">{pet.owner?.fullName || pet.owner?.username || pet.owner?.email || 'N/A'}</TableCell>
                           <TableCell>
                             <Badge className={getHealthStatusColor(pet.healthStatus)}>
                               {getHealthStatusIcon(pet.healthStatus)}

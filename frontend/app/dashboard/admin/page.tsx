@@ -54,6 +54,8 @@ interface Pet {
   breed: string;
   age: number;
   owner: PetOwner | string;
+  category?: string;
+  species?: string;
 }
 
 interface InventoryItem {
@@ -847,10 +849,10 @@ export default function AdminDashboard() {
                   {(pets || []).map((pet) => (
                     <TableRow key={pet._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                       <TableCell className="font-medium text-gray-900 dark:text-white">{pet.name}</TableCell>
-                      <TableCell className="text-gray-900 dark:text-white">{pet.type}</TableCell>
+                      <TableCell className="text-gray-900 dark:text-white">{pet.category || pet.species || pet.type || 'N/A'}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">{pet.breed}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">
-                        {typeof pet.owner === 'object' && pet.owner ? (pet.owner.username || pet.owner.email || 'N/A') : (pet.owner || 'N/A')}
+                        {typeof pet.owner === 'object' && pet.owner ? (pet.owner.fullName || pet.owner.username || pet.owner.email || 'N/A') : (pet.owner || 'N/A')}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">

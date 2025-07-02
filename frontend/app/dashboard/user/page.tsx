@@ -126,10 +126,20 @@ export default function UserDashboard() {
   const [typingStatus, setTypingStatus] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [appointmentTypeFilter, setAppointmentTypeFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const bookingCategories = useMemo(() => {
+    const cats = new Set<string>();
+    (dashboardData.bookings || []).forEach(b => {
+      if (b.pet && b.pet.category) cats.add(b.pet.category);
+    });
+    return Array.from(cats);
+  }, [dashboardData.bookings]);
   const filteredAppointments = useMemo(() => {
-    if (appointmentTypeFilter === 'all') return dashboardData.bookings || [];
-    return (dashboardData.bookings || []).filter(b => b.type === appointmentTypeFilter);
-  }, [dashboardData.bookings, appointmentTypeFilter]);
+    let appts = dashboardData.bookings || [];
+    if (appointmentTypeFilter !== 'all') appts = appts.filter(b => b.type === appointmentTypeFilter);
+    if (categoryFilter !== 'all') appts = appts.filter(b => b.pet && b.pet.category === categoryFilter);
+    return appts;
+  }, [dashboardData.bookings, appointmentTypeFilter, categoryFilter]);
 
   const { dismiss } = useToast();
 
@@ -1307,6 +1317,15 @@ export default function UserDashboard() {
                     </Button>
                   </Link>
                 </div>
+              </div>
+              <div className="mb-4">
+                <label htmlFor="categoryFilter" className="mr-2 font-medium">Category:</label>
+                <select id="categoryFilter" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="border rounded px-2 py-1">
+                  <option value="all">All</option>
+                  {bookingCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-4">
                 {filteredAppointments.length === 0 && (

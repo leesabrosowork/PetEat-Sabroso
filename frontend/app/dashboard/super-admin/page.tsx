@@ -13,12 +13,14 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
 import VetClinicApproval from '@/components/super-admin/VetClinicApproval'
 import { DashboardAnalytics } from '@/components/DashboardAnalytics'
+import { TableCell } from "@/components/ui/table"
+import type { Pet } from '@/components/super-admin/PetManagement'
 
 export default function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState('admins')
   const [admins, setAdmins] = useState([])
   const [users, setUsers] = useState([])
-  const [pets, setPets] = useState([])
+  const [pets, setPets] = useState<Pet[]>([])
   const [inventory, setInventory] = useState([])
   const [dashboardData, setDashboardData] = useState<any>(null)
   const router = useRouter()
