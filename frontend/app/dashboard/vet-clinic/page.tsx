@@ -1589,7 +1589,7 @@ function VetClinicDashboardContent() {
     }
   }, [activeTabValue, user]);
 
-  const [showArchived, setShowArchived] = useState(false);
+  const [medicalRecordSearch, setMedicalRecordSearch] = useState("");
 
   // Find where we're rendering medical records and add a way to show the EMRViewer
   const handleViewEMR = (emr: any) => {
@@ -2095,10 +2095,12 @@ function VetClinicDashboardContent() {
                     <CardDescription>Electronic Medical Records for all pets</CardDescription>
                   </div>
                   <div className="flex gap-2 items-center">
-                    <label className="flex items-center gap-1 text-sm">
-                      <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
-                      Show Archived
-                    </label>
+                    <Input
+                      placeholder="Search by pet, owner, or species..."
+                      value={medicalRecordSearch}
+                      onChange={e => setMedicalRecordSearch(e.target.value)}
+                      className="w-64"
+                    />
                     <Button onClick={() => {
                       fetchPets(); // Fetch pets before opening the dialog
                       setAddMedicalRecordDialogOpen(true);
@@ -2130,9 +2132,24 @@ function VetClinicDashboardContent() {
                     </TableHeader>
                     <TableBody>
                       {medicalRecords
-                        .filter(record => showArchived ? record.archived : !record.archived)
+                        .filter(record => {
+                          const q = medicalRecordSearch.toLowerCase();
+                          return (
+                            record.name.toLowerCase().includes(q) ||
+                            record.owner?.name?.toLowerCase().includes(q) ||
+                            record.species.toLowerCase().includes(q)
+                          );
+                        })
+                        .sort((a, b) => {
+                          // Sort by most recent visit or creation date
+                          const aDate = a.visitHistory?.length > 0 ? new Date(a.visitHistory[a.visitHistory.length - 1].date) : new Date(0);
+                          const bDate = b.visitHistory?.length > 0 ? new Date(b.visitHistory[b.visitHistory.length - 1].date) : new Date(0);
+                          const aTime = isNaN(aDate.getTime()) ? 0 : aDate.getTime();
+                          const bTime = isNaN(bDate.getTime()) ? 0 : bDate.getTime();
+                          return bTime - aTime;
+                        })
                         .map((record) => (
-                          <TableRow key={record._id} className={`hover:bg-gray-100 dark:hover:bg-gray-800 ${record.archived ? 'opacity-60' : ''}`}>
+                          <TableRow key={record._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                             <TableCell className="font-medium text-gray-900 dark:text-white">{record.name}</TableCell>
                             <TableCell className="text-gray-900 dark:text-white">{record.species}</TableCell>
                             <TableCell className="text-gray-900 dark:text-white">{record.owner?.name || 'No owner info'}</TableCell>
@@ -2146,7 +2163,6 @@ function VetClinicDashboardContent() {
                                     </div>
                                   );
                                 }
-                                
                                 return (
                                   <div className="space-y-1">
                                     <div className="font-medium text-sm">
@@ -2171,26 +2187,12 @@ function VetClinicDashboardContent() {
                             </TableCell>
                             <TableCell className="text-gray-900 dark:text-white">{record.vaccinations.length} vaccines</TableCell>
                             <TableCell>
-                              {record.archived ? (
-                                <span className="text-xs text-gray-500">Archived</span>
-                              ) : (
-                                <span className="text-xs text-green-600">Active</span>
-                              )}
+                              <span className="text-xs text-green-600">Active</span>
                             </TableCell>
                             <TableCell className="flex gap-2">
                               <Button variant="outline" size="sm" onClick={() => handleViewMedicalRecord(record)}>
                                 View EMR
                               </Button>
-                              {!record.archived && (
-                                <Button variant="outline" size="sm" onClick={() => handleArchiveMedicalRecord(record._id, true)}>
-                                  Archive
-                                </Button>
-                              )}
-                              {record.archived && (
-                                <Button variant="outline" size="sm" onClick={() => handleArchiveMedicalRecord(record._id, false)}>
-                                  Unarchive
-                                </Button>
-                              )}
                             </TableCell>
                           </TableRow>
                         ))}
