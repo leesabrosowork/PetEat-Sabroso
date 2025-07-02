@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import { SocketProvider } from './context/SocketContext'
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
+import SplashLayout from "@/components/SplashLayout";
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -28,7 +29,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <SocketProvider>
-            {children}
+            <SplashLayout>
+              {children}
+            </SplashLayout>
             <Toaster />
           </SocketProvider>
         </ThemeProvider>

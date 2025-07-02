@@ -2124,7 +2124,6 @@ function VetClinicDashboardContent() {
                         <TableHead className="text-gray-900 dark:text-white">Pet Name</TableHead>
                         <TableHead className="text-gray-900 dark:text-white">Species</TableHead>
                         <TableHead>Owner</TableHead>
-                        <TableHead className="text-gray-900 dark:text-white">Last Visit</TableHead>
                         <TableHead className="text-gray-900 dark:text-white">Vaccinations</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
@@ -2153,38 +2152,6 @@ function VetClinicDashboardContent() {
                             <TableCell className="font-medium text-gray-900 dark:text-white">{record.name}</TableCell>
                             <TableCell className="text-gray-900 dark:text-white">{record.species}</TableCell>
                             <TableCell className="text-gray-900 dark:text-white">{record.owner?.name || 'No owner info'}</TableCell>
-                            <TableCell>
-                              {(() => {
-                                const lastVisit = getLastVisitDetails(record);
-                                if (!lastVisit.date) {
-                                  return (
-                                    <div className="text-gray-500 text-sm">
-                                      <div>No visits</div>
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <div className="space-y-1">
-                                    <div className="font-medium text-sm">
-                                      {lastVisit.date.toLocaleDateString()}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {lastVisit.timeAgo}
-                                    </div>
-                                    {lastVisit.reason && (
-                                      <div className="text-xs text-gray-600 max-w-[150px] truncate" title={lastVisit.reason}>
-                                        {lastVisit.reason}
-                                      </div>
-                                    )}
-                                    {lastVisit.veterinarian && (
-                                      <div className="text-xs text-blue-600">
-                                        Dr. {lastVisit.veterinarian}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </TableCell>
                             <TableCell className="text-gray-900 dark:text-white">{record.vaccinations.length} vaccines</TableCell>
                             <TableCell>
                               <span className="text-xs text-green-600">Active</span>

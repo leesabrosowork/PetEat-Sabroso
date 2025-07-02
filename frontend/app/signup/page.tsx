@@ -208,11 +208,11 @@ export default function SignUpPage() {
 
   return (
     <PublicLayout>
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-        {showOtp && registeredEmail ? (
-          <OtpVerification email={registeredEmail} isVetClinic={false} />
-        ) : (
-          <Card className="w-full max-w-md">
+      <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-blue-200 flex items-center justify-center p-4 animate-fade-in-up duration-700">
+        <Card className="w-full max-w-2xl shadow-xl border-0 animate-fade-in-down duration-700">
+          {showOtp && registeredEmail ? (
+            <OtpVerification email={registeredEmail} isVetClinic={false} />
+          ) : (
             <CardHeader className="text-center">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
@@ -228,156 +228,156 @@ export default function SignUpPage() {
               <CardTitle>Create Account</CardTitle>
               <CardDescription>Join our pet care community as a pet owner</CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input 
-                    id="username" 
-                    value={formData.username} 
-                    onChange={(e) => handleChange("username", e.target.value)} 
-                    required 
-                    placeholder="Choose a username"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input 
-                    id="fullName" 
-                    value={formData.fullName} 
-                    onChange={(e) => handleChange("fullName", e.target.value)} 
-                    required 
-                    placeholder="Enter your full name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleChange("email", e.target.value)}
-                    required
-                    placeholder="Enter your email"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contactNumber">Contact Number</Label>
-                  <Input
-                    id="contactNumber"
-                    type="tel"
-                    value={formData.contactNumber}
-                    onChange={(e) => handleChange("contactNumber", e.target.value)}
-                    placeholder="Enter your contact number"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => handleChange("address", e.target.value)}
-                    placeholder="Enter your address"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => handleChange("password", e.target.value)}
-                    required
-                    placeholder="Create a password"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Password must be at least 8 characters long and contain at least one number and one special character
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleChange("confirmPassword", e.target.value)}
-                    required
-                    placeholder="Confirm your password"
-                  />
-                </div>
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Add Your First Pet</h3>
-                  <div className="space-y-2">
-                    <Label htmlFor="petName">Pet Name</Label>
-                    <Input id="petName" value={petData.name} onChange={e => handlePetChange('name', e.target.value)} required placeholder="Enter pet name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="petCategory">Pet Category</Label>
-                    <select id="petCategory" value={petData.category} onChange={e => handlePetChange('category', e.target.value)} required className="w-full border rounded px-2 py-1">
-                      <option value="">Select category</option>
-                      {categoryOptions.map(category => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="petSpecies">Species</Label>
-                    <select id="petSpecies" value={petData.species} onChange={e => handlePetChange('species', e.target.value)} required className="w-full border rounded px-2 py-1" disabled={!petData.category}>
-                      <option value="">Select species</option>
-                      {petData.category && Object.keys(PET_CATEGORIES[petData.category as keyof typeof PET_CATEGORIES]).map(species => (
-                        <option key={species} value={species}>{species}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="petBreed">Pet Breed</Label>
-                    <select id="petBreed" value={petData.breed} onChange={e => handlePetChange('breed', e.target.value)} required className="w-full border rounded px-2 py-1" disabled={!petData.species}>
-                      <option value="">Select breed</option>
-                      {petData.category && petData.species && PET_CATEGORIES[petData.category as keyof typeof PET_CATEGORIES][petData.species as keyof (typeof PET_CATEGORIES)[string]].map((breed: string) => (
-                        <option key={breed} value={breed}>{breed}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="petAge">Pet Age</Label>
-                    <Input id="petAge" type="number" value={petData.age} onChange={e => handlePetChange('age', e.target.value)} required placeholder="Enter pet age" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="petGender">Pet Gender</Label>
-                    <select id="petGender" value={petData.gender} onChange={e => handlePetChange('gender', e.target.value)} required className="w-full border rounded px-2 py-1">
-                      <option value="">Select gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="petColor">Pet Color</Label>
-                    <Input id="petColor" value={petData.color} onChange={e => handlePetChange('color', e.target.value)} required placeholder="Enter pet color" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="petProfilePicture">Pet Profile Picture</Label>
-                    <input
-                      id="petProfilePicture"
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePetFileChange}
-                      required
-                      className="block"
-                    />
-                    {petData.previewUrl && (
-                      <img src={petData.previewUrl} alt="Preview" className="w-24 h-24 object-cover rounded border mt-2" />
-                    )}
-                  </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>{loading ? "Signing up..." : "Sign Up"}</Button>
-              </form>
-              <div className="flex justify-between mt-4">
-                <Link href="/login" className="text-blue-600 hover:underline text-sm">Already have an account?</Link>
-                <Link href="/vet-signup" className="text-blue-600 hover:underline text-sm">Sign up as a vet clinic</Link>
+          )}
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input 
+                  id="username" 
+                  value={formData.username} 
+                  onChange={(e) => handleChange("username", e.target.value)} 
+                  required 
+                  placeholder="Choose a username"
+                />
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input 
+                  id="fullName" 
+                  value={formData.fullName} 
+                  onChange={(e) => handleChange("fullName", e.target.value)} 
+                  required 
+                  placeholder="Enter your full name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  required
+                  placeholder="Enter your email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contactNumber">Contact Number</Label>
+                <Input
+                  id="contactNumber"
+                  type="tel"
+                  value={formData.contactNumber}
+                  onChange={(e) => handleChange("contactNumber", e.target.value)}
+                  placeholder="Enter your contact number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => handleChange("address", e.target.value)}
+                  placeholder="Enter your address"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => handleChange("password", e.target.value)}
+                  required
+                  placeholder="Create a password"
+                />
+                <p className="text-xs text-gray-500">
+                  Password must be at least 8 characters long and contain at least one number and one special character
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                  required
+                  placeholder="Confirm your password"
+                />
+              </div>
+              <div className="space-y-4">
+                <h3 className="font-semibold">Add Your First Pet</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="petName">Pet Name</Label>
+                  <Input id="petName" value={petData.name} onChange={e => handlePetChange('name', e.target.value)} required placeholder="Enter pet name" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="petCategory">Pet Category</Label>
+                  <select id="petCategory" value={petData.category} onChange={e => handlePetChange('category', e.target.value)} required className="w-full border rounded px-2 py-1">
+                    <option value="">Select category</option>
+                    {categoryOptions.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="petSpecies">Species</Label>
+                  <select id="petSpecies" value={petData.species} onChange={e => handlePetChange('species', e.target.value)} required className="w-full border rounded px-2 py-1" disabled={!petData.category}>
+                    <option value="">Select species</option>
+                    {petData.category && Object.keys(PET_CATEGORIES[petData.category as keyof typeof PET_CATEGORIES]).map(species => (
+                      <option key={species} value={species}>{species}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="petBreed">Pet Breed</Label>
+                  <select id="petBreed" value={petData.breed} onChange={e => handlePetChange('breed', e.target.value)} required className="w-full border rounded px-2 py-1" disabled={!petData.species}>
+                    <option value="">Select breed</option>
+                    {petData.category && petData.species && PET_CATEGORIES[petData.category as keyof typeof PET_CATEGORIES][petData.species as keyof (typeof PET_CATEGORIES)[string]].map((breed: string) => (
+                      <option key={breed} value={breed}>{breed}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="petAge">Pet Age</Label>
+                  <Input id="petAge" type="number" value={petData.age} onChange={e => handlePetChange('age', e.target.value)} required placeholder="Enter pet age" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="petGender">Pet Gender</Label>
+                  <select id="petGender" value={petData.gender} onChange={e => handlePetChange('gender', e.target.value)} required className="w-full border rounded px-2 py-1">
+                    <option value="">Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="petColor">Pet Color</Label>
+                  <Input id="petColor" value={petData.color} onChange={e => handlePetChange('color', e.target.value)} required placeholder="Enter pet color" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="petProfilePicture">Pet Profile Picture</Label>
+                  <input
+                    id="petProfilePicture"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePetFileChange}
+                    required
+                    className="block"
+                  />
+                  {petData.previewUrl && (
+                    <img src={petData.previewUrl} alt="Preview" className="w-24 h-24 object-cover rounded border mt-2" />
+                  )}
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>{loading ? "Signing up..." : "Sign Up"}</Button>
+            </form>
+            <div className="flex justify-between mt-4">
+              <Link href="/login" className="text-blue-600 hover:underline text-sm">Already have an account?</Link>
+              <Link href="/vet-signup" className="text-blue-600 hover:underline text-sm">Sign up as a vet clinic</Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </PublicLayout>
   )

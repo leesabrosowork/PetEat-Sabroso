@@ -1487,7 +1487,6 @@ export default function UserDashboard() {
                           <TableHead>Pet</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Doctor/Vet</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1514,9 +1513,6 @@ export default function UserDashboard() {
                               >
                                 {emr.currentVisit?.status || "Not Specified"}
                               </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {emr.doctor?.name || emr.clinic?.name || "Not Assigned"}
                             </TableCell>
                             <TableCell>
                               <Button
