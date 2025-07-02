@@ -18,6 +18,7 @@ interface InventoryItem {
   status: 'in-stock' | 'low-stock' | 'out-of-stock';
   lastUpdated: string;
   expirationDate?: string;
+  manufacturingDate?: string;
 }
 
 interface InventoryDialogProps {
@@ -35,6 +36,7 @@ export function InventoryDialog({ item, open, onOpenChange, onUpdate }: Inventor
     category: '',
     status: 'in-stock' as 'in-stock' | 'low-stock' | 'out-of-stock',
     expirationDate: '',
+    manufacturingDate: '',
   })
   const [isUpdating, setIsUpdating] = useState(false)
   const [customCategory, setCustomCategory] = useState('');
@@ -56,6 +58,7 @@ export function InventoryDialog({ item, open, onOpenChange, onUpdate }: Inventor
         category: item.category,
         status: item.status,
         expirationDate: item.expirationDate || '',
+        manufacturingDate: item.manufacturingDate || '',
       })
     }
   }, [item])
@@ -197,6 +200,16 @@ export function InventoryDialog({ item, open, onOpenChange, onUpdate }: Inventor
               type="date"
               value={formData.expirationDate ? formData.expirationDate.split('T')[0] : ''}
               onChange={e => setFormData({ ...formData, expirationDate: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="manufacturingDate">Manufacturing Date</Label>
+            <Input
+              id="manufacturingDate"
+              type="date"
+              value={formData.manufacturingDate ? formData.manufacturingDate.split('T')[0] : ''}
+              onChange={e => setFormData({ ...formData, manufacturingDate: e.target.value })}
             />
           </div>
 

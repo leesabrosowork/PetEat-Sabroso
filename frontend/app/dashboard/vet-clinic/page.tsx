@@ -57,6 +57,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { useLocalStorageString, useLocalStorageBoolean } from "@/hooks/useLocalStorage"
 import GoogleMeetDialog from "@/components/GoogleMeetDialog"
 import DashboardAnalytics from "@/components/DashboardAnalytics"
+import { Label } from "@/components/ui/label"
+import { DialogFooter } from "@/components/ui/dialog"
 
 interface User {
   _id: string;
@@ -167,6 +169,7 @@ interface InventoryItem {
   status: 'in-stock' | 'low-stock' | 'out-of-stock';
   lastUpdated: string;
   expirationDate?: string;
+  manufacturingDate?: string;
 }
 
 interface Activity {
@@ -324,6 +327,9 @@ function VetClinicDashboardContent() {
   const [inventoryCategory, setInventoryCategory] = useState('');
   const [inventoryStatus, setInventoryStatus] = useState('');
   const [inventoryExpiration, setInventoryExpiration] = useState('all'); // 'all', 'soon', 'expired'
+  const [inventoryManufacturing, setInventoryManufacturing] = useState('all'); // 'all', 'soon', 'expired'
+  const [manufacturingFrom, setManufacturingFrom] = useState('');
+  const [manufacturingTo, setManufacturingTo] = useState('');
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -1767,6 +1773,78 @@ function VetClinicDashboardContent() {
     };
   }, [dismiss]);
 
+  // Add state for add item dialog
+  const [isAddInventoryDialogOpen, setIsAddInventoryDialogOpen] = useState(false);
+  const [newInventoryItem, setNewInventoryItem] = useState({
+    item: '',
+    category: 'Medication',
+    stock: 0,
+    minStock: 1,
+    status: 'in-stock',
+    expirationDate: '',
+    manufacturingDate: ''
+  });
+
+  // Add handler for adding inventory item
+  const handleAddInventoryItem = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No authentication token found');
+      const response = await fetch('http://localhost:8080/api/vet-clinic/inventory', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newInventoryItem)
+      });
+      if (!response.ok) throw new Error('Failed to add inventory item');
+      const created = await response.json();
+      setInventory(prev => [...prev, created.data]);
+      setIsAddInventoryDialogOpen(false);
+      setNewInventoryItem({
+        item: '',
+        category: 'Medication',
+        stock: 0,
+        minStock: 1,
+        status: 'in-stock',
+        expirationDate: '',
+        manufacturingDate: ''
+      });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred');
+    }
+  };
+
+  const filteredInventory = useMemo(() => {
+    return inventory.filter((item: InventoryItem) => {
+      const matchesCategory = !inventoryCategory || item.category === inventoryCategory;
+      const matchesStatus = !inventoryStatus || item.status === inventoryStatus;
+      const matchesSearch = !inventorySearch || item.item.toLowerCase().includes(inventorySearch.toLowerCase());
+      let matchesExpiration = true;
+      if (inventoryExpiration === 'soon') {
+        if (!item.expirationDate) return false;
+        const days = (Number(new Date(item.expirationDate)) - Number(new Date())) / (1000*60*60*24);
+        matchesExpiration = days >= 0 && days <= 7;
+      } else if (inventoryExpiration === 'expired') {
+        if (!item.expirationDate) return false;
+        matchesExpiration = Number(new Date(item.expirationDate)) < Number(new Date());
+      }
+      let matchesManufacturing = true;
+      if (inventoryManufacturing === 'last30') {
+        if (!item.manufacturingDate) return false;
+        const days = (Number(new Date()) - Number(new Date(item.manufacturingDate))) / (1000*60*60*24);
+        matchesManufacturing = days >= 0 && days <= 30;
+      } else if (inventoryManufacturing === 'range') {
+        if (!item.manufacturingDate) return false;
+        const date = new Date(item.manufacturingDate);
+        if (manufacturingFrom && date < new Date(manufacturingFrom)) matchesManufacturing = false;
+        if (manufacturingTo && date > new Date(manufacturingTo)) matchesManufacturing = false;
+      }
+      return matchesCategory && matchesStatus && matchesSearch && matchesExpiration && matchesManufacturing;
+    });
+  }, [inventory, inventoryCategory, inventoryStatus, inventorySearch, inventoryExpiration, inventoryManufacturing, manufacturingFrom, manufacturingTo]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -2411,88 +2489,138 @@ function VetClinicDashboardContent() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-gray-900 dark:text-white">Inventory Management</CardTitle>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <Input
-                    placeholder="Search by name..."
-                    value={inventorySearch}
-                    onChange={e => setInventorySearch(e.target.value)}
-                    className="w-48"
-                  />
-                  <select value={inventoryCategory} onChange={e => setInventoryCategory(e.target.value)} className="border rounded px-2 py-1">
-                    <option value="">All Categories</option>
-                    <option value="Medication">Medication</option>
-                    <option value="Supplies">Supplies</option>
-                    <option value="Equipment">Equipment</option>
-                    <option value="Food">Food</option>
-                    <option value="Vaccine">Vaccine</option>
-                  </select>
-                  <select value={inventoryStatus} onChange={e => setInventoryStatus(e.target.value)} className="border rounded px-2 py-1">
-                    <option value="">All Status</option>
-                    <option value="in-stock">In Stock</option>
-                    <option value="low-stock">Low Stock</option>
-                    <option value="out-of-stock">Out of Stock</option>
-                  </select>
-                  <select value={inventoryExpiration} onChange={e => setInventoryExpiration(e.target.value)} className="border rounded px-2 py-1">
-                    <option value="all">All Expiration</option>
-                    <option value="soon">Expiring Soon</option>
-                    <option value="expired">Expired</option>
-                  </select>
-                </div>
               </CardHeader>
               <CardContent>
+                <div className="flex flex-wrap gap-2 items-end mb-4">
+                  <div>
+                    <label>Category</label>
+                    <select className="border rounded px-2 py-1" value={inventoryCategory} onChange={e => setInventoryCategory(e.target.value)}>
+                      <option value="">All</option>
+                      <option value="Medication">Medication</option>
+                      <option value="Supplies">Supplies</option>
+                      <option value="Equipment">Equipment</option>
+                      <option value="Food">Food</option>
+                      <option value="Vaccine">Vaccine</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Status</label>
+                    <select className="border rounded px-2 py-1" value={inventoryStatus} onChange={e => setInventoryStatus(e.target.value)}>
+                      <option value="">All</option>
+                      <option value="in-stock">In Stock</option>
+                      <option value="low-stock">Low Stock</option>
+                      <option value="out-of-stock">Out of Stock</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Expiration</label>
+                    <select className="border rounded px-2 py-1" value={inventoryExpiration} onChange={e => setInventoryExpiration(e.target.value)}>
+                      <option value="all">All</option>
+                      <option value="soon">Soon</option>
+                      <option value="expired">Expired</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Manufacturing</label>
+                    <select className="border rounded px-2 py-1" value={inventoryManufacturing} onChange={e => setInventoryManufacturing(e.target.value)}>
+                      <option value="all">All</option>
+                      <option value="last30">Last 30 Days</option>
+                      <option value="range">Date Range</option>
+                    </select>
+                  </div>
+                  {inventoryManufacturing === 'range' && (
+                    <div className="flex gap-2">
+                      <Input type="date" value={manufacturingFrom} onChange={e => setManufacturingFrom(e.target.value)} placeholder="From" />
+                      <Input type="date" value={manufacturingTo} onChange={e => setManufacturingTo(e.target.value)} placeholder="To" />
+                    </div>
+                  )}
+                  <div>
+                    <label>Search</label>
+                    <Input placeholder="Search item..." value={inventorySearch} onChange={e => setInventorySearch(e.target.value)} />
+                  </div>
+                  <Button onClick={() => setIsAddInventoryDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" /> Add Item
+                  </Button>
+                </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Item Name</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead>Min Stock</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Expiration Date</TableHead>
+                      <TableHead>Manufacturing Date</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {inventory
-                      .filter(item => item.item.toLowerCase().includes(inventorySearch.toLowerCase()))
-                      .filter(item => !inventoryCategory || item.category === inventoryCategory)
-                      .filter(item => !inventoryStatus || item.status === inventoryStatus)
-                      .filter(item => {
-                        if (inventoryExpiration === 'soon') {
-                          if (!item.expirationDate) return false;
-                          const days = (Number(new Date(item.expirationDate ?? '')) - Number(new Date())) / (1000*60*60*24);
-                          return days >= 0 && days <= 7;
-                        }
-                        if (inventoryExpiration === 'expired') {
-                          if (!item.expirationDate) return false;
-                          return Number(new Date(item.expirationDate ?? '')) < Number(new Date());
-                        }
-                        return true;
-                      })
-                      .map(item => {
-                        let expClass = '';
-                        if (item.expirationDate) {
-                          const days = (Number(new Date(item.expirationDate ?? '')) - Number(new Date())) / (1000*60*60*24);
-                          if (days >= 0 && days <= 7) expClass = 'bg-yellow-100 text-yellow-800';
-                          if (days < 0) expClass = 'bg-red-100 text-red-800';
-                        }
-                        return (
-                          <TableRow key={item._id} className={expClass}>
-                            <TableCell>{item.item}</TableCell>
-                            <TableCell>{item.category}</TableCell>
-                            <TableCell>{item.status}</TableCell>
-                            <TableCell>{item.stock}</TableCell>
-                            <TableCell>{item.minStock}</TableCell>
-                            <TableCell>{item.expirationDate ? new Date(item.expirationDate).toLocaleDateString() : '-'}</TableCell>
-                            <TableCell>
-                              <Button variant="outline" size="sm" onClick={() => handleUpdateInventory(item)}>Edit</Button>
-                              <Button variant="destructive" size="sm" onClick={() => handleDeleteInventoryItem(item._id)} className="ml-2">Delete</Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                    {filteredInventory.map((item: InventoryItem) => (
+                      <TableRow key={item._id}>
+                        <TableCell>{item.item}</TableCell>
+                        <TableCell>{item.stock}</TableCell>
+                        <TableCell>{item.minStock}</TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell>{item.status}</TableCell>
+                        <TableCell>{item.expirationDate ? new Date(item.expirationDate).toLocaleDateString() : 'N/A'}</TableCell>
+                        <TableCell>{item.manufacturingDate ? new Date(item.manufacturingDate).toLocaleDateString() : 'N/A'}</TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button variant="outline" size="sm" onClick={() => handleChangeStock(item._id, -1)} disabled={item.stock <= 0}>-</Button>
+                            <Button variant="outline" size="sm" onClick={() => handleChangeStock(item._id, 1)}>+</Button>
+                            <Button variant="outline" size="sm" onClick={() => handleUpdateInventory(item)}>Edit</Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteInventoryItem(item._id)}>Delete</Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
+                {/* Add Inventory Dialog */}
+                <Dialog open={isAddInventoryDialogOpen} onOpenChange={setIsAddInventoryDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Inventory Item</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="item">Item Name</Label>
+                        <Input id="item" value={newInventoryItem.item} onChange={e => setNewInventoryItem({ ...newInventoryItem, item: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label htmlFor="category">Category</Label>
+                        <select id="category" className="w-full px-3 py-2 border rounded-md" value={newInventoryItem.category} onChange={e => setNewInventoryItem({ ...newInventoryItem, category: e.target.value })}>
+                          <option value="Medication">Medication</option>
+                          <option value="Supplies">Supplies</option>
+                          <option value="Equipment">Equipment</option>
+                          <option value="Food">Food</option>
+                          <option value="Vaccine">Vaccine</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label htmlFor="stock">Stock</Label>
+                        <Input id="stock" type="number" value={newInventoryItem.stock} onChange={e => setNewInventoryItem({ ...newInventoryItem, stock: parseInt(e.target.value) })} />
+                      </div>
+                      <div>
+                        <Label htmlFor="minStock">Minimum Stock</Label>
+                        <Input id="minStock" type="number" value={newInventoryItem.minStock} onChange={e => setNewInventoryItem({ ...newInventoryItem, minStock: parseInt(e.target.value) })} />
+                      </div>
+                      <div>
+                        <Label htmlFor="expirationDate">Expiration Date</Label>
+                        <Input id="expirationDate" type="date" value={newInventoryItem.expirationDate} onChange={e => setNewInventoryItem({ ...newInventoryItem, expirationDate: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label htmlFor="manufacturingDate">Manufacturing Date</Label>
+                        <Input id="manufacturingDate" type="date" value={newInventoryItem.manufacturingDate} onChange={e => setNewInventoryItem({ ...newInventoryItem, manufacturingDate: e.target.value })} />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsAddInventoryDialogOpen(false)}>Cancel</Button>
+                      <Button onClick={handleAddInventoryItem}>Add Item</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           </TabsContent>

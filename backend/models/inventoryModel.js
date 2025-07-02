@@ -34,6 +34,10 @@ const inventorySchema = new mongoose.Schema({
         type: Date,
         required: false
     },
+    manufacturingDate: {
+        type: Date,
+        required: false
+    },
     clinic: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

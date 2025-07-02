@@ -482,16 +482,18 @@ exports.getInventoryItemById = async (req, res) => {
 
 exports.createInventoryItem = async (req, res) => {
     try {
-        const { item, stock, minStock, category, status, clinic } = req.body;
+        const { item, category, stock, minStock, clinic, expirationDate, manufacturingDate } = req.body;
 
         // Create new inventory item
         const newItem = await Inventory.create({
             item,
+            category,
             stock,
             minStock,
-            category,
-            status: status || (stock > minStock ? 'in-stock' : 'low-stock'),
-            clinic
+            status: stock > minStock ? 'in-stock' : 'low-stock',
+            clinic,
+            expirationDate,
+            manufacturingDate
         });
 
         if (req.app && req.app.get('io')) {
@@ -503,34 +505,27 @@ exports.createInventoryItem = async (req, res) => {
             data: newItem
         });
     } catch (error) {
-        console.error('Inventory creation error:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ message: error.message });
     }
 };
 
 exports.updateInventoryItem = async (req, res) => {
     try {
-        const { item, stock, minStock, category, status } = req.body;
-        const itemId = req.params.id;
+        const { id } = req.params;
+        const { item, category, stock, minStock, expirationDate, manufacturingDate } = req.body;
 
-        const inventoryItem = await Inventory.findById(itemId);
+        const inventoryItem = await Inventory.findById(id);
         if (!inventoryItem) {
-            return res.status(404).json({
-                success: false,
-                message: 'Inventory item not found'
-            });
+            return res.status(404).json({ message: 'Inventory item not found' });
         }
 
         // Update fields
         if (item) inventoryItem.item = item;
+        if (category) inventoryItem.category = category;
         if (stock !== undefined) inventoryItem.stock = stock;
         if (minStock !== undefined) inventoryItem.minStock = minStock;
-        if (category) inventoryItem.category = category;
-        // Don't override status - let middleware handle it based on stock levels
-        // if (status) inventoryItem.status = status;
+        if (expirationDate) inventoryItem.expirationDate = expirationDate;
+        if (manufacturingDate) inventoryItem.manufacturingDate = manufacturingDate;
 
         await inventoryItem.save(); // This will trigger the middleware
 
@@ -543,10 +538,7 @@ exports.updateInventoryItem = async (req, res) => {
             data: inventoryItem
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ message: error.message });
     }
 };
 

@@ -527,7 +527,7 @@ exports.updateMedicalRecord = async (req, res) => {
 exports.updateInventoryItem = async (req, res) => {
     try {
         const { id } = req.params;
-        const { item, stock, minStock, category, status, expirationDate } = req.body;
+        const { item, stock, minStock, category, status, expirationDate, manufacturingDate } = req.body;
 
         const inventoryItem = await Inventory.findById(id);
         if (!inventoryItem) {
@@ -544,6 +544,7 @@ exports.updateInventoryItem = async (req, res) => {
         if (category) inventoryItem.category = category;
         if (status) inventoryItem.status = status;
         if (expirationDate) inventoryItem.expirationDate = expirationDate;
+        if (manufacturingDate) inventoryItem.manufacturingDate = manufacturingDate;
         if (!inventoryItem.clinic) inventoryItem.clinic = req.user.id;
 
         await inventoryItem.save(); // This will trigger the middleware

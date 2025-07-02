@@ -27,6 +27,7 @@ export function EditInventoryItemDialog({ isOpen, onClose, onUpdateInventoryItem
   const [stock, setStock] = useState("")
   const [minStock, setMinStock] = useState("")
   const [expirationDate, setExpirationDate] = useState("")
+  const [manufacturingDate, setManufacturingDate] = useState("")
 
   useEffect(() => {
     if (item) {
@@ -35,6 +36,7 @@ export function EditInventoryItemDialog({ isOpen, onClose, onUpdateInventoryItem
       setStock(item.stock)
       setMinStock(item.minStock)
       setExpirationDate(item.expirationDate ? item.expirationDate.split('T')[0] : '')
+      setManufacturingDate(item.manufacturingDate ? item.manufacturingDate.split('T')[0] : '')
     }
   }, [item])
 
@@ -51,6 +53,7 @@ export function EditInventoryItemDialog({ isOpen, onClose, onUpdateInventoryItem
       stock: parseInt(stock, 10) || 0,
       minStock: parseInt(minStock, 10) || 0,
       expirationDate,
+      manufacturingDate,
     });
     onClose();
   }
@@ -106,6 +109,15 @@ export function EditInventoryItemDialog({ isOpen, onClose, onUpdateInventoryItem
               type="date"
               value={expirationDate}
               onChange={e => setExpirationDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="manufacturingDate">Manufacturing Date</Label>
+            <Input
+              id="manufacturingDate"
+              type="date"
+              value={manufacturingDate}
+              onChange={e => setManufacturingDate(e.target.value)}
             />
           </div>
         </div>

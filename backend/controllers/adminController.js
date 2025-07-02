@@ -160,7 +160,7 @@ exports.createAdmin = async (req, res) => {
 // Create a new inventory item
 exports.createInventoryItem = async (req, res) => {
     try {
-        const { item, category, stock, minStock, clinic } = req.body;
+        const { item, category, stock, minStock, clinic, expirationDate, manufacturingDate } = req.body;
 
         // Create new inventory item
         const newItem = await Inventory.create({
@@ -169,7 +169,9 @@ exports.createInventoryItem = async (req, res) => {
             stock,
             minStock,
             status: stock > minStock ? 'in-stock' : 'low-stock',
-            clinic
+            clinic,
+            expirationDate,
+            manufacturingDate
         });
 
         if (req.app && req.app.get('io')) {
@@ -347,7 +349,7 @@ exports.getSettings = async (req, res) => {
 exports.updateInventoryItem = async (req, res) => {
     try {
         const { id } = req.params;
-        const { item, category, stock, minStock } = req.body;
+        const { item, category, stock, minStock, expirationDate, manufacturingDate } = req.body;
 
         const inventoryItem = await Inventory.findById(id);
         if (!inventoryItem) {
@@ -359,6 +361,8 @@ exports.updateInventoryItem = async (req, res) => {
         if (category) inventoryItem.category = category;
         if (stock !== undefined) inventoryItem.stock = stock;
         if (minStock !== undefined) inventoryItem.minStock = minStock;
+        if (expirationDate) inventoryItem.expirationDate = expirationDate;
+        if (manufacturingDate) inventoryItem.manufacturingDate = manufacturingDate;
 
         await inventoryItem.save(); // This will trigger the middleware
 

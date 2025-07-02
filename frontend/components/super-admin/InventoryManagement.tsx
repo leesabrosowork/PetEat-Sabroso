@@ -33,6 +33,7 @@ interface InventoryItem {
   lastUpdated: string
   createdAt: string
   expirationDate?: string
+  manufacturingDate?: string
 }
 
 interface InventoryManagementProps {
@@ -51,13 +52,17 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
     minStock: 5,
     category: "Supplies",
     status: "in-stock",
-    expirationDate: ""
+    expirationDate: "",
+    manufacturingDate: ""
   })
   const { toast } = useToast()
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [search, setSearch] = useState('');
   const [inventoryExpiration, setInventoryExpiration] = useState('all');
+  const [filterManufacturing, setFilterManufacturing] = useState('all');
+  const [manufacturingFrom, setManufacturingFrom] = useState('');
+  const [manufacturingTo, setManufacturingTo] = useState('');
 
   const handleCreateItem = async () => {
     try {
@@ -85,7 +90,8 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
           minStock: 5,
           category: "Supplies",
           status: "in-stock",
-          expirationDate: ""
+          expirationDate: "",
+          manufacturingDate: ""
         })
         onInventoryUpdated()
       } else {
@@ -262,7 +268,18 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
     const matchesCategory = !filterCategory || item.category === filterCategory;
     const matchesStatus = !filterStatus || item.status === filterStatus;
     const matchesSearch = !search || item.item.toLowerCase().includes(search.toLowerCase());
-    return matchesCategory && matchesStatus && matchesSearch;
+    let matchesManufacturing = true;
+    if (filterManufacturing === 'last30') {
+      if (!item.manufacturingDate) return false;
+      const days = (Number(new Date()) - Number(new Date(item.manufacturingDate))) / (1000*60*60*24);
+      matchesManufacturing = days >= 0 && days <= 30;
+    } else if (filterManufacturing === 'range') {
+      if (!item.manufacturingDate) return false;
+      const date = new Date(item.manufacturingDate);
+      if (manufacturingFrom && date < new Date(manufacturingFrom)) matchesManufacturing = false;
+      if (manufacturingTo && date > new Date(manufacturingTo)) matchesManufacturing = false;
+    }
+    return matchesCategory && matchesStatus && matchesSearch && matchesManufacturing;
   });
 
   const filteredExpirationInventory = filteredInventory.filter(item => {
@@ -315,6 +332,20 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
             </select>
           </div>
           <div>
+            <Label>Manufacturing</Label>
+            <select className="border rounded px-2 py-1" value={filterManufacturing} onChange={e => setFilterManufacturing(e.target.value)}>
+              <option value="all">All</option>
+              <option value="last30">Last 30 Days</option>
+              <option value="range">Date Range</option>
+            </select>
+          </div>
+          {filterManufacturing === 'range' && (
+            <div className="flex gap-2">
+              <Input type="date" value={manufacturingFrom} onChange={e => setManufacturingFrom(e.target.value)} placeholder="From" />
+              <Input type="date" value={manufacturingTo} onChange={e => setManufacturingTo(e.target.value)} placeholder="To" />
+            </div>
+          )}
+          <div>
             <Label>Search</Label>
             <Input placeholder="Search item..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
@@ -334,6 +365,7 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
             <TableHead className="text-gray-900 dark:text-white">Category</TableHead>
             <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
             <TableHead className="text-gray-900 dark:text-white">Expiration Date</TableHead>
+            <TableHead className="text-gray-900 dark:text-white">Manufacturing Date</TableHead>
             <TableHead className="text-gray-900 dark:text-white">Last Updated</TableHead>
             <TableHead className="text-right text-gray-900 dark:text-white">Actions</TableHead>
           </TableRow>
@@ -341,6 +373,7 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
         <TableBody>
           {filteredExpirationInventory.map((item) => {
             let expDate = item.expirationDate ? new Date(item.expirationDate) : null;
+            let manDate = item.manufacturingDate ? new Date(item.manufacturingDate) : null;
             let expSoon = expDate && differenceInDays(expDate, new Date()) <= 7 && differenceInDays(expDate, new Date()) >= 0;
             let expClass = '';
             if (expSoon) expClass = 'bg-red-50 dark:bg-red-900';
@@ -403,6 +436,13 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
                       {format(expDate, 'yyyy-MM-dd')}
                       {expSoon && <span className="ml-2 text-xs">(Expiring soon)</span>}
                     </span>
+                  ) : (
+                    <span className="text-gray-400">N/A</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {manDate ? (
+                    <span>{format(manDate, 'yyyy-MM-dd')}</span>
                   ) : (
                     <span className="text-gray-400">N/A</span>
                   )}
@@ -495,6 +535,15 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
                 onChange={(e) => setNewItem({ ...newItem, expirationDate: e.target.value })}
               />
             </div>
+            <div>
+              <Label htmlFor="manufacturingDate">Manufacturing Date</Label>
+              <Input
+                id="manufacturingDate"
+                type="date"
+                value={newItem.manufacturingDate}
+                onChange={(e) => setNewItem({ ...newItem, manufacturingDate: e.target.value })}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
@@ -566,14 +615,23 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
                 </select>
               </div>
               <div>
-                <Label htmlFor="expirationDate">Expiration Date</Label>
+                <Label htmlFor="edit-expirationDate">Expiration Date</Label>
                 <Input
-                  id="expirationDate"
+                  id="edit-expirationDate"
                   type="date"
                   value={selectedItem.expirationDate}
                   onChange={(e) =>
                     setSelectedItem({ ...selectedItem, expirationDate: e.target.value })
                   }
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-manufacturingDate">Manufacturing Date</Label>
+                <Input
+                  id="edit-manufacturingDate"
+                  type="date"
+                  value={selectedItem.manufacturingDate || ''}
+                  onChange={(e) => setSelectedItem({ ...selectedItem, manufacturingDate: e.target.value })}
                 />
               </div>
             </div>
