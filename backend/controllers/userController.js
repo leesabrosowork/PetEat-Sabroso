@@ -97,10 +97,21 @@ exports.getUserDashboard = async (req, res) => {
             });
         }
 
+        // --- YEAR FILTER LOGIC START ---
+        let bookingQuery = { petOwner: userId };
+        const year = req.query.year ? Number(req.query.year) : null;
+        if (year && !isNaN(year)) {
+            // Get start and end of the year
+            const startOfYear = new Date(year, 0, 1);
+            const endOfYear = new Date(year + 1, 0, 1);
+            bookingQuery.bookingDate = { $gte: startOfYear, $lt: endOfYear };
+        }
+        // --- YEAR FILTER LOGIC END ---
+
         // Use Promise.all for parallel execution
         const [pets, bookings] = await Promise.all([
             Pet.find({ owner: userId }),
-            Booking.find({ petOwner: userId })
+            Booking.find(bookingQuery)
                 .populate('pet', 'name type breed')
                 .populate('clinic', 'clinicName email')
                 .sort({ bookingDate: -1, appointmentTime: -1 })
