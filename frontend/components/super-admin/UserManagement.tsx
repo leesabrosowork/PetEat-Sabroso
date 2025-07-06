@@ -48,6 +48,8 @@ export default function UserManagement({ users, onUserUpdated }: UserManagementP
     contactNumber: "",
   })
   const { toast } = useToast()
+  // Add search state
+  const [userSearch, setUserSearch] = useState('');
 
   const handleCreateUser = async () => {
     try {
@@ -178,6 +180,13 @@ export default function UserManagement({ users, onUserUpdated }: UserManagementP
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">User Management</h2>
+        <Input
+          type="text"
+          placeholder="Search users..."
+          value={userSearch}
+          onChange={e => setUserSearch(e.target.value)}
+          className="w-64"
+        />
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Add User
@@ -197,7 +206,15 @@ export default function UserManagement({ users, onUserUpdated }: UserManagementP
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.filter(user => user).map((user) => (
+          {users.filter(user => {
+            const q = userSearch.toLowerCase();
+            return (
+              user.username.toLowerCase().includes(q) ||
+              user.email.toLowerCase().includes(q) ||
+              user.contactNumber.toLowerCase().includes(q) ||
+              user.role.toLowerCase().includes(q)
+            );
+          }).map((user) => (
             <TableRow key={user._id}>
               <TableCell>{user.username}</TableCell>
               <TableCell>{user.email}</TableCell>

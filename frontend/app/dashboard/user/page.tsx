@@ -48,6 +48,7 @@ interface Booking {
   pet: Pet;
   clinic: any;
   reason: string;
+  notes?: string; // add this line
   type?: string;
   doctor?: Doctor;
   startTime?: string;
@@ -127,6 +128,8 @@ export default function UserDashboard() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [appointmentTypeFilter, setAppointmentTypeFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [appointmentMonth, setAppointmentMonth] = useState<string>("");
+  const [appointmentSearch, setAppointmentSearch] = useState("");
   const bookingCategories = useMemo(() => {
     const cats = new Set<string>();
     (dashboardData.bookings || []).forEach(b => {
@@ -137,15 +140,85 @@ export default function UserDashboard() {
   const filteredAppointments = useMemo(() => {
     let appts = dashboardData.bookings || [];
     if (appointmentTypeFilter !== 'all') appts = appts.filter(b => b.type === appointmentTypeFilter);
-    if (categoryFilter !== 'all') appts = appts.filter(b => b.pet && b.pet.category === categoryFilter);
+    if (appointmentMonth) {
+      appts = appts.filter(b => {
+        if (!b.startTime) return false;
+        const date = new Date(b.startTime);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear().toString();
+        const [selectedYear, selectedMonth] = appointmentMonth.split('-');
+        return year === selectedYear && month === selectedMonth;
+      });
+    }
+    if (appointmentSearch.trim() !== "") {
+      const q = appointmentSearch.toLowerCase();
+      appts = appts.filter(b =>
+        (b.pet?.name?.toLowerCase().includes(q) ||
+        b.doctor?.name?.toLowerCase().includes(q) ||
+        b.clinic?.name?.toLowerCase().includes(q) ||
+        (b.reason || '').toLowerCase().includes(q))
+      );
+    }
     return appts;
-  }, [dashboardData.bookings, appointmentTypeFilter, categoryFilter]);
+  }, [dashboardData.bookings, appointmentTypeFilter, appointmentMonth, appointmentSearch]);
 
   const { dismiss } = useToast();
 
   // Calculate upcoming and completed appointments in real time
   const upcomingAppointments = useMemo(() => (dashboardData.bookings || []).filter(b => b.status === 'confirmed' || b.status === 'scheduled'), [dashboardData.bookings]);
   const completedAppointments = useMemo(() => (dashboardData.bookings || []).filter(b => b.status === 'completed'), [dashboardData.bookings]);
+
+  // Compute appointments by reason per month for the analytics chart
+  const appointmentsByReasonByMonth = useMemo(() => {
+    // 12 months, indexed 0-11
+    const result: { [reason: string]: number[] } = {};
+    (dashboardData.bookings || []).forEach(b => {
+      const reason = b.reason || b.notes || 'Other';
+      if (!reason || reason === 'N/A') return;
+      if (!b.startTime) return;
+      const date = new Date(b.startTime);
+      if (isNaN(date.getTime())) return;
+      const month = date.getMonth(); // 0-11
+      if (!result[reason]) result[reason] = Array(12).fill(0);
+      result[reason][month]++;
+    });
+    return result;
+  }, [dashboardData.bookings]);
+
+  // Compute pets admitted by month for the analytics chart
+  const petsAdmittedByMonth = useMemo(() => {
+    const arr = Array(12).fill(0);
+    (dashboardData.petsUnderTreatment || []).forEach(pet => {
+      if (!pet.admissionDate) return;
+      const date = new Date(pet.admissionDate);
+      if (isNaN(date.getTime())) return;
+      const month = date.getMonth();
+      arr[month]++;
+    });
+    return arr;
+  }, [dashboardData.petsUnderTreatment]);
+
+  // Compute pet status changes by month for the analytics chart
+  const petsStatusChangesByMonth = useMemo(() => {
+    const statuses = ["Critical", "Stable", "Improving", "Recovered"];
+    const result: { [status: string]: number[] } = {};
+    statuses.forEach(status => {
+      result[status] = Array(12).fill(0);
+    });
+    (dashboardData.petsUnderTreatment || []).forEach(pet => {
+      if (!pet.lastUpdated || !pet.status) return;
+      const date = new Date(pet.lastUpdated);
+      if (isNaN(date.getTime())) return;
+      const month = date.getMonth();
+      if (statuses.includes(pet.status)) {
+        result[pet.status][month]++;
+      }
+    });
+    return result;
+  }, [dashboardData.petsUnderTreatment]);
+
+  const currentYear = new Date().getFullYear();
+  const [analyticsYear, setAnalyticsYear] = useState<number>(currentYear);
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -181,7 +254,7 @@ export default function UserDashboard() {
           parsedUser.name = parsedUser.fullName || parsedUser.clinicName || "";
         }
         setUser(parsedUser);
-        fetchDashboardData(parsedUser._id)
+        fetchDashboardData(parsedUser._id, analyticsYear)
         fetchEMRs()
       } catch (e) {
         console.error('Error parsing user data:', e)
@@ -191,13 +264,13 @@ export default function UserDashboard() {
       router.push("/login")
     }
     // eslint-disable-next-line
-  }, [router])
+  }, [router, analyticsYear])
 
   // Real-time updates
   useEffect(() => {
     if (!socket || !user) return;
     const handleRealtimeUpdate = () => {
-      fetchDashboardData(user._id);
+      fetchDashboardData(user._id, analyticsYear);
     };
     [
       "pets_updated",
@@ -221,17 +294,17 @@ export default function UserDashboard() {
         socket.off(event, handleRealtimeUpdate);
       });
     };
-  }, [socket, user]);
+  }, [socket, user, analyticsYear]);
 
-  const fetchDashboardData = async (userId: string) => {
+  const fetchDashboardData = async (userId: string, year: number) => {
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
       
-      // Fetch main dashboard data
-      const res = await fetch(`http://localhost:8080/api/users/${userId}/dashboard`, {
+      // Fetch main dashboard data with year param
+      const res = await fetch(`http://localhost:8080/api/users/${userId}/dashboard?year=${year}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch dashboard data");
@@ -246,17 +319,16 @@ export default function UserDashboard() {
       if (data.success) {
         // Make sure bookings have the necessary properties
         const processedBookings = data.data.bookings.map((booking: any) => {
-          // Convert bookingDate and appointmentTime to a startTime
-          let startTime = booking.bookingDate ? new Date(booking.bookingDate) : new Date();
-          if (booking.appointmentTime) {
+          let startTime = booking.startTime || null;
+          if (!startTime && booking.bookingDate && booking.appointmentTime) {
+            let date = new Date(booking.bookingDate);
             const [hours, minutes] = booking.appointmentTime.split(':').map(Number);
-            startTime.setHours(hours, minutes, 0, 0);
+            date.setHours(hours, minutes, 0, 0);
+            startTime = date.toISOString();
           }
-          
           return {
             ...booking,
-            startTime: startTime.toISOString(),
-            // Ensure googleMeetLink is properly passed through
+            startTime,
             googleMeetLink: booking.googleMeetLink || null
           };
         });
@@ -317,7 +389,7 @@ export default function UserDashboard() {
       });
       if (!res.ok) throw new Error("Failed to delete pet");
       // Refresh dashboard data
-      fetchDashboardData(user._id);
+      fetchDashboardData(user._id, analyticsYear);
     } catch (e) {
       alert("Failed to delete pet. Please try again.");
     } finally {
@@ -742,7 +814,7 @@ export default function UserDashboard() {
           <div className="text-red-600 mb-4">⚠️</div>
           <h2 className="text-xl font-semibold mb-2">Error Loading Dashboard</h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={() => fetchDashboardData(user._id)}>
+          <Button onClick={() => fetchDashboardData(user._id, analyticsYear)}>
             Try Again
           </Button>
         </div>
@@ -1116,11 +1188,26 @@ export default function UserDashboard() {
             )}
             
             <TabsContent value="overview" className="space-y-6">
+              <div className="flex items-center gap-4 mb-4">
+                <label htmlFor="analyticsYear" className="font-medium">Analytics Year:</label>
+                <input
+                  id="analyticsYear"
+                  type="number"
+                  min="2000"
+                  max={currentYear + 10}
+                  value={analyticsYear}
+                  onChange={e => setAnalyticsYear(Number(e.target.value))}
+                  className="border rounded px-2 py-1 w-32"
+                />
+              </div>
               <DashboardAnalytics data={{
                 totalPets: dashboardData.pets.length,
                 upcomingAppointments: upcomingAppointments.length,
                 completedAppointments: completedAppointments.length,
-              }} />
+                appointmentsByReasonByMonth,
+                petsAdmittedByMonth,
+                petsStatusChangesByMonth,
+              }} showInventoryChanges={false} analyticsYear={analyticsYear} setAnalyticsYear={setAnalyticsYear} currentYear={currentYear} />
 
               <div className="grid md:grid-cols-2 gap-6">
                 <Card>
@@ -1318,14 +1405,29 @@ export default function UserDashboard() {
                   </Link>
                 </div>
               </div>
-              <div className="mb-4">
-                <label htmlFor="categoryFilter" className="mr-2 font-medium">Category:</label>
-                <select id="categoryFilter" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="border rounded px-2 py-1">
-                  <option value="all">All</option>
-                  {bookingCategories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+              <div className="mb-4 flex gap-4 items-center">
+                <div>
+                  <label htmlFor="appointmentMonth" className="mr-2 font-medium">Month:</label>
+                  <input
+                    id="appointmentMonth"
+                    type="month"
+                    value={appointmentMonth}
+                    onChange={e => setAppointmentMonth(e.target.value)}
+                    className="border rounded px-2 py-1"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="appointmentSearch" className="mr-2 font-medium">Search:</label>
+                  <input
+                    id="appointmentSearch"
+                    type="text"
+                    placeholder="Search pet, doctor, clinic, reason..."
+                    value={appointmentSearch}
+                    onChange={e => setAppointmentSearch(e.target.value)}
+                    className="border rounded px-2 py-1"
+                    style={{ minWidth: 200 }}
+                  />
+                </div>
               </div>
               <div className="space-y-4">
                 {filteredAppointments.length === 0 && (

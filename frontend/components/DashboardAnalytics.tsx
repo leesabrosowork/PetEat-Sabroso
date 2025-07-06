@@ -31,14 +31,23 @@ interface DashboardAnalyticsProps {
     totalUsers?: number;
     mostSubtractedCategory?: string;
     mostSubtractedAmount?: number;
-    weeklyAppointmentsByReason?: Record<string, number>;
-    monthlyAppointmentsByReason?: Record<string, number>;
+    appointmentsByReasonByMonth?: { [reason: string]: number[] };
+    inventoryChangesByMonth?: { expired: number[], subtracted: number[], added: number[], removed: number[] };
+    petsAdmittedByMonth?: number[];
+    petsStatusChangesByMonth?: { [status: string]: number[] };
+    mostSubtractedItem?: string;
+    mostSubtractedItemAmount?: number;
+    topSubtractedItems?: { item: string; amount: number }[]; // New prop for top subtracted items
   };
+  analyticsYear?: number;
+  setAnalyticsYear?: (year: number) => void;
+  currentYear?: number;
+  showInventoryChanges?: boolean; // new prop
 }
 
 const COLORS = ["#10b981", "#f59e0b", "#ef4444"];
 
-export const DashboardAnalytics: React.FC<DashboardAnalyticsProps> = ({ data }) => {
+export const DashboardAnalytics: React.FC<DashboardAnalyticsProps> = ({ data, analyticsYear, setAnalyticsYear, currentYear, showInventoryChanges = true }) => {
   // Memoised chart datasets for performance
   const petsPieData = useMemo(() => {
     if (!data.petsByStatus) return [];
@@ -84,15 +93,42 @@ export const DashboardAnalytics: React.FC<DashboardAnalyticsProps> = ({ data }) 
 
   const showSummary = summaryBarData.length >= 2; // Only if we have at least two metrics
 
-  // Weekly/monthly appointments by reason
-  const weeklyReasonData = useMemo(() => {
-    if (!data.weeklyAppointmentsByReason) return [];
-    return Object.entries(data.weeklyAppointmentsByReason).map(([reason, count]) => ({ reason, count }));
-  }, [data.weeklyAppointmentsByReason]);
-  const monthlyReasonData = useMemo(() => {
-    if (!data.monthlyAppointmentsByReason) return [];
-    return Object.entries(data.monthlyAppointmentsByReason).map(([reason, count]) => ({ reason, count }));
-  }, [data.monthlyAppointmentsByReason]);
+  // Remove all references to weeklyReasonData and monthlyReasonData
+  // The new charts are already present, so just ensure no old code remains and all tags are closed properly.
+  const appointmentsByReasonByMonth = data.appointmentsByReasonByMonth || {};
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  const reasonChartData = months.map((month, i) => {
+    const entry: any = { month };
+    for (const reason in appointmentsByReasonByMonth) {
+      entry[reason] = appointmentsByReasonByMonth[reason][i] || 0;
+    }
+    return entry;
+  });
+  // Inventory changes analytics
+  const inventoryChangesByMonth: any = data.inventoryChangesByMonth || {};
+  const inventoryChartData = months.map((month, i) => ({
+    month,
+    Expired: inventoryChangesByMonth.expired?.[i] || 0,
+    Subtracted: inventoryChangesByMonth.subtracted?.[i] || 0,
+    Added: inventoryChangesByMonth.added?.[i] || 0,
+    Removed: inventoryChangesByMonth.removed?.[i] || 0,
+  }));
+  const petsAdmittedByMonth = data.petsAdmittedByMonth || [];
+  const petsStatusChangesByMonth = data.petsStatusChangesByMonth || {};
+  const petsAdmittedChartData = months.map((month, i) => ({
+    month,
+    Admitted: petsAdmittedByMonth[i] || 0
+  }));
+  const petsStatusChangesChartData = months.map((month, i) => {
+    const entry: any = { month };
+    for (const status of ["Critical","Stable","Improving","Recovered"]) {
+      entry[status] = petsStatusChangesByMonth[status]?.[i] || 0;
+    }
+    return entry;
+  });
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -152,6 +188,25 @@ export const DashboardAnalytics: React.FC<DashboardAnalyticsProps> = ({ data }) 
         <Card>
           <CardHeader>
             <CardTitle>Inventory</CardTitle>
+            {/* Top 5 most subtracted inventory items info at the top */}
+            {Array.isArray(data.topSubtractedItems) && data.topSubtractedItems.length > 0 ? (
+              <div className="mt-2 mb-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-900">
+                <div className="font-semibold mb-1">Most Subtracted Inventory Items (Top 5):</div>
+                <ol className="list-decimal ml-6">
+                  {data.topSubtractedItems.map((entry, idx) => (
+                    <li key={entry.item} className="mb-1">
+                      <span className="font-bold">{entry.item}</span>
+                      <span className="ml-2 text-sm">&gt; Total Subtracted: <span className="font-mono">{entry.amount}</span></span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : data.mostSubtractedItem && (
+              <div className="mt-2 mb-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-900">
+                <div className="font-semibold">Most Subtracted Inventory Item: <span className="font-bold">{data.mostSubtractedItem}</span></div>
+                <div className="text-sm ml-2">&gt; Total Subtracted: <span className="font-mono">{data.mostSubtractedItemAmount}</span></div>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -164,7 +219,7 @@ export const DashboardAnalytics: React.FC<DashboardAnalyticsProps> = ({ data }) 
                 <Bar dataKey="Low Stock" fill="#f97316" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-            {/* Most subtracted category info */}
+            {/* Most subtracted category info (keep below chart) */}
             {data.mostSubtractedCategory && (
               <div className="mt-6 p-4 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 text-center">
                 <div className="font-semibold">Most Subtracted Category</div>
@@ -195,76 +250,97 @@ export const DashboardAnalytics: React.FC<DashboardAnalyticsProps> = ({ data }) 
         </Card>
       )}
 
-      {/* Weekly and Monthly appointments by reason side by side */}
-      {weeklyReasonData.length > 0 && monthlyReasonData.length > 0 && (
-        <div className="md:col-span-3 flex flex-col md:flex-row gap-6">
-          <Card className="flex-1">
-            <CardHeader>
-              <CardTitle>Weekly Appointments by Reason</CardTitle>
-            </CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyReasonData}>
-                  <XAxis dataKey="reason" />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#6366f1" isAnimationActive radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-          <Card className="flex-1">
-            <CardHeader>
-              <CardTitle>Monthly Appointments by Reason</CardTitle>
-            </CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyReasonData}>
-                  <XAxis dataKey="reason" />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#f59e0b" isAnimationActive radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+      {/* Move Analytics Year selector here, below Summary and above Appointments by Reason */}
+      {typeof analyticsYear === 'number' && setAnalyticsYear && currentYear && (
+        <div className="flex items-center gap-4 mb-4 md:col-span-3">
+          <label htmlFor="analyticsYear" className="font-medium">Analytics Year:</label>
+          <input
+            id="analyticsYear"
+            type="number"
+            min="2000"
+            max={currentYear + 10}
+            value={analyticsYear}
+            onChange={e => setAnalyticsYear(Number(e.target.value))}
+            className="border rounded px-2 py-1 w-32"
+          />
         </div>
       )}
-      {/* If only one of the charts has data, show it full width */}
-      {weeklyReasonData.length > 0 && monthlyReasonData.length === 0 && (
+
+      {/* Remove the weekly/monthly by reason charts and add the new ones: */}
+      <Card className="md:col-span-3">
+        <CardHeader>
+          <CardTitle>Appointments by Reason (12-Month)</CardTitle>
+        </CardHeader>
+        <CardContent className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={reasonChartData}>
+              <XAxis dataKey="month" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              {Object.keys(appointmentsByReasonByMonth).map((reason, idx) => (
+                <Bar key={reason} dataKey={reason} fill={COLORS[idx % COLORS.length]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+      {/* Inventory Changes (12-Month) - only show if showInventoryChanges is true */}
+      {showInventoryChanges && (
         <Card className="md:col-span-3">
           <CardHeader>
-            <CardTitle>Weekly Appointments by Reason</CardTitle>
+            <CardTitle>Inventory Changes (12-Month)</CardTitle>
           </CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyReasonData}>
-                <XAxis dataKey="reason" />
+              <BarChart data={inventoryChartData}>
+                <XAxis dataKey="month" />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="count" fill="#6366f1" isAnimationActive radius={[4, 4, 0, 0]} />
+                <Legend />
+                <Bar dataKey="Expired" fill="#ef4444" />
+                <Bar dataKey="Subtracted" fill="#f59e0b" />
+                <Bar dataKey="Added" fill="#10b981" />
+                <Bar dataKey="Removed" fill="#6366f1" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       )}
-      {monthlyReasonData.length > 0 && weeklyReasonData.length === 0 && (
-        <Card className="md:col-span-3">
-          <CardHeader>
-            <CardTitle>Monthly Appointments by Reason</CardTitle>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyReasonData}>
-                <XAxis dataKey="reason" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#f59e0b" isAnimationActive radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+      <Card className="md:col-span-3">
+        <CardHeader>
+          <CardTitle>Pets Admitted (12-Month)</CardTitle>
+        </CardHeader>
+        <CardContent className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={petsAdmittedChartData}>
+              <XAxis dataKey="month" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="Admitted" fill="#3b82f6" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+      <Card className="md:col-span-3">
+        <CardHeader>
+          <CardTitle>Pet Status Changes (12-Month)</CardTitle>
+        </CardHeader>
+        <CardContent className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={petsStatusChangesChartData}>
+              <XAxis dataKey="month" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="Critical" fill="#ef4444" />
+              <Bar dataKey="Stable" fill="#10b981" />
+              <Bar dataKey="Improving" fill="#f59e0b" />
+              <Bar dataKey="Recovered" fill="#6366f1" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 };

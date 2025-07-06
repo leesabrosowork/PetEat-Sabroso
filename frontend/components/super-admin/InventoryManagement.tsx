@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Table,
   TableBody,
@@ -63,6 +63,16 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
   const [filterManufacturing, setFilterManufacturing] = useState('all');
   const [manufacturingFrom, setManufacturingFrom] = useState('');
   const [manufacturingTo, setManufacturingTo] = useState('');
+  const [filterExpiryMonth, setFilterExpiryMonth] = useState('');
+  const [filterManufacturingMonth, setFilterManufacturingMonth] = useState('');
+  const currentYear = new Date().getFullYear();
+  const [inventoryAnalyticsYear, setInventoryAnalyticsYear] = useState<number>(currentYear);
+
+  // Add a useEffect to refetch inventory analytics when the year changes
+  useEffect(() => {
+    // You may need to update your fetch logic to accept a year param
+    onInventoryUpdated();
+  }, [inventoryAnalyticsYear]);
 
   const handleCreateItem = async () => {
     try {
@@ -279,7 +289,25 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
       if (manufacturingFrom && date < new Date(manufacturingFrom)) matchesManufacturing = false;
       if (manufacturingTo && date > new Date(manufacturingTo)) matchesManufacturing = false;
     }
-    return matchesCategory && matchesStatus && matchesSearch && matchesManufacturing;
+    let matchesExpiryMonth = true;
+    if (filterExpiryMonth) {
+      if (!item.expirationDate) return false;
+      const date = new Date(item.expirationDate);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear().toString();
+      const [selectedYear, selectedMonth] = filterExpiryMonth.split('-');
+      matchesExpiryMonth = year === selectedYear && month === selectedMonth;
+    }
+    let matchesManufacturingMonth = true;
+    if (filterManufacturingMonth) {
+      if (!item.manufacturingDate) return false;
+      const date = new Date(item.manufacturingDate);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear().toString();
+      const [selectedYear, selectedMonth] = filterManufacturingMonth.split('-');
+      matchesManufacturingMonth = year === selectedYear && month === selectedMonth;
+    }
+    return matchesCategory && matchesStatus && matchesSearch && matchesManufacturing && matchesExpiryMonth && matchesManufacturingMonth;
   });
 
   const filteredExpirationInventory = filteredInventory.filter(item => {
@@ -303,6 +331,18 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
           <p className="text-sm text-gray-500 dark:text-gray-400">Manage your clinic's inventory items and stock levels</p>
         </div>
         <div className="flex flex-wrap gap-2 items-end">
+          <div>
+            <Label htmlFor="inventoryAnalyticsYear">Inventory Analytics Year:</Label>
+            <input
+              id="inventoryAnalyticsYear"
+              type="number"
+              min="2000"
+              max={currentYear + 10}
+              value={inventoryAnalyticsYear}
+              onChange={e => setInventoryAnalyticsYear(Number(e.target.value))}
+              className="border rounded px-2 py-1 w-32"
+            />
+          </div>
           <div>
             <Label>Category</Label>
             <select className="border rounded px-2 py-1" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
@@ -332,6 +372,15 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
             </select>
           </div>
           <div>
+            <Label>Manufacturing Month</Label>
+            <input
+              type="month"
+              value={filterManufacturingMonth}
+              onChange={e => setFilterManufacturingMonth(e.target.value)}
+              className="border rounded px-2 py-1"
+            />
+          </div>
+          <div>
             <Label>Manufacturing</Label>
             <select className="border rounded px-2 py-1" value={filterManufacturing} onChange={e => setFilterManufacturing(e.target.value)}>
               <option value="all">All</option>
@@ -355,6 +404,11 @@ export default function InventoryManagement({ inventory, onInventoryUpdated }: I
           Add New Item
         </Button>
       </div>
+
+      {/* Show a message if no data for the year */}
+      {filteredInventory.length === 0 && (
+        <div className="text-center text-gray-500 text-lg py-12">No data for this year.</div>
+      )}
 
       <Table className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
         <TableHeader className="bg-gray-50 dark:bg-gray-700">

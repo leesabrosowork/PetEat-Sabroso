@@ -5,6 +5,7 @@ const Booking = require('../models/bookingModel');
 const VideoConsultation = require('../models/videoConsultationModel');
 const Inventory = require('../models/inventoryModel');
 const User = require('../models/userModel');
+const PetsUnderTreatment = require('../models/petsUnderTreatmentModel');
 const { createZoomMeeting } = require('../utils/zoom');
 const { createGoogleMeet } = require('../utils/googleMeet');
 const { sendBookingApprovalEmails } = require('../utils/emailService');
@@ -14,6 +15,16 @@ exports.getDashboardData = async (req, res) => {
     try {
         const clinicId = req.user.id;
         console.log('📊 Dashboard data for clinic ID:', clinicId);
+        
+        // Parse month from query (format: YYYY-MM)
+        let monthStart = null, monthEnd = null;
+        if (req.query.month) {
+            const [year, month] = req.query.month.split('-').map(Number);
+            if (year && month) {
+                monthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+                monthEnd = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+            }
+        }
         
         // Use Promise.all for parallel execution of all queries
         const [
@@ -32,22 +43,19 @@ exports.getDashboardData = async (req, res) => {
             // Get upcoming appointments
             Booking.countDocuments({
                 clinic: clinicId,
-                bookingDate: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+                ...(monthStart && monthEnd ? { bookingDate: { $gte: monthStart, $lt: monthEnd } } : { bookingDate: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) } }),
                 status: { $in: ['pending', 'confirmed'] }
             }),
             // Get completed appointments for today
             Booking.countDocuments({
                 clinic: clinicId,
-                bookingDate: { 
-                    $gte: new Date(new Date().setHours(0, 0, 0, 0)),
-                    $lt: new Date(new Date().setDate(new Date().getDate() + 1))
-                },
+                ...(monthStart && monthEnd ? { bookingDate: { $gte: monthStart, $lt: monthEnd } } : { bookingDate: { $gte: new Date(new Date().setHours(0, 0, 0, 0)), $lt: new Date(new Date().setDate(new Date().getDate() + 1)) } }),
                 status: 'completed'
             }),
             // Get video consultations
             Booking.countDocuments({
                 clinic: clinicId,
-                bookingDate: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+                ...(monthStart && monthEnd ? { bookingDate: { $gte: monthStart, $lt: monthEnd } } : { bookingDate: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) } }),
                 type: 'online',
                 status: { $in: ['pending', 'confirmed'] }
             }),
@@ -96,21 +104,30 @@ exports.getDashboardData = async (req, res) => {
         }
 
         // Weekly and monthly appointments with reasons
-        const now = new Date();
-        const weekAgo = new Date(now);
+        let now = new Date();
+        let weekAgo = new Date(now);
         weekAgo.setDate(now.getDate() - 7);
-        const monthAgo = new Date(now);
+        let monthAgo = new Date(now);
         monthAgo.setMonth(now.getMonth() - 1);
+        let monthlyBookings;
+        if (monthStart && monthEnd) {
+            monthlyBookings = await Booking.find({
+                clinic: clinicId,
+                bookingDate: { $gte: monthStart, $lt: monthEnd },
+                status: { $in: ['confirmed', 'completed'] }
+            });
+        } else {
+            monthlyBookings = await Booking.find({
+                clinic: clinicId,
+                bookingDate: { $gte: monthAgo },
+                status: { $in: ['confirmed', 'completed'] }
+            });
+        }
 
-        // Only count appointments with pet owners (type: in person or online, status: confirmed/completed)
-        const weeklyBookings = await Booking.find({
+        // Fetch weekly bookings for weekly analytics
+        let weeklyBookings = await Booking.find({
             clinic: clinicId,
             bookingDate: { $gte: weekAgo },
-            status: { $in: ['confirmed', 'completed'] }
-        });
-        const monthlyBookings = await Booking.find({
-            clinic: clinicId,
-            bookingDate: { $gte: monthAgo },
             status: { $in: ['confirmed', 'completed'] }
         });
 
@@ -126,6 +143,132 @@ exports.getDashboardData = async (req, res) => {
         const weeklyAppointmentsByReason = groupByReason(weeklyBookings);
         const monthlyAppointmentsByReason = groupByReason(monthlyBookings);
 
+        // --- 12-Month Analytics by Reason (Appointments) ---
+        // Determine year to use
+        let analyticsYear = new Date().getFullYear();
+        if (req.query.year) {
+            const y = parseInt(req.query.year);
+            if (!isNaN(y)) analyticsYear = y;
+        }
+        // Get all bookings for the year
+        const yearStart = new Date(Date.UTC(analyticsYear, 0, 1, 0, 0, 0));
+        const yearEnd = new Date(Date.UTC(analyticsYear + 1, 0, 1, 0, 0, 0));
+        const yearBookings = await Booking.find({
+            clinic: clinicId,
+            bookingDate: { $gte: yearStart, $lt: yearEnd },
+            status: { $in: ['confirmed', 'completed'] }
+        });
+        // Group by reason and month
+        const appointmentsByReasonByMonth = {};
+        for (let i = 0; i < 12; i++) {
+            const monthBookings = yearBookings.filter(b => {
+                const d = new Date(b.bookingDate);
+                return d.getUTCMonth() === i;
+            });
+            for (const b of monthBookings) {
+                if (!b.reason) continue;
+                if (!appointmentsByReasonByMonth[b.reason]) appointmentsByReasonByMonth[b.reason] = Array(12).fill(0);
+                appointmentsByReasonByMonth[b.reason][i]++;
+            }
+        }
+        // --- 12-Month Inventory Changes Analytics ---
+        const inventoryDocsYear = await Inventory.find({
+            clinic: clinicId,
+            $or: [
+                { expirationDate: { $gte: yearStart, $lt: yearEnd } },
+                { 'subtractionHistory.date': { $gte: yearStart, $lt: yearEnd } },
+                { createdAt: { $gte: yearStart, $lt: yearEnd } },
+                { updatedAt: { $gte: yearStart, $lt: yearEnd } }
+            ]
+        });
+        const inventoryChangesByMonth = {
+            expired: Array(12).fill(0),
+            subtracted: Array(12).fill(0),
+            added: Array(12).fill(0),
+            removed: Array(12).fill(0)
+        };
+        for (let i = 0; i < 12; i++) {
+            // Expired
+            inventoryChangesByMonth.expired[i] = inventoryDocsYear.filter(inv => inv.expirationDate && (new Date(inv.expirationDate)).getUTCMonth() === i && (new Date(inv.expirationDate)).getUTCFullYear() === analyticsYear).length;
+            // Added (created)
+            inventoryChangesByMonth.added[i] = inventoryDocsYear.filter(inv => inv.createdAt && (new Date(inv.createdAt)).getUTCMonth() === i && (new Date(inv.createdAt)).getUTCFullYear() === analyticsYear).length;
+            // Removed (deleted) - not tracked unless you have a deletion log, so leave as 0 or implement if you have a log
+            inventoryChangesByMonth.removed[i] = 0;
+            // Subtracted (from subtractionHistory)
+            let subCount = 0;
+            for (const inv of inventoryDocsYear) {
+                if (Array.isArray(inv.subtractionHistory)) {
+                    for (const sub of inv.subtractionHistory) {
+                        const d = new Date(sub.date);
+                        if (d.getUTCMonth() === i && d.getUTCFullYear() === analyticsYear) {
+                            subCount++;
+                        }
+                    }
+                }
+            }
+            inventoryChangesByMonth.subtracted[i] = subCount;
+        }
+
+        // --- 12-Month Pets Admitted & Status Changes Analytics ---
+        const petsUnderTreatmentYear = await PetsUnderTreatment.find({
+            clinic: clinicId,
+            admissionDate: { $gte: yearStart, $lt: yearEnd }
+        });
+        const petsAdmittedByMonth = Array(12).fill(0);
+        const petsStatusChangesByMonth = {
+            Critical: Array(12).fill(0),
+            Stable: Array(12).fill(0),
+            Improving: Array(12).fill(0),
+            Recovered: Array(12).fill(0)
+        };
+        for (const pet of petsUnderTreatmentYear) {
+            // Count admissions
+            const adm = new Date(pet.admissionDate);
+            if (adm.getUTCFullYear() === analyticsYear) {
+                petsAdmittedByMonth[adm.getUTCMonth()]++;
+            }
+            // Count status changes from treatmentHistory
+            if (Array.isArray(pet.treatmentHistory)) {
+                for (const hist of pet.treatmentHistory) {
+                    if (hist.date) {
+                        const d = new Date(hist.date);
+                        if (d.getUTCFullYear() === analyticsYear) {
+                            // Assume notes contain the new status, e.g. "Status changed to Stable"
+                            for (const status of ["Critical","Stable","Improving","Recovered"]) {
+                                if (hist.notes && hist.notes.toLowerCase().includes(status.toLowerCase())) {
+                                    petsStatusChangesByMonth[status][d.getUTCMonth()]++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Most Subtracted Inventory Item (by amount) for the year ---
+        let mostSubtractedItem = null;
+        let mostSubtractedItemAmount = 0;
+        const subtractedByItem = {};
+        for (const inv of inventoryDocsYear) {
+            if (!inv.item) continue;
+            const totalSub = (inv.subtractionHistory || [])
+                .filter(h => h.amount < 0 && h.date && (new Date(h.date)).getUTCFullYear() === analyticsYear)
+                .reduce((sum, h) => sum + Math.abs(h.amount), 0);
+            if (!subtractedByItem[inv.item]) subtractedByItem[inv.item] = 0;
+            subtractedByItem[inv.item] += totalSub;
+        }
+        for (const [item, amt] of Object.entries(subtractedByItem)) {
+            if (amt > mostSubtractedItemAmount) {
+                mostSubtractedItem = item;
+                mostSubtractedItemAmount = amt;
+            }
+        }
+        // Top 5 most subtracted items
+        const topSubtractedItems = Object.entries(subtractedByItem)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([item, amount]) => ({ item, amount }));
+
         res.json({
             success: true,
             data: {
@@ -139,8 +282,13 @@ exports.getDashboardData = async (req, res) => {
                 lowStockItems,
                 mostSubtractedCategory,
                 mostSubtractedAmount,
-                weeklyAppointmentsByReason,
-                monthlyAppointmentsByReason
+                appointmentsByReasonByMonth,
+                inventoryChangesByMonth,
+                petsAdmittedByMonth,
+                petsStatusChangesByMonth,
+                mostSubtractedItem,
+                mostSubtractedItemAmount,
+                topSubtractedItems // new field
             }
         });
     } catch (error) {

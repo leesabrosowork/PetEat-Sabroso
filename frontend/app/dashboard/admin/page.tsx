@@ -30,6 +30,11 @@ interface DashboardData {
   totalPets: number;
   totalInventory: number;
   lowStockItems: number;
+  // Add analytics fields for in-depth inventory analytics
+  inventoryChangesByMonth?: { expired: number[]; subtracted: number[]; added: number[]; removed: number[] };
+  topSubtractedItems?: { item: string; amount: number }[];
+  mostSubtractedCategory?: string;
+  mostSubtractedAmount?: number;
 }
 
 interface User {
@@ -111,9 +116,18 @@ export default function AdminDashboard() {
     expirationDate: '',
     manufacturingDate: ''
   });
+  const [inventoryExpiryMonth, setInventoryExpiryMonth] = useState('');
+  const [inventoryManufacturingMonth, setInventoryManufacturingMonth] = useState('');
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: currentYear - 2019 + 2 }, (_, i) => 2020 + i); // 2020 to currentYear+1
+  const [inventoryAnalyticsYear, setInventoryAnalyticsYear] = useState<number>(currentYear);
   
   const router = useRouter()
   const { dismiss } = useToast();
+
+  // Add state for user and pet search
+  const [userSearch, setUserSearch] = useState('');
+  const [petSearch, setPetSearch] = useState('');
 
   // Memoize expensive calculations
   const lowStockItems = useMemo(() => {
@@ -150,8 +164,11 @@ export default function AdminDashboard() {
         'Content-Type': 'application/json'
       }
 
+      // Add year param to endpoint
+      let url = 'http://localhost:8080/api/admin/dashboard/all-data';
+      if (inventoryAnalyticsYear) url += `?year=${inventoryAnalyticsYear}`;
       // Use the new optimized endpoint that returns all data in one request
-      const response = await fetch('http://localhost:8080/api/admin/dashboard/all-data', { headers })
+      const response = await fetch(url, { headers })
 
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard data')
@@ -170,7 +187,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }, []);
+  }, [inventoryAnalyticsYear]);
 
   const handleAddNewItem = () => {
     // Create a new empty item
@@ -579,6 +596,52 @@ export default function AdminDashboard() {
     'Vaccine'
   ];
 
+  // Add or update filteredInventory logic to include search
+  const filteredInventory = useMemo(() => {
+    let items = inventory || [];
+    if (inventoryCategory) {
+      items = items.filter(item => item.category === inventoryCategory);
+    }
+    if (inventoryStatus) {
+      items = items.filter(item => item.status === inventoryStatus);
+    }
+    if (inventoryExpiryMonth) {
+      items = items.filter(item => {
+        if (!item.expirationDate) return false;
+        const date = new Date(item.expirationDate);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear().toString();
+        const [selectedYear, selectedMonth] = inventoryExpiryMonth.split('-');
+        return year === selectedYear && month === selectedMonth;
+      });
+    }
+    if (inventoryManufacturingMonth) {
+      items = items.filter(item => {
+        if (!item.manufacturingDate) return false;
+        const date = new Date(item.manufacturingDate);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear().toString();
+        const [selectedYear, selectedMonth] = inventoryManufacturingMonth.split('-');
+        return year === selectedYear && month === selectedMonth;
+      });
+    }
+    if (inventorySearch.trim() !== "") {
+      const q = inventorySearch.toLowerCase();
+      items = items.filter(item =>
+        item.item.toLowerCase().includes(q) ||
+        (item.category && item.category.toLowerCase().includes(q)) ||
+        (item.status && item.status.toLowerCase().includes(q))
+      );
+    }
+    return items;
+  }, [inventory, inventoryCategory, inventoryStatus, inventoryExpiryMonth, inventoryManufacturingMonth, inventorySearch]);
+
+  // Add a useEffect to refetch inventory analytics when the year changes
+  useEffect(() => {
+    // You may need to update your fetch logic to accept a year param
+    fetchDashboardData();
+  }, [inventoryAnalyticsYear]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -677,12 +740,46 @@ export default function AdminDashboard() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <DashboardAnalytics data={{
-              totalUsers: dashboardData?.totalUsers,
-              totalPets: dashboardData?.totalPets,
-              inventoryItems: inventory.length,
-              lowStockItems: dashboardData?.lowStockItems,
-            }} />
+            {/* Prominent Analytics Section */}
+            <Card className="mb-6">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="analytics-year" className="text-sm font-medium text-gray-700 dark:text-gray-200">Analytics Year:</label>
+                  <select
+                    id="analytics-year"
+                    value={inventoryAnalyticsYear}
+                    onChange={e => setInventoryAnalyticsYear(Number(e.target.value))}
+                    className="border rounded px-2 py-1 text-sm dark:bg-gray-800 dark:text-white"
+                  >
+                    {yearOptions.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchDashboardData}>
+                  Refresh Analytics
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <DashboardAnalytics
+                  data={{
+                    totalUsers: dashboardData?.totalUsers,
+                    totalPets: dashboardData?.totalPets,
+                    inventoryItems: inventory.length,
+                    lowStockItems: dashboardData?.lowStockItems,
+                    // Add in-depth inventory analytics fields if available
+                    inventoryChangesByMonth: dashboardData?.inventoryChangesByMonth,
+                    topSubtractedItems: dashboardData?.topSubtractedItems,
+                    mostSubtractedCategory: dashboardData?.mostSubtractedCategory,
+                    mostSubtractedAmount: dashboardData?.mostSubtractedAmount,
+                  }}
+                  analyticsYear={inventoryAnalyticsYear}
+                  setAnalyticsYear={setInventoryAnalyticsYear}
+                  currentYear={currentYear}
+                  showInventoryChanges={true}
+                />
+              </CardContent>
+            </Card>
 
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
@@ -774,8 +871,15 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-2">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Users</h2>
+              <Input
+                type="text"
+                placeholder="Search users..."
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+                className="w-64"
+              />
               <Button onClick={() => setIsAddItemDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add User
@@ -792,7 +896,14 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(users || []).map((user) => (
+                  {(users || []).filter(user => {
+                    const q = userSearch.toLowerCase();
+                    return (
+                      user.username.toLowerCase().includes(q) ||
+                      user.email.toLowerCase().includes(q) ||
+                      user.role.toLowerCase().includes(q)
+                    );
+                  }).map((user) => (
                     <TableRow key={user._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                       <TableCell className="font-medium text-gray-900 dark:text-white">{user.username}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">{user.email}</TableCell>
@@ -827,8 +938,15 @@ export default function AdminDashboard() {
           </TabsContent>
           
           <TabsContent value="pets" className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-2">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Pets</h2>
+              <Input
+                type="text"
+                placeholder="Search pets..."
+                value={petSearch}
+                onChange={e => setPetSearch(e.target.value)}
+                className="w-64"
+              />
               <Button onClick={() => setIsEditPetDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Pet
@@ -846,7 +964,20 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(pets || []).map((pet) => (
+                  {(pets || []).filter(pet => {
+                    const q = petSearch.toLowerCase();
+                    return (
+                      pet.name.toLowerCase().includes(q) ||
+                      (pet.category && pet.category.toLowerCase().includes(q)) ||
+                      (pet.species && pet.species.toLowerCase().includes(q)) ||
+                      (pet.breed && pet.breed.toLowerCase().includes(q)) ||
+                      (typeof pet.owner === 'object' && pet.owner && (
+                        (pet.owner.fullName && pet.owner.fullName.toLowerCase().includes(q)) ||
+                        (pet.owner.username && pet.owner.username.toLowerCase().includes(q)) ||
+                        (pet.owner.email && pet.owner.email.toLowerCase().includes(q))
+                      ))
+                    );
+                  }).map((pet) => (
                     <TableRow key={pet._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                       <TableCell className="font-medium text-gray-900 dark:text-white">{pet.name}</TableCell>
                       <TableCell className="text-gray-900 dark:text-white">{pet.category || pet.species || pet.type || 'N/A'}</TableCell>
@@ -886,6 +1017,18 @@ export default function AdminDashboard() {
           <TabsContent value="inventory" className="space-y-6">
             <div className="flex flex-wrap gap-2 items-end mb-4">
               <div>
+                <label htmlFor="inventoryAnalyticsYear" className="mr-2 font-medium">Inventory Analytics Year:</label>
+                <input
+                  id="inventoryAnalyticsYear"
+                  type="number"
+                  min="2000"
+                  max={currentYear + 10}
+                  value={inventoryAnalyticsYear}
+                  onChange={e => setInventoryAnalyticsYear(Number(e.target.value))}
+                  className="border rounded px-2 py-1 w-32"
+                />
+              </div>
+              <div>
                 <label>Category</label>
                 <select className="border rounded px-2 py-1" value={inventoryCategory} onChange={e => setInventoryCategory(e.target.value)}>
                   <option value="">All</option>
@@ -902,35 +1045,37 @@ export default function AdminDashboard() {
                 </select>
               </div>
               <div>
-                <label>Expiration</label>
-                <select className="border rounded px-2 py-1" value={inventoryExpiration} onChange={e => setInventoryExpiration(e.target.value)}>
-                  <option value="all">All</option>
-                  <option value="soon">Soon</option>
-                  <option value="expired">Expired</option>
-                </select>
-              </div>
-              <div>
-                <label>Manufacturing</label>
-                <select className="border rounded px-2 py-1" value={inventoryManufacturing} onChange={e => setInventoryManufacturing(e.target.value)}>
-                  <option value="all">All</option>
-                  <option value="last30">Last 30 Days</option>
-                  <option value="range">Date Range</option>
-                </select>
-              </div>
-              {inventoryManufacturing === 'range' && (
-                <div className="flex gap-2">
-                  <Input type="date" value={manufacturingFrom} onChange={e => setManufacturingFrom(e.target.value)} placeholder="From" />
-                  <Input type="date" value={manufacturingTo} onChange={e => setManufacturingTo(e.target.value)} placeholder="To" />
-                </div>
-              )}
-              <div>
                 <label>Search</label>
                 <Input placeholder="Search item..." value={inventorySearch} onChange={e => setInventorySearch(e.target.value)} />
+              </div>
+              <div>
+                <label htmlFor="inventoryExpiryMonth" className="mr-2 font-medium">Inventory Expiry Month:</label>
+                <input
+                  id="inventoryExpiryMonth"
+                  type="month"
+                  value={inventoryExpiryMonth}
+                  onChange={e => setInventoryExpiryMonth(e.target.value)}
+                  className="border rounded px-2 py-1"
+                />
+              </div>
+              <div>
+                <label htmlFor="inventoryManufacturingMonth" className="mr-2 font-medium">Manufacturing Month:</label>
+                <input
+                  id="inventoryManufacturingMonth"
+                  type="month"
+                  value={inventoryManufacturingMonth}
+                  onChange={e => setInventoryManufacturingMonth(e.target.value)}
+                  className="border rounded px-2 py-1"
+                />
               </div>
               <Button onClick={() => setIsAddInventoryDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" /> Add Item
               </Button>
             </div>
+            {/* Show a message if no data for the year */}
+            {inventory.length === 0 && (
+              <div className="text-center text-gray-500 text-lg py-12">No data for this year.</div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -945,22 +1090,8 @@ export default function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {inventory
+                {filteredInventory
                   .filter(item => item.item.toLowerCase().includes(inventorySearch.toLowerCase()))
-                  .filter(item => !inventoryCategory || item.category === inventoryCategory)
-                  .filter(item => !inventoryStatus || item.status === inventoryStatus)
-                  .filter(item => {
-                    if (inventoryExpiration === 'soon') {
-                      if (!item.expirationDate) return false;
-                      const days = (Number(new Date(item.expirationDate)) - Number(new Date())) / (1000*60*60*24);
-                      return days >= 0 && days <= 7;
-                    }
-                    if (inventoryExpiration === 'expired') {
-                      if (!item.expirationDate) return false;
-                      return Number(new Date(item.expirationDate)) < Number(new Date());
-                    }
-                    return true;
-                  })
                   .filter(item => {
                     let matchesManufacturing = true;
                     if (inventoryManufacturing === 'last30') {

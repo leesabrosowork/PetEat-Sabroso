@@ -54,6 +54,8 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
     owner: "",
   })
   const { toast } = useToast()
+  // Add search state
+  const [petSearch, setPetSearch] = useState('');
 
   const handleCreatePet = async () => {
     try {
@@ -184,6 +186,13 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Pet Management</h2>
+        <Input
+          type="text"
+          placeholder="Search pets..."
+          value={petSearch}
+          onChange={e => setPetSearch(e.target.value)}
+          className="w-64"
+        />
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Add Pet
@@ -205,7 +214,20 @@ export default function PetManagement({ pets, onPetUpdated }: PetManagementProps
           </TableRow>
         </TableHeader>
         <TableBody>
-          {pets.filter(pet => pet).map((pet) => (
+          {pets.filter(pet => {
+            const q = petSearch.toLowerCase();
+            return (
+              pet.name.toLowerCase().includes(q) ||
+              (pet.category && pet.category.toLowerCase().includes(q)) ||
+              (pet.species && pet.species.toLowerCase().includes(q)) ||
+              (pet.breed && pet.breed.toLowerCase().includes(q)) ||
+              (pet.owner && (
+                (pet.owner.fullName && pet.owner.fullName.toLowerCase().includes(q)) ||
+                (pet.owner.username && pet.owner.username.toLowerCase().includes(q)) ||
+                (pet.owner.email && pet.owner.email.toLowerCase().includes(q))
+              ))
+            );
+          }).map((pet) => (
             <TableRow key={pet._id}>
               <TableCell>
                 {pet.profilePicture ? (

@@ -225,6 +225,8 @@ interface DashboardData {
   lowStockItems: number;
   weeklyAppointmentsByReason?: Record<string, number>;
   monthlyAppointmentsByReason?: Record<string, number>;
+  appointmentsByReasonByMonth?: Record<string, Record<string, number>>;
+  inventoryChangesByMonth?: Record<string, Record<string, number>>;
 }
 
 // Update Appointment and VideoConsultation interfaces to match booking schema
@@ -239,6 +241,7 @@ interface Booking {
   status: string;
   type: string;
   googleMeetLink?: string;
+  startTime?: string;
 }
 
 export default function VetClinicDashboard() {
@@ -305,8 +308,8 @@ function VetClinicDashboardContent() {
   // Add chat state
   const [chatSearchQuery, setChatSearchQuery] = useState("");
   const [filteredPetOwners, setFilteredPetOwners] = useState<any[]>([]);
-  const [selectedPetOwner, setSelectedPetOwner] = useState<any | null>(null);
   const [petOwners, setPetOwners] = useState<any[]>([]);
+  const [selectedPetOwner, setSelectedPetOwner] = useState<any | null>(null);
   const [conversations, setConversations] = useState<any[]>([]);
   const [currentConversation, setCurrentConversation] = useState<any | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -331,6 +334,66 @@ function VetClinicDashboardContent() {
   const [inventoryManufacturing, setInventoryManufacturing] = useState('all'); // 'all', 'soon', 'expired'
   const [manufacturingFrom, setManufacturingFrom] = useState('');
   const [manufacturingTo, setManufacturingTo] = useState('');
+  const [appointmentMonth, setAppointmentMonth] = useState<string>("");
+  const [inventoryMonth, setInventoryMonth] = useState("");
+  const [inventoryManufacturingMonth, setInventoryManufacturingMonth] = useState("");
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: currentYear - 2019 + 2 }, (_, i) => 2020 + i); // 2020 to currentYear+1
+  const [analyticsYear, setAnalyticsYear] = useState<number>(currentYear);
+
+  // Add state for category filter for pets and pets under treatment
+  const [petsCategoryFilter, setPetsCategoryFilter] = useState('all');
+  const [treatmentCategoryFilter, setTreatmentCategoryFilter] = useState('all');
+
+  // Add state for search and owner filter for pets and pets under treatment
+  const [petsSearch, setPetsSearch] = useState('');
+  const [petsOwnerFilter, setPetsOwnerFilter] = useState('all');
+  const [treatmentSearch, setTreatmentSearch] = useState('');
+  const [treatmentOwnerFilter, setTreatmentOwnerFilter] = useState('all');
+
+  // Unique categories for pets
+  const petCategories = useMemo(() => {
+    const set = new Set(pets.map(p => p.category).filter(Boolean));
+    return Array.from(set);
+  }, [pets]);
+  // Unique categories for pets under treatment
+  const treatmentCategories = useMemo(() => {
+    const set = new Set(petsUnderTreatment.map(t => t.pet.category).filter(Boolean));
+    return Array.from(set);
+  }, [petsUnderTreatment]);
+  // Unique owners for pets under treatment
+  const treatmentOwners = useMemo(() => {
+    const set = new Set(petsUnderTreatment.map(t => t.pet.owner?.fullName || t.pet.owner?.username || t.pet.owner?.email).filter(Boolean));
+    return Array.from(set);
+  }, [petsUnderTreatment]);
+  // Filtered pets
+  const filteredPets = useMemo(() => {
+    return pets.filter(p => {
+      if (petsCategoryFilter !== 'all' && p.category !== petsCategoryFilter) return false;
+      if (petsOwnerFilter !== 'all' && (p.owner?.fullName || p.owner?.username || p.owner?.email) !== petsOwnerFilter) return false;
+      const q = petsSearch.toLowerCase();
+      if (q && !(
+        p.name.toLowerCase().includes(q) ||
+        (p.breed && p.breed.toLowerCase().includes(q)) ||
+        (p.category && p.category.toLowerCase().includes(q))
+      )) return false;
+      return true;
+    });
+  }, [pets, petsCategoryFilter, petsOwnerFilter, petsSearch]);
+  // Filtered pets under treatment
+  const filteredPetsUnderTreatment = useMemo(() => {
+    return petsUnderTreatment.filter(t => {
+      if (treatmentCategoryFilter !== 'all' && t.pet.category !== treatmentCategoryFilter) return false;
+      if (treatmentOwnerFilter !== 'all' && (t.pet.owner?.fullName || t.pet.owner?.username || t.pet.owner?.email) !== treatmentOwnerFilter) return false;
+      const q = treatmentSearch.toLowerCase();
+      if (q && !(
+        t.pet.name.toLowerCase().includes(q) ||
+        (t.pet.breed && t.pet.breed.toLowerCase().includes(q)) ||
+        (t.pet.category && t.pet.category.toLowerCase().includes(q))
+      )) return false;
+      return true;
+    });
+  }, [petsUnderTreatment, treatmentCategoryFilter, treatmentOwnerFilter, treatmentSearch]);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -434,14 +497,13 @@ function VetClinicDashboardContent() {
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
-      
-      const res = await fetch("http://localhost:8080/api/vet-clinic/dashboard", {
+      let url = "http://localhost:8080/api/vet-clinic/dashboard";
+      if (analyticsYear) url += `?year=${analyticsYear}`;
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
       if (!res.ok) throw new Error("Failed to fetch dashboard data");
       const data = await res.json();
-      
       if (data.success) {
         setDashboardData(data.data);
       } else {
@@ -452,7 +514,7 @@ function VetClinicDashboardContent() {
     } finally {
       setLoading(false);
     }
-  }, []); // Remove loading dependency to prevent infinite loops
+  }, [analyticsYear]);
 
   // Improved socket cleanup
   useEffect(() => {
@@ -709,23 +771,25 @@ function VetClinicDashboardContent() {
         const data = await res.json();
         if (data.success) {
           // Show all appointments (no status filter)
-          const mappedAppointments = data.data.map((booking: Booking) => {
-            const startTime = booking.bookingDate ? new Date(booking.bookingDate) : new Date();
-            if (booking.appointmentTime) {
+          const mappedAppointments = data.data.map((booking: any) => {
+            let startTime = booking.startTime || null;
+            if (!startTime && booking.bookingDate && booking.appointmentTime) {
+              let date = new Date(booking.bookingDate);
               const [hours, minutes] = booking.appointmentTime.split(':').map(Number);
-              startTime.setHours(hours, minutes, 0, 0);
+              date.setHours(hours, minutes, 0, 0);
+              startTime = date.toISOString();
             }
-            const endTime = new Date(startTime);
-            endTime.setMinutes(endTime.getMinutes() + 30); // Assume 30 min appointments
+            const endTime = startTime ? new Date(startTime) : null;
+            if (endTime) endTime.setMinutes(endTime.getMinutes() + 30);
             return {
               _id: booking._id,
-              startTime: startTime.toISOString(),
-              endTime: endTime.toISOString(),
+              startTime,
+              endTime: endTime ? endTime.toISOString() : null,
               type: booking.type || 'in person',
               status: booking.status || 'pending',
               pet: booking.pet,
               user: booking.petOwner,
-              doctor: { name: 'Doctor' }, // Placeholder
+              doctor: { name: 'Doctor' },
               notes: booking.reason || (booking as any).notes,
               googleMeetLink: booking.googleMeetLink
             };
@@ -1768,12 +1832,33 @@ function VetClinicDashboardContent() {
     });
     return Array.from(cats);
   }, [appointments]);
+  const [appointmentSearch, setAppointmentSearch] = useState("");
   const filteredAppointments = useMemo(() => {
     let appts = appointments || [];
-    if (appointmentTypeFilter !== 'all') appts = appts.filter(a => a.type === appointmentTypeFilter);
-    if (bookingCategoryFilter !== 'all') appts = appts.filter(b => b.pet && b.pet.category === bookingCategoryFilter);
+    if (appointmentMonth) {
+      appts = appts.filter(a => {
+        if (!a.startTime) return false;
+        const date = new Date(a.startTime);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear().toString();
+        const [selectedYear, selectedMonth] = appointmentMonth.split('-');
+        return year === selectedYear && month === selectedMonth;
+      });
+    }
+    if (appointmentTypeFilter !== 'all') {
+      appts = appts.filter(a => (a.type || '').toLowerCase() === appointmentTypeFilter);
+    }
+    if (appointmentSearch.trim() !== "") {
+      const q = appointmentSearch.toLowerCase();
+      appts = appts.filter(a =>
+        (a.pet?.name?.toLowerCase().includes(q) ||
+        a.user?.fullName?.toLowerCase().includes(q) ||
+        a.user?.name?.toLowerCase().includes(q) ||
+        (a.notes || '').toLowerCase().includes(q))
+      );
+    }
     return appts;
-  }, [appointments, appointmentTypeFilter, bookingCategoryFilter]);
+  }, [appointments, appointmentMonth, appointmentTypeFilter, appointmentSearch]);
 
   const { dismiss } = useToast();
 
@@ -1828,33 +1913,67 @@ function VetClinicDashboardContent() {
   };
 
   const filteredInventory = useMemo(() => {
-    return inventory.filter((item: InventoryItem) => {
-      const matchesCategory = !inventoryCategory || item.category === inventoryCategory;
-      const matchesStatus = !inventoryStatus || item.status === inventoryStatus;
-      const matchesSearch = !inventorySearch || item.item.toLowerCase().includes(inventorySearch.toLowerCase());
-      let matchesExpiration = true;
-      if (inventoryExpiration === 'soon') {
+    let items = inventory || [];
+    if (inventoryMonth) {
+      items = items.filter(item => {
         if (!item.expirationDate) return false;
-        const days = (Number(new Date(item.expirationDate)) - Number(new Date())) / (1000*60*60*24);
-        matchesExpiration = days >= 0 && days <= 7;
-      } else if (inventoryExpiration === 'expired') {
-        if (!item.expirationDate) return false;
-        matchesExpiration = Number(new Date(item.expirationDate)) < Number(new Date());
-      }
-      let matchesManufacturing = true;
-      if (inventoryManufacturing === 'last30') {
-        if (!item.manufacturingDate) return false;
-        const days = (Number(new Date()) - Number(new Date(item.manufacturingDate))) / (1000*60*60*24);
-        matchesManufacturing = days >= 0 && days <= 30;
-      } else if (inventoryManufacturing === 'range') {
+        const date = new Date(item.expirationDate);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear().toString();
+        const [selectedYear, selectedMonth] = inventoryMonth.split('-');
+        return year === selectedYear && month === selectedMonth;
+      });
+    }
+    if (inventoryManufacturingMonth) {
+      items = items.filter(item => {
         if (!item.manufacturingDate) return false;
         const date = new Date(item.manufacturingDate);
-        if (manufacturingFrom && date < new Date(manufacturingFrom)) matchesManufacturing = false;
-        if (manufacturingTo && date > new Date(manufacturingTo)) matchesManufacturing = false;
-      }
-      return matchesCategory && matchesStatus && matchesSearch && matchesExpiration && matchesManufacturing;
-    });
-  }, [inventory, inventoryCategory, inventoryStatus, inventorySearch, inventoryExpiration, inventoryManufacturing, manufacturingFrom, manufacturingTo]);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear().toString();
+        const [selectedYear, selectedMonth] = inventoryManufacturingMonth.split('-');
+        return year === selectedYear && month === selectedMonth;
+      });
+    }
+    if (inventoryCategory) {
+      items = items.filter(item => item.category === inventoryCategory);
+    }
+    if (inventoryStatus) {
+      items = items.filter(item => item.status === inventoryStatus);
+    }
+    if (inventorySearch.trim() !== "") {
+      const q = inventorySearch.toLowerCase();
+      items = items.filter(item =>
+        item.item.toLowerCase().includes(q) ||
+        (item.category && item.category.toLowerCase().includes(q)) ||
+        (item.status && item.status.toLowerCase().includes(q))
+      );
+    }
+    return items;
+  }, [inventory, inventoryMonth, inventoryManufacturingMonth, inventoryCategory, inventoryStatus, inventorySearch]);
+
+  // Helper to check if all analytics are zero
+  const isNoAnalyticsData = useMemo(() => {
+    if (!dashboardData) return true;
+    // Check pets, inventory, appointments, and analytics charts
+    const pets = dashboardData.totalPets || 0;
+    const inventory = dashboardData.inventoryItems || 0;
+    const appointments = (dashboardData.upcomingAppointments || 0) + (dashboardData.completedAppointments || 0);
+    const byReason = dashboardData.appointmentsByReasonByMonth || {};
+    let byReasonSum = 0;
+    for (const v of Object.values(byReason)) {
+      if (Array.isArray(v)) byReasonSum += v.reduce((a, b) => a + b, 0);
+    }
+    const invChanges = dashboardData.inventoryChangesByMonth || {};
+    let invChangesSum = 0;
+    for (const v of Object.values(invChanges)) {
+      if (Array.isArray(v)) invChangesSum += v.reduce((a, b) => a + b, 0);
+    }
+    return pets === 0 && inventory === 0 && appointments === 0 && byReasonSum === 0 && invChangesSum === 0;
+  }, [dashboardData]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [analyticsYear, fetchDashboardData]);
 
   if (loading) {
     return (
@@ -1971,7 +2090,16 @@ function VetClinicDashboardContent() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            <DashboardAnalytics data={dashboardData as any} />
+            {isNoAnalyticsData ? (
+              <div className="text-center text-gray-500 text-lg py-12">No data for this year.</div>
+            ) : (
+              <DashboardAnalytics 
+                data={dashboardData as any} 
+                analyticsYear={analyticsYear}
+                setAnalyticsYear={setAnalyticsYear}
+                currentYear={currentYear}
+              />
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Activity Feed */}
               <Card>
@@ -2016,10 +2144,46 @@ function VetClinicDashboardContent() {
                     <CardTitle className="text-gray-900 dark:text-white">Pets Overview</CardTitle>
                     <CardDescription>All pets registered with your clinic</CardDescription>
                   </div>
-                  <Button onClick={() => setAddPetDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Pet
-                  </Button>
+                  <div className="flex gap-2 items-center">
+                    <label htmlFor="petsCategoryFilter" className="font-medium">Category:</label>
+                    <select
+                      id="petsCategoryFilter"
+                      className="border rounded px-2 py-1"
+                      value={petsCategoryFilter}
+                      onChange={e => setPetsCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">All</option>
+                      {petCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <label htmlFor="petsOwnerFilter" className="font-medium">Owner:</label>
+                    <select
+                      id="petsOwnerFilter"
+                      className="border rounded px-2 py-1"
+                      value={petsOwnerFilter}
+                      onChange={e => setPetsOwnerFilter(e.target.value)}
+                    >
+                      <option value="all">All</option>
+                      {petOwners.map(owner => (
+                        <option key={owner._id || owner.email || owner.username}
+                                value={owner.fullName || owner.username || owner.email}>
+                          {owner.fullName || owner.username || owner.email}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Search pet, breed, category..."
+                      className="border rounded px-2 py-1"
+                      value={petsSearch}
+                      onChange={e => setPetsSearch(e.target.value)}
+                    />
+                    <Button onClick={() => setAddPetDialogOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Pet
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -2044,7 +2208,7 @@ function VetClinicDashboardContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pets.map((pet) => (
+                      {filteredPets.map((pet) => (
                         <TableRow key={pet._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                           <TableCell>
                             {pet.profilePicture ? (
@@ -2171,7 +2335,30 @@ function VetClinicDashboardContent() {
           </TabsContent>
 
           {/* Appointments Tab */}
-          <TabsContent value="appointments">
+          <TabsContent value="appointments" className="space-y-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Appointments</h2>
+              <div className="flex gap-4 items-center">
+                <label htmlFor="appointmentMonth" className="mr-2 font-medium">Booking Month:</label>
+                <input
+                  id="appointmentMonth"
+                  type="month"
+                  value={appointmentMonth}
+                  onChange={e => setAppointmentMonth(e.target.value)}
+                  className="border rounded px-2 py-1"
+                />
+                <label htmlFor="appointmentSearch" className="ml-4 mr-2 font-medium">Search:</label>
+                <input
+                  id="appointmentSearch"
+                  type="text"
+                  placeholder="Search pet, owner, reason..."
+                  value={appointmentSearch}
+                  onChange={e => setAppointmentSearch(e.target.value)}
+                  className="border rounded px-2 py-1"
+                  style={{ minWidth: 200 }}
+                />
+              </div>
+            </div>
             <Card>
               <CardHeader>
                 <div className="flex justify-between items-center">
@@ -2297,10 +2484,43 @@ function VetClinicDashboardContent() {
                     <CardTitle className="text-gray-900 dark:text-white">Pets Under Treatment</CardTitle>
                     <CardDescription>All pets currently receiving care at your clinic</CardDescription>
                   </div>
-                  <Button onClick={() => setAdmitPetDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Admit Pet
-                  </Button>
+                  <div className="flex gap-2 items-center">
+                    <label htmlFor="treatmentCategoryFilter" className="font-medium">Category:</label>
+                    <select
+                      id="treatmentCategoryFilter"
+                      className="border rounded px-2 py-1"
+                      value={treatmentCategoryFilter}
+                      onChange={e => setTreatmentCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">All</option>
+                      {treatmentCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <label htmlFor="treatmentOwnerFilter" className="font-medium">Owner:</label>
+                    <select
+                      id="treatmentOwnerFilter"
+                      className="border rounded px-2 py-1"
+                      value={treatmentOwnerFilter}
+                      onChange={e => setTreatmentOwnerFilter(e.target.value)}
+                    >
+                      <option value="all">All</option>
+                      {treatmentOwners.map(owner => (
+                        <option key={owner} value={owner}>{owner}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Search pet, breed, category..."
+                      className="border rounded px-2 py-1"
+                      value={treatmentSearch}
+                      onChange={e => setTreatmentSearch(e.target.value)}
+                    />
+                    <Button onClick={() => setAdmitPetDialogOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Admit Pet
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -2323,7 +2543,7 @@ function VetClinicDashboardContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {petsUnderTreatment.map((treatment) => (
+                      {filteredPetsUnderTreatment.map((treatment) => (
                         <TableRow key={treatment._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                           <TableCell>
                             <div>
@@ -2394,7 +2614,7 @@ function VetClinicDashboardContent() {
                           </TableCell>
                         </TableRow>
                       ))}
-                      {petsUnderTreatment.length === 0 && (
+                      {filteredPetsUnderTreatment.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-8">
                             <p className="text-gray-500">No pets currently under treatment</p>
@@ -2493,30 +2713,31 @@ function VetClinicDashboardContent() {
                     </select>
                   </div>
                   <div>
-                    <label>Expiration</label>
-                    <select className="border rounded px-2 py-1" value={inventoryExpiration} onChange={e => setInventoryExpiration(e.target.value)}>
-                      <option value="all">All</option>
-                      <option value="soon">Soon</option>
-                      <option value="expired">Expired</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label>Manufacturing</label>
-                    <select className="border rounded px-2 py-1" value={inventoryManufacturing} onChange={e => setInventoryManufacturing(e.target.value)}>
-                      <option value="all">All</option>
-                      <option value="last30">Last 30 Days</option>
-                      <option value="range">Date Range</option>
-                    </select>
-                  </div>
-                  {inventoryManufacturing === 'range' && (
-                    <div className="flex gap-2">
-                      <Input type="date" value={manufacturingFrom} onChange={e => setManufacturingFrom(e.target.value)} placeholder="From" />
-                      <Input type="date" value={manufacturingTo} onChange={e => setManufacturingTo(e.target.value)} placeholder="To" />
-                    </div>
-                  )}
-                  <div>
                     <label>Search</label>
                     <Input placeholder="Search item..." value={inventorySearch} onChange={e => setInventorySearch(e.target.value)} />
+                  </div>
+                  
+                  <div className="mb-4 flex gap-4 items-center">
+                    <div>
+                      <label htmlFor="inventoryMonth" className="mr-2 font-medium">Inventory Expiry Month:</label>
+                      <input
+                        id="inventoryMonth"
+                        type="month"
+                        value={inventoryMonth}
+                        onChange={e => setInventoryMonth(e.target.value)}
+                        className="border rounded px-2 py-1"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="inventoryManufacturingMonth" className="mr-2 font-medium">Manufacturing Month:</label>
+                      <input
+                        id="inventoryManufacturingMonth"
+                        type="month"
+                        value={inventoryManufacturingMonth}
+                        onChange={e => setInventoryManufacturingMonth(e.target.value)}
+                        className="border rounded px-2 py-1"
+                      />
+                    </div>
                   </div>
                   <Button onClick={() => setIsAddInventoryDialogOpen(true)}>
                     <Plus className="w-4 h-4 mr-2" /> Add Item
