@@ -15,6 +15,7 @@ import VetClinicApproval from '@/components/super-admin/VetClinicApproval'
 import { DashboardAnalytics } from '@/components/DashboardAnalytics'
 import { TableCell } from "@/components/ui/table"
 import type { Pet } from '@/components/super-admin/PetManagement'
+import { useSocket } from "@/app/context/SocketContext";
 
 export default function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState('admins')
@@ -26,6 +27,7 @@ export default function SuperAdminDashboard() {
   const router = useRouter()
   const { toast, dismiss } = useToast()
   const [darkMode, setDarkMode] = useState(false)
+  const { socket } = useSocket();
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -142,13 +144,25 @@ export default function SuperAdminDashboard() {
     }
   }
 
+  // Remove setInterval polling, use socket events for real-time updates
   useEffect(() => {
-    fetchAdmins()
-    fetchUsers()
-    fetchPets()
-    fetchInventory()
-    fetchDashboardOverview()
-  }, [])
+    fetchAdmins();
+    fetchUsers();
+    fetchPets();
+    fetchInventory();
+    fetchDashboardOverview();
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleInventoryUpdated = () => {
+      fetchDashboardOverview();
+    };
+    socket.on('inventory_updated', handleInventoryUpdated);
+    return () => {
+      socket.off('inventory_updated', handleInventoryUpdated);
+    };
+  }, [socket]);
 
   useEffect(() => {
     return () => {
@@ -188,14 +202,38 @@ export default function SuperAdminDashboard() {
           </div>
 
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
-            {dashboardData && <DashboardAnalytics data={{
-              totalUsers: dashboardData.userCount,
-              totalPets: dashboardData.petCount,
-              inventoryItems: dashboardData.inventoryCount,
-              lowStockItems: dashboardData.lowStockItems,
-              mostSubtractedCategory: dashboardData.mostSubtractedCategory,
-              mostSubtractedAmount: dashboardData.mostSubtractedAmount,
-            }} />}
+            {dashboardData && (
+              <DashboardAnalytics
+                data={{
+                  totalUsers: dashboardData.userCount ?? dashboardData.totalUsers,
+                  totalPets: dashboardData.petCount ?? dashboardData.totalPets,
+                  inventoryItems: dashboardData.inventoryCount,
+                  lowStockItems: dashboardData.lowStockItems,
+                  mostSubtractedCategory: dashboardData.mostSubtractedCategory,
+                  mostSubtractedAmount: dashboardData.mostSubtractedAmount,
+                  // Add any other analytics fields as needed
+                }}
+                showAppointmentsByReason={false}
+                showPetStatusChanges={false}
+                showPetsAdmitted={false}
+                showPetHealthStatus={false}
+              />
+            )}
+            {/* Super Admin-specific analytics summary */}
+            {dashboardData && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-8">
+                <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+                  <h2 className="text-xl font-bold mb-4">Super Admin Quick Stats</h2>
+                  <ul className="space-y-2">
+                    <li><span className="font-semibold">Total Users:</span> {dashboardData.userCount ?? dashboardData.totalUsers ?? 'N/A'}</li>
+                    <li><span className="font-semibold">Total Admins:</span> {dashboardData.adminCount ?? 'N/A'}</li>
+                    <li><span className="font-semibold">Total Clinics:</span> {dashboardData.clinicCount ?? 'N/A'}</li>
+                    <li><span className="font-semibold">Total Pets:</span> {dashboardData.petCount ?? dashboardData.totalPets ?? 'N/A'}</li>
+                    <li><span className="font-semibold">Low Stock Items:</span> {dashboardData.lowStockItems ?? 'N/A'}</li>
+                  </ul>
+                </div>
+              </div>
+            )}
             <div className="border-b border-gray-200">
               <nav className="flex -mb-px">
                 <button

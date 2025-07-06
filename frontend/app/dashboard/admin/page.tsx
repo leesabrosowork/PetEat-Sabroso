@@ -22,6 +22,7 @@ import { DashboardAnalytics } from "@/components/DashboardAnalytics"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { useSocket } from "@/app/context/SocketContext";
 
 interface DashboardData {
   totalUsers: number;
@@ -124,6 +125,7 @@ export default function AdminDashboard() {
   
   const router = useRouter()
   const { dismiss } = useToast();
+  const { socket } = useSocket();
 
   // Add state for user and pet search
   const [userSearch, setUserSearch] = useState('');
@@ -176,7 +178,12 @@ export default function AdminDashboard() {
 
       const data = await response.json()
 
-      setDashboardData(data.data.overview)
+      // Merge analytics fields into dashboardData for DashboardAnalytics
+      setDashboardData({
+        ...data.data.overview,
+        ...data.data,
+        inventoryItems: data.data.overview.inventoryCount ?? data.data.overview.totalInventory ?? 0 // ensure the correct field is mapped
+      })
       setUsers(data.data.users)
       setPets(data.data.pets)
       setInventory(data.data.inventory)
@@ -252,6 +259,22 @@ export default function AdminDashboard() {
       router.push("/login")
     }
   }, [router, fetchDashboardData])
+
+  // Remove setInterval polling, use socket events for real-time updates
+  useEffect(() => {
+    fetchDashboardData();
+  }, [inventoryAnalyticsYear]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleInventoryUpdated = () => {
+      fetchDashboardData();
+    };
+    socket.on('inventory_updated', handleInventoryUpdated);
+    return () => {
+      socket.off('inventory_updated', handleInventoryUpdated);
+    };
+  }, [socket, fetchDashboardData]);
 
   const handleAddItem = async (newItem: any) => {
     try {
@@ -761,23 +784,18 @@ export default function AdminDashboard() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <DashboardAnalytics
-                  data={{
-                    totalUsers: dashboardData?.totalUsers,
-                    totalPets: dashboardData?.totalPets,
-                    inventoryItems: inventory.length,
-                    lowStockItems: dashboardData?.lowStockItems,
-                    // Add in-depth inventory analytics fields if available
-                    inventoryChangesByMonth: dashboardData?.inventoryChangesByMonth,
-                    topSubtractedItems: dashboardData?.topSubtractedItems,
-                    mostSubtractedCategory: dashboardData?.mostSubtractedCategory,
-                    mostSubtractedAmount: dashboardData?.mostSubtractedAmount,
-                  }}
-                  analyticsYear={inventoryAnalyticsYear}
-                  setAnalyticsYear={setInventoryAnalyticsYear}
-                  currentYear={currentYear}
-                  showInventoryChanges={true}
-                />
+                {dashboardData && (
+                  <DashboardAnalytics
+                    data={dashboardData}
+                    analyticsYear={inventoryAnalyticsYear}
+                    setAnalyticsYear={setInventoryAnalyticsYear}
+                    currentYear={currentYear}
+                    showAppointmentsByReason={false}
+                    showPetStatusChanges={false}
+                    showPetsAdmitted={false}
+                    showPetHealthStatus={false}
+                  />
+                )}
               </CardContent>
             </Card>
 
@@ -899,9 +917,9 @@ export default function AdminDashboard() {
                   {(users || []).filter(user => {
                     const q = userSearch.toLowerCase();
                     return (
-                      user.username.toLowerCase().includes(q) ||
-                      user.email.toLowerCase().includes(q) ||
-                      user.role.toLowerCase().includes(q)
+                      (user.username || '').toLowerCase().includes(q) ||
+                      (user.email || '').toLowerCase().includes(q) ||
+                      (user.role || '').toLowerCase().includes(q)
                     );
                   }).map((user) => (
                     <TableRow key={user._id} className="hover:bg-gray-100 dark:hover:bg-gray-800">

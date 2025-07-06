@@ -209,10 +209,10 @@ export default function UserManagement({ users, onUserUpdated }: UserManagementP
           {users.filter(user => {
             const q = userSearch.toLowerCase();
             return (
-              user.username.toLowerCase().includes(q) ||
-              user.email.toLowerCase().includes(q) ||
-              user.contactNumber.toLowerCase().includes(q) ||
-              user.role.toLowerCase().includes(q)
+              (user.username || '').toLowerCase().includes(q) ||
+              (user.email || '').toLowerCase().includes(q) ||
+              (user.contactNumber || '').toLowerCase().includes(q) ||
+              (user.role || '').toLowerCase().includes(q)
             );
           }).map((user) => (
             <TableRow key={user._id}>

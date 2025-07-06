@@ -570,7 +570,7 @@ exports.deleteInventoryItem = async (req, res) => {
 exports.updateInventoryStock = async (req, res) => {
     try {
         const itemId = req.params.id;
-        const { amount } = req.body;
+        const { amount, userId } = req.body; // Optionally track who made the change
         if (typeof amount !== 'number') {
             return res.status(400).json({
                 success: false,
@@ -586,6 +586,15 @@ exports.updateInventoryStock = async (req, res) => {
         }
         item.stock += amount;
         if (item.stock < 0) item.stock = 0;
+        // Track subtraction history
+        if (!item.subtractionHistory) item.subtractionHistory = [];
+        if (amount < 0) {
+            item.subtractionHistory.push({
+                amount,
+                date: new Date(),
+                user: userId || null
+            });
+        }
         await item.save();
         if (req.app && req.app.get('io')) {
             req.app.get('io').emit('inventory_updated');
@@ -719,6 +728,9 @@ exports.rejectVetClinic = async (req, res) => {
 // Dashboard overview for super admin
 exports.getDashboardOverview = async (req, res) => {
     try {
+        const analyticsYear = req.query.year ? parseInt(req.query.year) : new Date().getFullYear();
+        const yearStart = new Date(Date.UTC(analyticsYear, 0, 1, 0, 0, 0));
+        const yearEnd = new Date(Date.UTC(analyticsYear + 1, 0, 1, 0, 0, 0));
         const [
             userCount,
             adminCount,
@@ -739,11 +751,140 @@ exports.getDashboardOverview = async (req, res) => {
                 ]
             })
         ]);
+        // --- Analytics Section (similar to vetClinicController, but for all clinics) ---
+        // Appointments by reason by month (all clinics)
+        const Booking = require('../models/bookingModel');
+        const allBookings = await Booking.find({
+            bookingDate: { $gte: yearStart, $lt: yearEnd },
+            status: { $in: ['confirmed', 'completed'] }
+        });
+        const appointmentsByReasonByMonth = {};
+        for (let i = 0; i < 12; i++) {
+            const monthBookings = allBookings.filter(b => {
+                const d = new Date(b.bookingDate);
+                return d.getUTCMonth() === i;
+            });
+            for (const b of monthBookings) {
+                if (!b.reason) continue;
+                if (!appointmentsByReasonByMonth[b.reason]) appointmentsByReasonByMonth[b.reason] = Array(12).fill(0);
+                appointmentsByReasonByMonth[b.reason][i]++;
+            }
+        }
+        // Inventory changes by month (all clinics)
+        const inventoryDocsYear = await Inventory.find({
+            $or: [
+                { expirationDate: { $gte: yearStart, $lt: yearEnd } },
+                { 'subtractionHistory.date': { $gte: yearStart, $lt: yearEnd } },
+                { createdAt: { $gte: yearStart, $lt: yearEnd } },
+                { updatedAt: { $gte: yearStart, $lt: yearEnd } }
+            ]
+        });
+        const inventoryChangesByMonth = {
+            expired: Array(12).fill(0),
+            subtracted: Array(12).fill(0),
+            added: Array(12).fill(0),
+            removed: Array(12).fill(0)
+        };
+        for (let i = 0; i < 12; i++) {
+            // Expired
+            inventoryChangesByMonth.expired[i] = inventoryDocsYear.filter(inv => inv.expirationDate && (new Date(inv.expirationDate)).getUTCMonth() === i && (new Date(inv.expirationDate)).getUTCFullYear() === analyticsYear).length;
+            // Added (created)
+            inventoryChangesByMonth.added[i] = inventoryDocsYear.filter(inv => inv.createdAt && (new Date(inv.createdAt)).getUTCMonth() === i && (new Date(inv.createdAt)).getUTCFullYear() === analyticsYear).length;
+            // Removed (deleted) - not tracked unless you have a deletion log, so leave as 0
+            inventoryChangesByMonth.removed[i] = 0;
+            // Subtracted (from subtractionHistory)
+            let subCount = 0;
+            for (const inv of inventoryDocsYear) {
+                if (Array.isArray(inv.subtractionHistory)) {
+                    for (const sub of inv.subtractionHistory) {
+                        const d = new Date(sub.date);
+                        if (d.getUTCMonth() === i && d.getUTCFullYear() === analyticsYear) {
+                            subCount++;
+                        }
+                    }
+                }
+            }
+            inventoryChangesByMonth.subtracted[i] = subCount;
+        }
+        // Pets admitted & status changes by month (all clinics)
+        const PetsUnderTreatment = require('../models/petsUnderTreatmentModel');
+        const petsUnderTreatmentYear = await PetsUnderTreatment.find({
+            admissionDate: { $gte: yearStart, $lt: yearEnd }
+        });
+        const petsAdmittedByMonth = Array(12).fill(0);
+        const petsStatusChangesByMonth = {
+            Critical: Array(12).fill(0),
+            Stable: Array(12).fill(0),
+            Improving: Array(12).fill(0),
+            Recovered: Array(12).fill(0)
+        };
+        for (const pet of petsUnderTreatmentYear) {
+            // Count admissions
+            const adm = new Date(pet.admissionDate);
+            if (adm.getUTCFullYear() === analyticsYear) {
+                petsAdmittedByMonth[adm.getUTCMonth()]++;
+            }
+            // Count status changes from treatmentHistory
+            if (Array.isArray(pet.treatmentHistory)) {
+                for (const hist of pet.treatmentHistory) {
+                    if (hist.date) {
+                        const d = new Date(hist.date);
+                        if (d.getUTCFullYear() === analyticsYear) {
+                            for (const status of ["Critical","Stable","Improving","Recovered"]) {
+                                if (hist.notes && hist.notes.toLowerCase().includes(status.toLowerCase())) {
+                                    petsStatusChangesByMonth[status][d.getUTCMonth()]++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Most subtracted inventory item (by amount) for the year
+        let mostSubtractedItem = null;
+        let mostSubtractedItemAmount = 0;
+        const subtractedByItem = {};
+        for (const inv of inventoryDocsYear) {
+            if (!inv.item) continue;
+            const totalSub = (inv.subtractionHistory || [])
+                .filter(h => h.amount < 0 && h.date && (new Date(h.date)).getUTCFullYear() === analyticsYear)
+                .reduce((sum, h) => sum + Math.abs(h.amount), 0);
+            if (!subtractedByItem[inv.item]) subtractedByItem[inv.item] = 0;
+            subtractedByItem[inv.item] += totalSub;
+        }
+        for (const [item, amt] of Object.entries(subtractedByItem)) {
+            if (amt > mostSubtractedItemAmount) {
+                mostSubtractedItem = item;
+                mostSubtractedItemAmount = amt;
+            }
+        }
+        // Top 5 most subtracted items
+        const topSubtractedItems = Object.entries(subtractedByItem)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([item, amount]) => ({ item, amount }));
 
+        // --- New: Top 5 most subtracted items by month (12-month analytics) ---
+        const topSubtractedItemsByMonth = topSubtractedItems.map(({ item }) => {
+            const monthly = Array(12).fill(0);
+            for (const inv of inventoryDocsYear) {
+                if (inv.item !== item) continue;
+                if (Array.isArray(inv.subtractionHistory)) {
+                    for (const sub of inv.subtractionHistory) {
+                        if (sub.amount < 0 && sub.date) {
+                            const d = new Date(sub.date);
+                            if (d.getUTCFullYear() === analyticsYear) {
+                                monthly[d.getUTCMonth()] += Math.abs(sub.amount);
+                            }
+                        }
+                    }
+                }
+            }
+            return { item, monthly };
+        });
         // Inventory analytics: find the category with the most subtracted
-        const inventoryDocs = await Inventory.find();
         const subtractedByCategory = {};
-        for (const inv of inventoryDocs) {
+        for (const inv of inventoryDocsYear) {
             if (!inv.category) continue;
             const totalSub = (inv.subtractionHistory || [])
                 .filter(h => h.amount < 0)
@@ -759,7 +900,13 @@ exports.getDashboardOverview = async (req, res) => {
                 mostSubtractedAmount = amt;
             }
         }
-
+        // Pets by status (all clinics)
+        const allPets = await Pet.find();
+        const petsByStatus = {
+            stable: allPets.filter(pet => pet.healthStatus === 'stable').length,
+            checkup: allPets.filter(pet => pet.healthStatus === 'checkup').length,
+            critical: allPets.filter(pet => pet.healthStatus === 'critical').length
+        };
         res.json({
             success: true,
             data: {
@@ -770,7 +917,16 @@ exports.getDashboardOverview = async (req, res) => {
                 inventoryCount,
                 lowStockItems,
                 mostSubtractedCategory,
-                mostSubtractedAmount
+                mostSubtractedAmount,
+                appointmentsByReasonByMonth,
+                inventoryChangesByMonth,
+                petsAdmittedByMonth,
+                petsStatusChangesByMonth,
+                mostSubtractedItem,
+                mostSubtractedItemAmount,
+                topSubtractedItems,
+                topSubtractedItemsByMonth, // <-- Add this to the response
+                petsByStatus
             }
         });
     } catch (error) {
