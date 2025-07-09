@@ -641,23 +641,21 @@ exports.getAllDashboardData = async (req, res) => {
                 })
             ]),
             // Users data with pagination
-            User.find().select('-password').skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 }),
+            User.find().select('-password').skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 }).lean(),
             // Pets data with pagination
-            Pet.find().populate('owner', 'name email').skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 }),
+            Pet.find().populate('owner', 'name email').skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 }).lean(),
             // Inventory data with pagination
-            Inventory.find().skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 }),
+            Inventory.find().skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 }).lean(),
             // Recent activities
             Activity.find()
                 .sort({ createdAt: -1 })
                 .limit(10)
                 .populate('user', 'name')
                 .populate('clinic', 'name')
+                .lean()
         ]);
-
         const [userCount, vetClinicCount, petCount, inventoryCount, availableVetClinics, lowStockItems] = overviewData;
-
         // --- Analytics Section (similar to vetClinicController, but for all clinics) ---
-        // Appointments by reason by month (all clinics)
         const Booking = require('../models/bookingModel');
         const allBookings = await Booking.find({
             bookingDate: { $gte: yearStart, $lt: yearEnd },
@@ -768,7 +766,6 @@ exports.getAllDashboardData = async (req, res) => {
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5)
             .map(([item, amount]) => ({ item, amount }));
-
         // --- New: Top 5 most subtracted items by month (12-month analytics) ---
         const topSubtractedItemsByMonth = topSubtractedItems.map(({ item }) => {
             const monthly = Array(12).fill(0);

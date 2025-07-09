@@ -28,6 +28,8 @@ async function sendExpiryEmails() {
   await mongoose.disconnect();
 }
 
+module.exports = sendExpiryEmails;
+
 if (require.main === module) {
   sendExpiryEmails().then(() => process.exit(0));
 } 

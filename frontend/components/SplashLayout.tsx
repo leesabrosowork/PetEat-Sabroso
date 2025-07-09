@@ -15,9 +15,9 @@ export default function SplashLayout({ children }: { children: React.ReactNode }
   if (!mounted) return null; // Prevents hydration mismatch
 
   return showSplash ? (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-blue-200 to-white animate-fade-in">
-      <Image src="/peteat-logo.png" alt="PetEat Logo" width={96} height={96} className="animate-bounce" />
-      <h1 className="mt-4 text-3xl font-bold text-blue-900 animate-fade-in">PetEat</h1>
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-blue-200 to-white transition-opacity duration-300">
+      <Image src="/peteat-logo.png" alt="PetEat Logo" width={96} height={96} />
+      <h1 className="mt-4 text-3xl font-bold text-blue-900 transition-opacity duration-300">PetEat</h1>
     </div>
   ) : (
     <>{children}</>

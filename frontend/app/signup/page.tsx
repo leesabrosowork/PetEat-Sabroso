@@ -208,8 +208,8 @@ export default function SignUpPage() {
 
   return (
     <PublicLayout>
-      <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-blue-200 flex items-center justify-center p-4 animate-fade-in-up duration-700">
-        <Card className="w-full max-w-2xl shadow-xl border-0 animate-fade-in-down duration-700">
+      <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-blue-200 flex items-center justify-center p-4 transition-opacity duration-300">
+        <Card className="w-full max-w-2xl shadow-xl border-0 transition-all duration-300">
           {showOtp && registeredEmail ? (
             <OtpVerification email={registeredEmail} isVetClinic={false} />
           ) : (

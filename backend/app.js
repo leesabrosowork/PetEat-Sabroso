@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
 const morgan = require('morgan');
+const cron = require('node-cron');
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -57,6 +58,17 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/video-consultations', videoConsultationRoutes);
 app.use('/api/clinical-notes', clinicalNoteRoutes);
 app.use('/api/google-meet', googleMeetRoutes);
+
+// Schedule expiry email job to run every day at 8am
+cron.schedule('0 8 * * *', async () => {
+  try {
+    const sendExpiryEmails = require('./scripts/sendExpiryEmails');
+    await sendExpiryEmails();
+    console.log('Expiry email job completed.');
+  } catch (err) {
+    console.error('Expiry email job failed:', err);
+  }
+});
 
 // Status endpoints
 app.get('/api/status', (req, res) => {

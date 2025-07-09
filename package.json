@@ -17,6 +17,7 @@
     "cloudinary": "^2.7.0",
     "dotenv": "^16.4.5",
     "mongoose": "^8.15.1",
-    "next-auth": "^4.24.11"
+    "next-auth": "^4.24.11",
+    "node-cron": "^4.2.0"
   }
 }

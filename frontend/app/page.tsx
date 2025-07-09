@@ -14,10 +14,10 @@ export default function HomePage() {
         <div className="min-h-screen bg-gradient-to-b from-blue-100 to-white overflow-x-hidden">
           <BackendStatus />
           {/* Header */}
-          <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50 animate-fade-in-down duration-700">
+          <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50 transition-all duration-300">
             <div className="container mx-auto px-4 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
+                <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} priority sizes="32px" />
                 <h1 className="text-2xl font-bold text-gray-900">PetEat</h1>
               </div>
               <div className="flex gap-4">
@@ -32,7 +32,7 @@ export default function HomePage() {
           </header>
 
           {/* Hero Section */}
-          <section className="container mx-auto px-4 py-16 text-center animate-fade-in-up duration-700 delay-200">
+          <section className="container mx-auto px-4 py-16 text-center transition-opacity duration-300">
             <h2 className="text-5xl font-bold text-gray-900 mb-6">Complete Pet Care Management</h2>
             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
               Schedule appointments, manage your pets, and have online consultations with certified
@@ -53,7 +53,7 @@ export default function HomePage() {
           </section>
 
           {/* Features */}
-          <section className="container mx-auto px-4 py-16 animate-fade-in-up duration-700 delay-400">
+          <section className="container mx-auto px-4 py-16 transition-opacity duration-300">
             <h3 className="text-3xl font-bold text-center mb-12">Features for Everyone</h3>
             <div className="grid md:grid-cols-3 gap-8">
               <Card className="transition-transform hover:scale-105 hover:shadow-xl duration-300">
@@ -108,7 +108,7 @@ export default function HomePage() {
           </section>
 
           {/* Key Features */}
-          <section className="bg-gray-50 py-16 animate-fade-in-up duration-700 delay-600">
+          <section className="bg-gray-50 py-16 transition-opacity duration-300">
             <div className="container mx-auto px-4">
               <h3 className="text-3xl font-bold text-center mb-12">Why Choose PetEat?</h3>
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -137,10 +137,10 @@ export default function HomePage() {
           </section>
 
           {/* Footer */}
-          <footer className="bg-gray-900 text-white py-12 animate-fade-in-up duration-700 delay-800">
+          <footer className="bg-gray-900 text-white py-12 transition-opacity duration-300">
             <div className="container mx-auto px-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-4">
-                <Image src="/peteat-logo.png" alt="PetEat Logo" width={24} height={24} />
+                <Image src="/peteat-logo.png" alt="PetEat Logo" width={24} height={24} loading="lazy" sizes="24px" />
                 <span className="text-xl font-bold">PetEat</span>
               </div>
               <p className="text-gray-400">Providing comprehensive pet care management solutions</p>

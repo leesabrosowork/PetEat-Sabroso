@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Heart, Users, Stethoscope, Package, LogOut, Plus, Edit, Trash2, Sun, Moon, Minus } from "lucide-react"
 import Image from "next/image"
+import dynamic from 'next/dynamic';
 import { AddItemDialog } from "@/components/AddItemDialog"
 import { EditUserDialog } from "@/components/EditUserDialog"
 import { EditPetDialog } from "@/components/EditPetDialog"
@@ -23,6 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useSocket } from "@/app/context/SocketContext";
+import { Suspense } from 'react';
 
 interface DashboardData {
   totalUsers: number;
@@ -131,6 +133,12 @@ export default function AdminDashboard() {
   const [userSearch, setUserSearch] = useState('');
   const [petSearch, setPetSearch] = useState('');
 
+  // Add pagination state
+  const [userPage, setUserPage] = useState(1);
+  const [petPage, setPetPage] = useState(1);
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const pageSize = 20;
+
   // Memoize expensive calculations
   const lowStockItems = useMemo(() => {
     return inventory.filter(item => item.status === 'low-stock' || item.stock <= item.minStock);
@@ -166,9 +174,10 @@ export default function AdminDashboard() {
         'Content-Type': 'application/json'
       }
 
-      // Add year param to endpoint
-      let url = 'http://localhost:8080/api/admin/dashboard/all-data';
-      if (inventoryAnalyticsYear) url += `?year=${inventoryAnalyticsYear}`;
+      // Add year, page, and limit params to endpoint
+      let url = `http://localhost:8080/api/admin/dashboard/all-data?year=${inventoryAnalyticsYear}`;
+      url += `&page=${userPage}`;
+      url += `&limit=${pageSize}`;
       // Use the new optimized endpoint that returns all data in one request
       const response = await fetch(url, { headers })
 
@@ -194,7 +203,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [inventoryAnalyticsYear]);
+  }, [inventoryAnalyticsYear, userPage]);
 
   const handleAddNewItem = () => {
     // Create a new empty item
@@ -952,6 +961,11 @@ export default function AdminDashboard() {
                   ))}
                 </TableBody>
               </Table>
+              <div className="flex justify-end gap-2 mt-2">
+                <Button onClick={() => setUserPage(p => Math.max(1, p - 1))} disabled={userPage === 1}>Previous</Button>
+                <span>Page {userPage}</span>
+                <Button onClick={() => setUserPage(p => p + 1)} disabled={users.length < pageSize}>Next</Button>
+              </div>
             </Card>
           </TabsContent>
           
@@ -1029,6 +1043,11 @@ export default function AdminDashboard() {
                   ))}
                 </TableBody>
               </Table>
+              <div className="flex justify-end gap-2 mt-2">
+                <Button onClick={() => setPetPage(p => Math.max(1, p - 1))} disabled={petPage === 1}>Previous</Button>
+                <span>Page {petPage}</span>
+                <Button onClick={() => setPetPage(p => p + 1)} disabled={pets.length < pageSize}>Next</Button>
+              </div>
             </Card>
           </TabsContent>
           
@@ -1149,43 +1168,57 @@ export default function AdminDashboard() {
                   })}
               </TableBody>
             </Table>
+            <div className="flex justify-end gap-2 mt-2">
+              <Button onClick={() => setInventoryPage(p => Math.max(1, p - 1))} disabled={inventoryPage === 1}>Previous</Button>
+              <span>Page {inventoryPage}</span>
+              <Button onClick={() => setInventoryPage(p => p + 1)} disabled={inventory.length < pageSize}>Next</Button>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
 
-      <AddItemDialog
-        isOpen={isAddItemDialogOpen}
-        onClose={() => setIsAddItemDialogOpen(false)}
-        onAddItem={handleAddItem}
-      />
-      <EditUserDialog
-        isOpen={isEditUserDialogOpen}
-        onClose={() => setIsEditUserDialogOpen(false)}
-        user={selectedUser}
-        onUpdateUser={handleUpdateUser}
-      />
-
-      <EditPetDialog
-        isOpen={isEditPetDialogOpen}
-        onClose={() => setIsEditPetDialogOpen(false)}
-        onUpdatePet={handleUpdatePet}
-        pet={selectedPet}
-      />
-      <UserPermissionsDialog
-        isOpen={isUserPermissionsDialogOpen}
-        onClose={() => setIsUserPermissionsDialogOpen(false)}
-      />
-      {selectedInventoryItem && (
-        <EditInventoryItemDialog
-          isOpen={isEditInventoryItemDialogOpen}
-          onClose={() => {
-            setIsEditInventoryItemDialogOpen(false);
-            setSelectedInventoryItem(null);
-          }}
-          onUpdateInventoryItem={handleUpdateInventoryItem}
-          item={selectedInventoryItem}
-        />
-      )}
+      <Suspense fallback={<div>Loading...</div>}>
+        {isAddItemDialogOpen && (
+          <AddItemDialog
+            isOpen={isAddItemDialogOpen}
+            onClose={() => setIsAddItemDialogOpen(false)}
+            onAddItem={handleAddItem}
+          />
+        )}
+        {isEditUserDialogOpen && (
+          <EditUserDialog
+            isOpen={isEditUserDialogOpen}
+            onClose={() => setIsEditUserDialogOpen(false)}
+            user={selectedUser}
+            onUpdateUser={handleUpdateUser}
+          />
+        )}
+        {isEditPetDialogOpen && (
+          <EditPetDialog
+            isOpen={isEditPetDialogOpen}
+            onClose={() => setIsEditPetDialogOpen(false)}
+            onUpdatePet={handleUpdatePet}
+            pet={selectedPet}
+          />
+        )}
+        {isUserPermissionsDialogOpen && (
+          <UserPermissionsDialog
+            isOpen={isUserPermissionsDialogOpen}
+            onClose={() => setIsUserPermissionsDialogOpen(false)}
+          />
+        )}
+        {selectedInventoryItem && isEditInventoryItemDialogOpen && (
+          <EditInventoryItemDialog
+            isOpen={isEditInventoryItemDialogOpen}
+            onClose={() => {
+              setIsEditInventoryItemDialogOpen(false);
+              setSelectedInventoryItem(null);
+            }}
+            onUpdateInventoryItem={handleUpdateInventoryItem}
+            item={selectedInventoryItem}
+          />
+        )}
+      </Suspense>
       <Dialog open={isAddInventoryDialogOpen} onOpenChange={setIsAddInventoryDialogOpen}>
         <DialogContent>
           <DialogHeader>

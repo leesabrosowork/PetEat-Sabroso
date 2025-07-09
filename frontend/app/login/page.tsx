@@ -173,8 +173,8 @@ export default function LoginPage() {
  
    return (
     <PublicLayout>
-      <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-blue-200 flex items-center justify-center p-4 animate-fade-in-up duration-700">
-        <Card className="w-full max-w-md shadow-xl border-0 animate-fade-in-down duration-700">
+      <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-blue-200 flex items-center justify-center p-4 transition-opacity duration-300">
+        <Card className="w-full max-w-md shadow-xl border-0 transition-all duration-300">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center gap-2 mb-4">
               <Image src="/peteat-logo.png" alt="PetEat Logo" width={32} height={32} />
