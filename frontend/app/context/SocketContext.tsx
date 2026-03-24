@@ -31,7 +31,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // Initialize socket connection with improved settings
-    const socketInstance = io('http://localhost:8080', {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    const socketInstance = io(apiUrl, {
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 10,

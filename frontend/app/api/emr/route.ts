@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization") || "";
   // Forward to the backend's /emr/doctor endpoint for doctor EMRs
-  const res = await fetch("http://localhost:8080/emr/doctor", {
+  const res = await fetch(`${API_URL}/emr/doctor`, {
     headers: { Authorization: auth },
   });
   const data = await res.json();

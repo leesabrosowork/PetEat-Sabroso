@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization") || "";
-  const res = await fetch("http://localhost:8080/inventory", {
+  const res = await fetch(`${API_URL}/inventory`, {
     headers: { Authorization: auth },
   });
   const data = await res.json();
