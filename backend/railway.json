@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm install --legacy-peer-deps --no-audit && npm run build",
+  "startCommand": "node server.js"
+}
