@@ -1,0 +1,3 @@
+# Ignore npm audit warnings during build
+node_modules/
+.npm-audit-skip
